@@ -24,8 +24,13 @@ extern "C" {
 #endif // __cplusplus
 
 gboolean
-_ds_events_init(lua_State  *L,
-                GError    **error);
+_ds_events_init(lua_State      *L,
+                GCancellable   *cancellable,
+                GError        **error);
+gboolean
+_ds_events_poll(DsApplication* self);
+
+
 
 gboolean
 ds_events_push(lua_State  *L,

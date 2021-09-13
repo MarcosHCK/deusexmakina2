@@ -30,8 +30,7 @@ _ds_events_poll(DsApplication* self)
   switch(event.type)
   {
   case SDL_QUIT:
-    g_application_quit
-    (g_application_get_default());
+    g_application_quit(G_APPLICATION(self));
     break;
   case SDL_MOUSEMOTION:
     lua_pushstring(L, "mouse_motion");
@@ -91,6 +90,11 @@ _ds_events_poll(DsApplication* self)
 return G_SOURCE_CONTINUE;
 }
 
+/*
+ * init / fini
+ *
+ */
+
 #define EVENT_PUSH "__DS_EVENT_PUSH"
 
 static int
@@ -103,8 +107,9 @@ return 1;
 }
 
 gboolean
-_ds_events_init(lua_State  *L,
-                GError    **error)
+_ds_events_init(lua_State      *L,
+                GCancellable   *cancellable,
+                GError        **error)
 {
   gboolean success = TRUE;
   GError* tmp_err = NULL;

@@ -18,6 +18,7 @@
 #include <config.h>
 #include <ds_application_private.h>
 #include <ds_events.h>
+#include <ds_renderer.h>
 #undef main
 
 G_DEFINE_QUARK(ds-application-error-quark,
@@ -70,22 +71,6 @@ static void
 _lua_close0(lua_State* var)
 {
   (var == NULL) ? NULL : (var = (lua_close (var), NULL));
-}
-
-/*
- * Externs
- *
- */
-
-gboolean
-_ds_renderer_step(DsApplication* self);
-gboolean
-_ds_events_poll(DsApplication* self);
-
-gboolean
-_ds_renderer_step(DsApplication* self)
-{
-return G_SOURCE_CONTINUE;
 }
 
 /*
@@ -244,7 +229,7 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   }
 
   success =
-  _ds_events_init(L, &tmp_err);
+  _ds_events_init(L, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -370,13 +355,27 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
+  self->width = width;
+  self->height = height;
+
+  g_settings_get
+  (gsettings,
+   "framelimit",
+   "b",
+   &(self->framelimit));
+
   SDL_GL_CreateContext(window);
-
-  glEnable(GL_DEPTH_TEST);
-  glEnable(GL_CULL_FACE);
-  glDepthFunc(GL_LESS);
-
   SDL_ShowCursor(1);
+
+  self->gsettings = gsettings;
+
+  success =
+  _ds_renderer_init(self, cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
 
 /*
  * GLEW

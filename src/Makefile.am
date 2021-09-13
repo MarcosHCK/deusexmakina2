@@ -60,7 +60,10 @@ ds_enums.c: $(ENUM_FILES) ds_enums.c.template
 EXTRA_DIST+=\
 	ds_application.h \
 	ds_application_private.h \
+	ds_events.h \
+	ds_lua.h \
 	ds_macros.h \
+	ds_renderer.h \
 	ds_settings.h \
 	$(VOID)
 
@@ -73,6 +76,7 @@ deusexmakina2_SOURCES=\
 	ds_application.c \
 	ds_events.c \
 	ds_lua.c \
+	ds_renderer.c \
 	ds_settings.vala \
 	$(VOID)
 

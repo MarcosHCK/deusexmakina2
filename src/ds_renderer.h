@@ -15,46 +15,23 @@
  *  along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#ifndef __DS_APPLICATION_PRIVATE_INCLUDED__
-#define __DS_APPLICATION_PRIVATE_INCLUDED__ 1
-#include <ds_application.h>
-#include <ds_lua.h>
-#include <ds_macros.h>
-#include <ds_settings.h>
-
-#define DS_EVENTS_PUSH "__DS_EVENTS_PUSH"
+#ifndef __DS_RENDERER_INCLUDED__
+#define __DS_RENDERER_INCLUDED__
+#include <glib.h>
 
 #if __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-/* SDL2 */
-#include <SDL.h>
-#include <SDL_image.h>
-#include <SDL_ttf.h>
-#include <GL/glew.h>
+gboolean
+_ds_renderer_init(DsApplication  *self,
+                  GCancellable   *cancellable,
+                  GError        **error);
+gboolean
+_ds_renderer_step(DsApplication* self);
 
 #if __cplusplus
 }
 #endif // __cplusplus
 
-struct _DsApplication
-{
-  GApplication parent_instance;
-
-  /*<private>*/
-  DsSettings* dssettings;
-  GSettings* gsettings;
-  lua_State* L;
-  guint sdl_init;
-  guint img_init;
-  guint ttf_init;
-  SDL_Window* window;
-  SDL_GLContext* glctx;
-  guint glew_init;
-  gint width;
-  gint height;
-  gboolean framelimit;
-};
-
-#endif // __DS_APPLICATION_PRIVATE_INCLUDED__
+#endif // __DS_RENDERER_INCLUDED__
