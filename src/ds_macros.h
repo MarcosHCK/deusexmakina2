@@ -17,8 +17,7 @@
  */
 #ifndef __DS_MACROS_INCLUDED__
 #define __DS_MACROS_INCLUDED__ 1
-#define __GLIB_H_INSIDE__ 1
-#include <glib/gmacros.h>
+#include <glib.h>
 
 #define goto_error() \
 G_STMT_START { \
