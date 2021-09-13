@@ -81,6 +81,14 @@ AC_CHECK_PROG([GLIB_MKENUMS], [glib-mkenums], [glib-mkenums], [no])
 if test "x$GLIB_MKENUMS" = "xno"; then
   AC_MSG_FAILURE([glib-mkenums not found our your system])
 fi
+AC_CHECK_PROG([GLIB_COMPILE_RESOURCES], [glib-compile-resources], [glib-compile-resources], [no])
+if test "x$GLIB_COMPILE_RESOURCES" = "xno"; then
+  AC_MSG_FAILURE([glib-compile-resources not found our your system])
+fi
+AC_CHECK_PROG([GLIB_COMPILE_SCHEMAS], [glib-compile-schemas], [glib-compile-schemas], [no])
+if test "x$GLIB_COMPILE_SCHEMAS" = "xno"; then
+  AC_MSG_FAILURE([glib-compile-schemas not found our your system])
+fi
 
 #
 # Do you want to debug? Tell me!
@@ -129,6 +137,7 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([
 Makefile
 src/Makefile
+settings/Makefile
 ])
 
 AC_OUTPUT

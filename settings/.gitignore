@@ -14,8 +14,5 @@
 # You should have received a copy of the GNU General Public License
 # along with deusexmakina2. If not, see <http://www.gnu.org/licenses/>.
 #
-ACLOCAL_AMFLAGS=-I m4 ${ACLOCAL_FLAGS}
 
-SUBDIRS=\
-	src \
-	settings
+gschemas.compiled

@@ -15,6 +15,9 @@
 # along with deusexmakina2. If not, see <http://www.gnu.org/licenses/>.
 #
 
+# Keep sync with src/Makefile.am
+schemasdir=${pkgdatadir}/schemas/
+
 #
 # Some variables
 #
@@ -56,6 +59,9 @@ ds_enums.c: $(ENUM_FILES) ds_enums.c.template
 
 EXTRA_DIST+=\
 	ds_application.h \
+	ds_application_private.h \
+	ds_macros.h \
+	ds_settings.h \
 	$(VOID)
 
 #
@@ -65,6 +71,7 @@ EXTRA_DIST+=\
 bin_PROGRAMS=deusexmakina2
 deusexmakina2_SOURCES=\
 	ds_application.c \
+	ds_settings.vala \
 	$(VOID)
 
 deusexmakina2_CFLAGS=\
@@ -80,6 +87,7 @@ deusexmakina2_CFLAGS=\
 	$(GLEW_CFLAGS) \
 	$(CGLM_CFLAGS) \
 	$(LUA_CFLAGS) \
+	-DSCHEMASDIR=\"${schemasdir}\" \
 	-DPKGDATADIR=\"${pkgdatadir}\" \
 	-DPKGLIBEXECDIR=\"${pkglibexecdir}\" \
 	-DABSTOPBUILDDIR=\"${abs_top_builddir}\" \

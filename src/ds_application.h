@@ -17,14 +17,68 @@
  */
 #ifndef __DS_APPLICATION_INCLUDED__
 #define __DS_APPLICATION_INCLUDED__ 1
-#include <gio.h>
+#include <gio/gio.h>
 
-#if __cpluscplus
+/**
+ * DS_APPLICATION_ERROR:
+ *
+ * Error domain for DS_APPLICATION. Errors in this domain will be from the #DsApplicationError enumeration.
+ * See #GError for more information on error domains.
+ */
+#define DS_APPLICATION_ERROR  (ds_application_error_quark())
+
+/**
+ * DsApplicationError:
+ * @DS_APPLICATION_ERROR_FAILED: generic error condition.
+ * @DS_APPLICATION_ERROR_GSETTINGS_INIT: main settings initialization error.
+ * @DS_APPLICATION_ERROR_LUA_INIT: Lua engine initialization error.
+ * @DS_APPLICATION_ERROR_SDL2_INIT: SDL2 initialization error.
+ * @DS_APPLICATION_ERROR_SDL2_IMG_INIT: SDL2_IMG initialization error.
+ * @DS_APPLICATION_ERROR_SDL2_TTF_INIT: SDL2_TTF initialization error.
+ * @DS_APPLICATION_ERROR_SDL2_WINDOW_INIT: SDL2 Window initialization error.
+ * @DS_APPLICATION_ERROR_GLEW_INIT: glew initialization error.
+ *
+ * Error code returned by DsApplication API.
+ * Note that %DS_APPLICATION_ERROR_FAILED is here only for compatibility with
+ * error domain definition paradigm as defined on GLib documentation.
+ */
+typedef enum {
+  DS_APPLICATION_ERROR_FAILED,
+  DS_APPLICATION_ERROR_GSETTINGS_INIT,
+  DS_APPLICATION_ERROR_LUA_INIT,
+  DS_APPLICATION_ERROR_SDL2_INIT,
+  DS_APPLICATION_ERROR_SDL2_IMG_INIT,
+  DS_APPLICATION_ERROR_SDL2_TTF_INIT,
+  DS_APPLICATION_ERROR_SDL2_WINDOW_INIT,
+  DS_APPLICATION_ERROR_GLEW_INIT,
+} DsApplicationError;
+
+#define DS_TYPE_APPLICATION             (ds_application_get_type())
+#define DS_APPLICATION(object)          (G_TYPE_CHECK_INSTANCE_CAST((object), DS_TYPE_APPLICATION, DsApplication))
+#define DS_APPLICATION_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST((klass), DS_TYPE_APPLICATION, DsApplicationClass))
+#define DS_IS_APPLICATION(object)       (G_TYPE_CHECK_INSTANCE_TYPE((object), DS_TYPE_APPLICATION))
+#define DS_IS_APPLICATION_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE((klass), DS_TYPE_APPLICATION))
+#define DS_APPLICATION_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS((obj), DS_TYPE_APPLICATION, DsApplicationClass))
+
+typedef struct _DsApplication       DsApplication;
+typedef struct _DsApplicationClass  DsApplicationClass;
+
+#if __cplusplus
 extern "C" {
-#endif // __cpluscplus
+#endif // __cplusplus
 
-#if __cpluscplus
+GType
+ds_application_get_type();
+GQuark
+ds_application_error_quark();
+
+struct _DsApplicationClass
+{
+  GApplicationClass parent_class;
+};
+
+#if __cplusplus
 }
-#endif // __cpluscplus
+#endif // __cplusplus
 
 #endif // __DS_APPLICATION_INCLUDED__

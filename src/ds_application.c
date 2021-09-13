@@ -16,11 +16,512 @@
  *
  */
 #include <config.h>
-#include <ds_application.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <ds_application_private.h>
+#include <ds_macros.h>
+#undef main
 
-int main() {
-  printf("Hello World!\n");
-return 0;
+G_DEFINE_QUARK(ds-application-error-quark,
+               ds_application_error);
+
+static
+void ds_application_g_initiable_iface_init(GInitableIface* iface);
+
+/*
+ * Clean-up
+ *
+ */
+
+static void
+_glew_fini0(guint var)
+{
+}
+
+static void
+_SDL_GL_DeleteContext0(SDL_GLContext var)
+{
+  (var == NULL) ? NULL : (var = (SDL_GL_DeleteContext (var), NULL));
+}
+
+static void
+_SDL_DestroyWindow0(SDL_Window* var)
+{
+  (var == NULL) ? NULL : (var = (SDL_DestroyWindow (var), NULL));
+}
+
+static void
+_SDL_fini0(guint var)
+{
+  (var == 0) ? 0 : (var = (SDL_Quit (), 0));
+}
+
+static void
+_IMG_fini0(guint var)
+{
+  (var == 0) ? 0 : (var = (IMG_Quit (), 0));
+}
+
+static void
+_TTF_fini0(guint var)
+{
+  (var == 0) ? 0 : (var = (TTF_Quit (), 0));
+}
+
+static void
+_lua_close0(lua_State* var)
+{
+  (var == NULL) ? NULL : (var = (lua_close (var), NULL));
+}
+
+/*
+ * Externs
+ *
+ */
+
+static gboolean
+_ds_renderer_step(DsApplication* self);
+static gboolean
+_ds_events_poll(DsApplication* self);
+
+/*
+ * Object definition
+ *
+ */
+
+G_DEFINE_TYPE_WITH_CODE
+(DsApplication,
+ ds_application,
+ G_TYPE_APPLICATION,
+ G_IMPLEMENT_INTERFACE
+ (G_TYPE_INITABLE,
+  ds_application_g_initiable_iface_init));
+
+static gboolean
+ds_application_g_initiable_iface_init_sync(GInitable     *pself,
+                                           GCancellable  *cancellable,
+                                           GError       **error)
+{
+  gboolean success = TRUE;
+  GError* tmp_err = NULL;
+  DsApplication* self =
+  DS_APPLICATION(pself);
+  gint return_ = 0;
+
+  DsSettings* dssettings = NULL;
+  GSettings* gsettings = NULL;
+  lua_State* L = NULL;
+  guint sdl_init = 0;
+  guint img_init = 0;
+  guint ttf_init = 0;
+  SDL_Window* window = NULL;
+  SDL_GLContext* glctx = NULL;
+  guint glew_init = 0;
+
+/*
+ * Settings
+ *
+ */
+
+  if G_UNLIKELY
+    (g_strcmp0
+     (g_getenv("DS_DEBUG"),
+      "true") == 0)
+    dssettings =
+    ds_settings_new
+    (ABSTOPBUILDDIR
+     "/settings/",
+     cancellable,
+     &tmp_err);
+  else
+    dssettings =
+    ds_settings_new
+    (SCHEMASDIR,
+     cancellable,
+     &tmp_err);
+
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+  const gchar* schema_id = GAPPNAME;
+
+  gsettings =
+  ds_settings_get_settings
+  (dssettings,
+   schema_id);
+
+  if G_UNLIKELY(gsettings == NULL)
+  {
+    g_set_error
+    (error,
+     DS_APPLICATION_ERROR,
+     DS_APPLICATION_ERROR_GSETTINGS_INIT,
+     "ds_settings_get_settings(): failed!: schema '%s' not found\r\n",
+     schema_id);
+    goto_error();
+  }
+
+/*
+ * Lua
+ *
+ */
+
+  L = luaL_newstate();
+  if G_UNLIKELY(L == NULL)
+  {
+    g_set_error
+    (error,
+     DS_APPLICATION_ERROR,
+     DS_APPLICATION_ERROR_LUA_INIT,
+     "luaL_newstate(): failed!: unknown error\r\n");
+    goto_error();
+  }
+
+/*
+ * SDL2
+ *
+ */
+
+  return_ =
+  SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
+  if G_UNLIKELY(0 > return_)
+  {
+    const gchar* err =
+    SDL_GetError();
+    g_set_error
+    (error,
+     DS_APPLICATION_ERROR,
+     DS_APPLICATION_ERROR_SDL2_INIT,
+     "SDL_Init(): failed!: %i: %s\r\n",
+     return_, err ? err : "(null)");
+    goto_error();
+  }
+  else
+  {
+    sdl_init = 1;
+  }
+
+  return_ =
+  IMG_Init(IMG_INIT_WEBP);
+  if G_UNLIKELY(0 > return_)
+  {
+    const gchar* err =
+    SDL_GetError();
+    g_set_error
+    (error,
+     DS_APPLICATION_ERROR,
+     DS_APPLICATION_ERROR_SDL2_INIT,
+     "IMG_Init(): failed!: %i: %s\r\n",
+     return_, err ? err : "(null)");
+    goto_error();
+  }
+  else
+  {
+    img_init = 1;
+  }
+
+  return_ =
+  TTF_Init();
+  if G_UNLIKELY(0 > return_)
+  {
+    const gchar* err =
+    SDL_GetError();
+    g_set_error
+    (error,
+     DS_APPLICATION_ERROR,
+     DS_APPLICATION_ERROR_SDL2_INIT,
+     "TTF_Init(): failed!: %i: %s\r\n",
+     return_, err ? err : "(null)");
+    goto_error();
+  }
+  else
+  {
+    ttf_init = 1;
+  }
+
+/*
+ * Main window
+ *
+ */
+
+  Uint32 flags = SDL_WINDOW_OPENGL;
+  gboolean  fullscreen = FALSE,
+            borderless = FALSE;
+  gint  width = 0,
+        height = 0;
+
+  g_settings_get
+  (gsettings,
+   "fullscreen",
+   "b", &fullscreen);
+  g_settings_get
+  (gsettings,
+   "borderless",
+   "b", &borderless);
+
+  if(fullscreen == TRUE)
+    flags |= SDL_WINDOW_FULLSCREEN;
+  else
+  if(borderless == TRUE)
+    flags |= SDL_WINDOW_BORDERLESS;
+
+  g_settings_get
+  (gsettings,
+   "width",
+   "i", &width);
+  g_settings_get
+  (gsettings,
+   "height",
+   "i", &height);
+
+  window =
+  SDL_CreateWindow
+  (GAPPNAME,
+   SDL_WINDOWPOS_UNDEFINED,
+   SDL_WINDOWPOS_UNDEFINED,
+   width,
+   height,
+   flags);
+
+  if G_UNLIKELY(window == NULL)
+  {
+    g_set_error
+    (error,
+     DS_APPLICATION_ERROR,
+     DS_APPLICATION_ERROR_SDL2_WINDOW_INIT,
+     "SDL_CreateWindow(): failed!: %s\r\n",
+     SDL_GetError());
+    goto_error();
+  }
+
+  SDL_GL_CreateContext(window);
+
+  glEnable(GL_DEPTH_TEST);
+  glEnable(GL_CULL_FACE);
+  glDepthFunc(GL_LESS);
+
+  SDL_ShowCursor(1);
+
+/*
+ * GLEW
+ *
+ */
+
+  return_ =
+  glewInit();
+  if G_UNLIKELY(return_ != GLEW_OK)
+  {
+    g_set_error
+    (error,
+     DS_APPLICATION_ERROR,
+     DS_APPLICATION_ERROR_GLEW_INIT,
+     "glewInit(): failed!: %i: %s\r\n",
+     return_, (gchar*) glewGetErrorString(return_));
+    goto_error();
+  }
+  else
+  {
+    glew_init = 1;
+  }
+
+/*
+ * All goes fine
+ *
+ */
+
+  self->dssettings = g_steal_pointer(&dssettings);
+  self->gsettings = g_steal_pointer(&gsettings);
+  self->L = g_steal_pointer(&L);
+  self->sdl_init = ds_steal_handle_id(&sdl_init);
+  self->img_init = ds_steal_handle_id(&img_init);
+  self->ttf_init = ds_steal_handle_id(&ttf_init);
+  self->window = g_steal_pointer(&window);
+  self->glctx = g_steal_pointer(&glctx);
+  self->glew_init = ds_steal_handle_id(&glew_init);
+
+_error_:
+  g_clear_handle_id
+  (&glew_init, _glew_fini0);
+  g_clear_pointer
+  (&glctx, _SDL_GL_DeleteContext0);
+  g_clear_pointer
+  (&window, _SDL_DestroyWindow0);
+  g_clear_handle_id
+  (&ttf_init, _TTF_fini0);
+  g_clear_handle_id
+  (&img_init, _IMG_fini0);
+  g_clear_handle_id
+  (&sdl_init, _SDL_fini0);
+  g_clear_pointer
+  (&L, _lua_close0);
+  g_clear_object(&gsettings);
+  g_clear_object(&dssettings);
+return success;
+}
+
+static
+void ds_application_g_initiable_iface_init(GInitableIface* iface) {
+  iface->init = ds_application_g_initiable_iface_init_sync;
+}
+
+static
+void ds_application_class_finalize(GObject* pself) {
+  DsApplication* self = DS_APPLICATION(pself);
+
+/*
+ * Finalize
+ *
+ */
+  _glew_fini0(self->glew_init);
+  _SDL_GL_DeleteContext0(self->glctx);
+  _SDL_DestroyWindow0(self->window);
+  _TTF_fini0(self->ttf_init);
+  _IMG_fini0(self->img_init);
+  _SDL_fini0(self->sdl_init);
+  _lua_close0(self->L);
+
+/*
+ * Chain-up
+ *
+ */
+  G_OBJECT_CLASS(ds_application_parent_class)->finalize(pself);
+}
+
+static
+void ds_application_class_dispose(GObject* pself) {
+  DsApplication* self = DS_APPLICATION(pself);
+
+/*
+ * Dispose
+ *
+ */
+  g_clear_object(&(self->gsettings));
+  g_clear_object(&(self->dssettings));
+
+/*
+ * Chain-up
+ *
+ */
+  G_OBJECT_CLASS(ds_application_parent_class)->dispose(pself);
+}
+
+static
+void ds_application_class_init(DsApplicationClass* klass) {
+  GObjectClass* oclass = G_OBJECT_CLASS(klass);
+
+/*
+ * vtable
+ *
+ */
+  oclass->finalize = ds_application_class_finalize;
+  oclass->dispose = ds_application_class_dispose;
+}
+
+static
+void ds_application_init(DsApplication* self) {
+}
+
+/*
+ * on_activate()
+ *
+ */
+
+static
+void on_activate(DsApplication* self) {
+  GMainContext* context =
+  g_main_context_default();
+  GSource* source = NULL;
+
+/*
+ * Attach renderer source
+ *
+ */
+
+  source =
+  g_idle_source_new();
+
+  g_source_set_callback
+  (source,
+   (GSourceFunc)
+   _ds_renderer_step,
+   g_object_ref(self),
+   g_object_unref);
+
+  g_source_set_priority(source, G_PRIORITY_DEFAULT_IDLE);
+  g_source_set_name(source, "Renderer source");
+  g_source_attach(source, context);
+  g_source_unref(source);
+
+/*
+ * Attach events source
+ *
+ */
+
+  source =
+  g_idle_source_new();
+
+  g_source_set_callback
+  (source,
+   (GSourceFunc)
+   _ds_events_poll,
+   g_object_ref(self),
+   g_object_unref);
+
+  g_source_set_priority(source, G_PRIORITY_DEFAULT_IDLE);
+  g_source_set_name(source, "Events poll source");
+  g_source_attach(source, context);
+  g_source_unref(source);
+
+/*
+ * Increase hold count
+ *
+ */
+  g_application_hold
+  (G_APPLICATION(self));
+}
+
+/*
+ * main()
+ *
+ */
+
+int
+main(int    argc,
+     char  *argv[])
+{
+  GError* tmp_err = NULL;
+  GApplication* app =
+  (GApplication*)
+  g_initable_new
+  (DS_TYPE_APPLICATION,
+   NULL,
+   &tmp_err,
+   "application-id", GAPPNAME,
+   "flags", G_APPLICATION_FLAGS_NONE,
+   NULL);
+
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_critical
+    ("%s: %i: %s\r\n",
+     g_quark_to_string(tmp_err->domain),
+     tmp_err->code,
+     tmp_err->message);
+    g_error_free(tmp_err);
+    g_assert_not_reached();
+  }
+
+  g_signal_connect_data
+  (app,
+   "activate",
+   G_CALLBACK(on_activate),
+   NULL, NULL,
+   0);
+
+  int status =
+  g_application_run(app, argc, argv);
+  while(G_IS_OBJECT(app))
+    g_object_unref(app);
+return status;
 }
