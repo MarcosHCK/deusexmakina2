@@ -17,7 +17,7 @@
  */
 #include <config.h>
 #include <ds_application_private.h>
-#include <ds_macros.h>
+#include <ds_events.h>
 #undef main
 
 G_DEFINE_QUARK(ds-application-error-quark,
@@ -77,10 +77,16 @@ _lua_close0(lua_State* var)
  *
  */
 
-static gboolean
+gboolean
 _ds_renderer_step(DsApplication* self);
-static gboolean
+gboolean
 _ds_events_poll(DsApplication* self);
+
+gboolean
+_ds_renderer_step(DsApplication* self)
+{
+return G_SOURCE_CONTINUE;
+}
 
 /*
  * Object definition
@@ -177,6 +183,75 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
      "luaL_newstate(): failed!: unknown error\r\n");
     goto_error();
   }
+
+  success =
+  _ds_lua_init(L, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+  if G_UNLIKELY
+    (g_strcmp0
+     (g_getenv("DS_DEBUG"),
+      "true") == 0)
+  {
+    return_ =
+    luaL_loadfile
+    (L,
+     ABSTOPBUILDDIR
+     "/scripts/"
+     "patches.lua");
+    lua_pushstring
+    (L,
+     ABSTOPBUILDDIR
+     "/scripts/");
+  }
+  else
+  {
+    return_ =
+    luaL_loadfile
+    (L,
+     PKGLIBEXECDIR
+     "patches.lua");
+    lua_pushstring
+    (L,
+     PKGLIBEXECDIR);
+  }
+
+  if G_UNLIKELY
+    (lua_isfunction(L, -2) == FALSE)
+  {
+    const gchar* err =
+    lua_tostring(L, -2);
+
+    g_set_error
+    (error,
+     DS_LUA_ERROR,
+     DS_LUA_ERROR_FAILED,
+     "luaL_loadfile(): failed!: %s\r\n",
+     (err != NULL) ? err : "unknown error");
+    goto_error();
+  }
+
+  success =
+  ds_xpcall(L, 1, 0, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+  success =
+  _ds_events_init(L, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+  lua_settop(L, 0);
 
 /*
  * SDL2
@@ -379,6 +454,7 @@ void ds_application_class_finalize(GObject* pself) {
   _TTF_fini0(self->ttf_init);
   _IMG_fini0(self->img_init);
   _SDL_fini0(self->sdl_init);
+  _ds_lua_fini(self->L, NULL);
   _lua_close0(self->L);
 
 /*

@@ -1,4 +1,4 @@
-# Copyright 2021-2022 MarcosHCK
+# Copyright 2021-2023 MarcosHCK
 # This file is part of deusexmakina2.
 #
 # deusexmakina2 is free software: you can redistribute it and/or modify
@@ -14,9 +14,14 @@
 # You should have received a copy of the GNU General Public License
 # along with deusexmakina2. If not, see <http://www.gnu.org/licenses/>.
 #
-ACLOCAL_AMFLAGS=-I m4 ${ACLOCAL_FLAGS}
+VOID=
 
-SUBDIRS=\
-	src \
-	scripts \
-	settings
+#
+# Lua scripts
+#
+
+dist_pkglibexec_SCRIPTS=\
+	build.lua \
+	event.lua \
+	patches.lua \
+	$(VOID)

@@ -71,6 +71,8 @@ EXTRA_DIST+=\
 bin_PROGRAMS=deusexmakina2
 deusexmakina2_SOURCES=\
 	ds_application.c \
+	ds_events.c \
+	ds_lua.c \
 	ds_settings.vala \
 	$(VOID)
 

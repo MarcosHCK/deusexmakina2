@@ -1,0 +1,54 @@
+--[[
+-- Copyright 2020-2021 MarcosHCK
+-- This file is part of deusexmakina2.
+--
+-- deusexmakina2 is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or
+-- (at your option) any later version.
+--
+-- deusexmakina2 is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License
+-- along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
+]]
+local build = {};
+
+build.DEBUG = @DEBUG@
+build.PACKAGE = "@PACKAGE@"
+build.PACKAGE_BUGREPORT = "@PACKAGE_BUGREPORT@"
+build.PACKAGE_NAME = "@PACKAGE_NAME@"
+build.PACKAGE_RELEASE = "@PACKAGE_RELEASE@"
+build.PACKAGE_STRING = "@PACKAGE_STRING@"
+build.PACKAGE_TARNAME = "@PACKAGE_TARNAME@"
+build.PACKAGE_URL = "@PACKAGE_URL@"
+build.PACKAGE_VERSION = "@PACKAGE_VERSION@"
+build.PACKAGE_VERSION_BUILD = "@PACKAGE_VERSION_BUILD@"
+build.PACKAGE_VERSION_MAYOR = "@PACKAGE_VERSION_MAYOR@"
+build.PACKAGE_VERSION_MICRO = "@PACKAGE_VERSION_MICRO@"
+build.PACKAGE_VERSION_MINOR = "@PACKAGE_VERSION_MINOR@"
+build.target_os = "@target_os@"
+
+do
+  local success, jit = pcall(require, 'jit');
+  if(success) then
+    -- LuaJIT, awesome!
+    build.jit = jit;
+    build.os = jit.os;
+  else
+    if(build.target_os:match('linux')) then
+      build.os = 'Linux';
+    elseif(build.target_os:match('mingw')) then
+      build.os = 'Windows';
+    elseif(build.target_os:match('bsd') or build.target_os:match('BSD')) then
+      build.os = 'Posix';
+    else
+      build.os = 'Other';
+    end
+  end
+end
+
+return build;
