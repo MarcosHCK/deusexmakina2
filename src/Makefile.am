@@ -65,6 +65,9 @@ EXTRA_DIST+=\
 	ds_gl.h \
 	ds_lua.h \
 	ds_macros.h \
+	ds_pipeline.h \
+	ds_pipeline_private.h \
+	ds_renderable.h \
 	ds_renderer.h \
 	ds_settings.h \
 	ds_shader.h \
@@ -81,9 +84,12 @@ deusexmakina2_SOURCES=\
 	ds_events.c \
 	ds_gl.c \
 	ds_lua.c \
+	ds_pipeline.c \
+	ds_renderable.c \
 	ds_renderer.c \
 	ds_settings.vala \
 	ds_shader.c \
+	ds_snippets.S \
 	$(VOID)
 
 deusexmakina2_CFLAGS=\

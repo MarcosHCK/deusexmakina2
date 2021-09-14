@@ -30,16 +30,27 @@ _ds_renderer_step(DsApplication* self)
  * Frame timing
  *
  */
-  static GLfloat deltaTime = 0.f;
-  static GLfloat frameTime = 0.f;
+
+  static
+  GLfloat deltaTime = 0.f;
+  static
+  GLfloat frameTime = 0.f;
 
   deltaTime = SDL_GetTicks() - frameTime;
   frameTime = SDL_GetTicks();
 
 /*
+ * Execute rendering pipeline
+ *
+ */
+
+  ds_pipeline_execute(self->pipeline);
+
+/*
  * Present display
  *
  */
+
   SDL_GL_SwapWindow(self->window);
   if(self->framelimit == TRUE)
     SDL_Delay(10);

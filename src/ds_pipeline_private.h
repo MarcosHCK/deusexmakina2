@@ -15,48 +15,28 @@
  *  along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#ifndef __DS_APPLICATION_PRIVATE_INCLUDED__
-#define __DS_APPLICATION_PRIVATE_INCLUDED__ 1
-#include <ds_application.h>
-#include <ds_lua.h>
+#ifndef __DS_PIPELINE_PRIVATE_INCLUDED__
+#define __DS_PIPELINE_PRIVATE_INCLUDED__
+
 #include <ds_macros.h>
 #include <ds_pipeline.h>
-#include <ds_settings.h>
-
-#define DS_EVENTS_PUSH "__DS_EVENTS_PUSH"
-
-#if __cplusplus
-extern "C" {
-#endif // __cplusplus
-
-/* SDL2 */
-#include <SDL.h>
-#include <SDL_image.h>
-#include <SDL_ttf.h>
 #include <GL/glew.h>
 
-#if __cplusplus
-}
-#endif // __cplusplus
+/*
+ * Some macros
+ *
+ */
 
-struct _DsApplication
-{
-  GApplication parent_instance;
+#define DS_DEFINE_SNIPPET(name) \
+void \
+_ds_##name##_init (); \
+void \
+_ds_##name##_fini ();
 
-  /*<private>*/
-  DsSettings* dssettings;
-  GSettings* gsettings;
-  lua_State* L;
-  guint sdl_init;
-  guint img_init;
-  guint ttf_init;
-  SDL_Window* window;
-  SDL_GLContext* glctx;
-  guint glew_init;
-  gint width;
-  gint height;
-  gboolean framelimit;
-  DsPipeline* pipeline;
-};
+#define DS_SNIPPET_POINTER(name) \
+((gconstpointer) _ds_##name##_init)
 
-#endif // __DS_APPLICATION_PRIVATE_INCLUDED__
+#define DS_SNIPPET_SIZE(name) \
+((gsize) (_ds_##name##_fini - _ds_##name##_init))
+
+#endif // __DS_PIPELINE_PRIVATE_INCLUDED__

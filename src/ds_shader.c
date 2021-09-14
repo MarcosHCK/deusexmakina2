@@ -307,6 +307,18 @@ void init_fn(GTask         *task,
   }
 
   /*
+   * Check if there are an
+   * uncaught error
+   *
+   */
+  if G_UNLIKELY
+    (glGetError() != GL_NO_ERROR)
+  {
+    g_task_return_error(task, ds_gl_get_error());
+    goto_error();
+  }
+
+  /*
    * Finish program
    *
    */
@@ -595,6 +607,13 @@ ds_shader_new_finish(GAsyncResult  *res,
   (g_task_get_source_object(G_TASK(res)),
    res,
    error);
+}
+
+GLuint
+_ds_shader_get_pid(DsShader *shader)
+{
+  g_return_val_if_fail(DS_IS_SHADER(shader), 0);
+return shader->pid;
 }
 
 gboolean

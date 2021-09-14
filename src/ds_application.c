@@ -106,6 +106,7 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   SDL_Window* window = NULL;
   SDL_GLContext* glctx = NULL;
   guint glew_init = 0;
+  DsPipeline* pipeline = NULL;
 
 /*
  * Settings
@@ -400,6 +401,27 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   }
 
 /*
+ * Pipeline
+ *
+ */
+
+  pipeline =
+  ds_pipeline_new(cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+  success =
+  ds_pipeline_update(pipeline, cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+/*
  * All goes fine
  *
  */
@@ -413,8 +435,10 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   self->window = g_steal_pointer(&window);
   self->glctx = g_steal_pointer(&glctx);
   self->glew_init = ds_steal_handle_id(&glew_init);
+  self->pipeline = g_steal_pointer(&pipeline);
 
 _error_:
+  g_clear_object(&pipeline);
   g_clear_handle_id
   (&glew_init, _glew_fini0);
   g_clear_pointer
@@ -471,6 +495,7 @@ void ds_application_class_dispose(GObject* pself) {
  * Dispose
  *
  */
+  g_clear_object(&(self->pipeline));
   g_clear_object(&(self->gsettings));
   g_clear_object(&(self->dssettings));
 
