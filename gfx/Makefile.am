@@ -14,10 +14,29 @@
 # You should have received a copy of the GNU General Public License
 # along with deusexmakina2. If not, see <http://www.gnu.org/licenses/>.
 #
-ACLOCAL_AMFLAGS=-I m4 ${ACLOCAL_FLAGS}
 
-SUBDIRS=\
-	src \
-	settings \
-	scripts \
-	gfx
+# Keep sync with src/Makefile.am
+gfxdir=${pkgdatadir}/gfx/
+
+#
+# Some variables
+#
+
+PACKAGE_NAME=@PACKAGE_NAME@
+PACKAGE_RELEASE=@PACKAGE_RELEASE@
+PACKAGE_VERSION_MAYOR=@PACKAGE_VERSION_MAYOR@
+PACKAGE_VERSION_MINOR=@PACKAGE_VERSION_MINOR@
+PACKAGE_VERSION_MICRO=@PACKAGE_VERSION_MICRO@
+PACKAGE_VERSION_BUILD=@PACKAGE_VERSION_BUILD@
+
+EXTRA_DIST=
+VOID=
+
+#
+# Shaders
+#
+
+gfx_DATA=\
+	skybox_vs.glsl \
+	skybox_fs.glsl \
+	$(VOID)

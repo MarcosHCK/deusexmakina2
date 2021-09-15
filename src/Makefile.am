@@ -15,8 +15,11 @@
 # along with deusexmakina2. If not, see <http://www.gnu.org/licenses/>.
 #
 
-# Keep sync with src/Makefile.am
+# Keep sync with settings/Makefile.am
 schemasdir=${pkgdatadir}/schemas/
+
+# Keep sync with gfx/Makefile.am
+gfxdir=${pkgdatadir}/gfx/
 
 #
 # Some variables
@@ -106,6 +109,7 @@ deusexmakina2_CFLAGS=\
 	$(CGLM_CFLAGS) \
 	$(LUA_CFLAGS) \
 	-DSCHEMASDIR=\"${schemasdir}\" \
+	-DGFXDIR=\"${gfxdir}\" \
 	-DPKGDATADIR=\"${pkgdatadir}\" \
 	-DPKGLIBEXECDIR=\"${pkglibexecdir}\" \
 	-DABSTOPBUILDDIR=\"${abs_top_builddir}\" \

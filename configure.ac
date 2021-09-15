@@ -138,9 +138,10 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([
 Makefile
 src/Makefile
+settings/Makefile
 scripts/Makefile
 scripts/build.lua
-settings/Makefile
+gfx/Makefile
 ])
 
 AC_OUTPUT
