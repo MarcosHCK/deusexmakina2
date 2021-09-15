@@ -21,6 +21,9 @@
 G_DEFINE_QUARK(ds-gl-error-quark,
                ds_gl_error);
 
+static
+GLuint error_code = GL_NO_ERROR;
+
 static GEnumClass*
 ds_gl_error_get_class()
 {
@@ -37,15 +40,26 @@ ds_gl_error_get_class()
 return klass;
 }
 
+gboolean
+ds_gl_has_error()
+{
+  if G_UNLIKELY(error_code == GL_NO_ERROR)
+    error_code = glGetError();
+return error_code != GL_NO_ERROR;
+}
+
 GError*
 ds_gl_get_error()
 {
+  ds_gl_has_error();
+
   GEnumValue* value =
   g_enum_get_value
   (ds_gl_error_get_class(),
-   glGetError());
+   error_code);
 
   g_assert(value != NULL);
+  error_code = GL_NO_ERROR;
 
   return
   g_error_new

@@ -62,6 +62,26 @@ extern "C" {
 GType
 ds_gl_error_get_type();
 
+#define __gl_try(code) \
+  G_STMT_START { \
+    code ; \
+  } G_STMT_END; \
+
+#define __gl_catch(code, finally) \
+  G_STMT_START { \
+    if G_UNLIKELY(ds_gl_has_error() == TRUE) \
+    { \
+      GError* glerror = ds_gl_get_error(); \
+      code ; \
+    } \
+    else \
+    { \
+      finally ; \
+    } \
+  } G_STMT_END
+
+gboolean
+ds_gl_has_error();
 GError*
 ds_gl_get_error();
 

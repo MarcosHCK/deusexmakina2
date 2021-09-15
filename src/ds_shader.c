@@ -145,6 +145,16 @@ ds_shader_g_initable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
+  __gl_try(
+    pid = glCreateProgram();
+  );
+  __gl_catch(
+    g_propagate_error(error, glerror);
+    goto_error();
+  ,
+    g_assert(pid != 0);
+  );
+
   GLuint* sids = g_newa(GLuint, n_shaders);
   memset(sids, 0, sizeof(GLuint) * n_shaders);
 
@@ -226,8 +236,14 @@ ds_shader_g_initable_iface_init_sync(GInitable     *pself,
       goto_error();
     }
 
-    glShaderSource(sid, 1, sources, lengths);
-    glCompileShader(sid);
+    __gl_try(
+      glShaderSource(sid, 1, sources, lengths);
+      glCompileShader(sid);
+    );
+    __gl_catch(
+      g_propagate_error(error, glerror);
+      goto_error();
+    ,);
 
   /*
    * Check compilation status
@@ -256,8 +272,16 @@ ds_shader_g_initable_iface_init_sync(GInitable     *pself,
    *
    */
 
-    glAttachShader(pid, sid);
-    sids[i] = sid; sid = 0;
+    __gl_try(
+      glAttachShader(pid, sid);
+    );
+    __gl_catch(
+      g_propagate_error(error, glerror);
+      goto_error();
+    ,
+      sids[i] = sid;
+      sid = 0;
+    );
   }
 
   /*
@@ -265,7 +289,13 @@ ds_shader_g_initable_iface_init_sync(GInitable     *pself,
    *
    */
 
-  glLinkProgram(pid);
+  __gl_try(
+    glLinkProgram(pid);
+  );
+  __gl_catch(
+    g_propagate_error(error, glerror);
+    goto_error();
+  ,);
 
   /*
    * Check link status
@@ -295,19 +325,13 @@ ds_shader_g_initable_iface_init_sync(GInitable     *pself,
    */
   for(i = 0;i < n_shaders;i++)
   {
-    glDetachShader(pid, sids[i]);
-  }
-
-  /*
-   * Check if there are an
-   * uncaught error
-   *
-   */
-  if G_UNLIKELY
-    (glGetError() != GL_NO_ERROR)
-  {
-    g_propagate_error(error, ds_gl_get_error());
-    goto_error();
+    __gl_try(
+      glDetachShader(pid, sids[i]);
+    );
+    __gl_catch(
+      g_propagate_error(error, glerror);
+      goto_error();
+    ,);
   }
 
   /*
