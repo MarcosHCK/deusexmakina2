@@ -107,7 +107,7 @@ assert_stream(GFile          *file,
 
   if(*pstream == NULL)
   {
-    if(file == NULL)
+    if(file != NULL)
     {
       (*pstream) = (GInputStream*)
       g_file_read(file, cancellable, &tmp_err);
@@ -161,6 +161,7 @@ ds_shader_g_initable_iface_init_sync(GInitable     *pself,
      &(self->streams[i]),
      cancellable,
      &tmp_err);
+
     if G_UNLIKELY(tmp_err != NULL)
     {
       g_propagate_error(error, tmp_err);
