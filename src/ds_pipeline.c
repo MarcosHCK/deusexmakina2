@@ -16,7 +16,10 @@
  *
  */
 #include <config.h>
-#include <ds_pipeline_private.h>
+#include <ds_macros.h>
+#include <ds_pipeline.h>
+#include <GL/glew.h>
+#include <jit/jit.h>
 
 G_DEFINE_QUARK(ds-pipeline-error-quark,
                ds_pipeline_error);
@@ -31,10 +34,6 @@ typedef struct _DsPipelineObjectEntry DsPipelineObjectEntry;
 GLuint
 _ds_shader_get_pid(DsShader *shader);
 
-DS_DEFINE_SNIPPET(function_prologue);
-DS_DEFINE_SNIPPET(function_epilogue);
-DS_DEFINE_SNIPPET(breakpoint);
-
 /*
  * Object definition
  *
@@ -46,9 +45,9 @@ struct _DsPipeline
 
   /*<private>*/
   GHashTable* shaders;
-  GMemoryOutputStream* binary;
-  GDataOutputStream* code;
   guint modified : 1;
+  JitState ctx;
+  GFunc code;
 };
 
 struct _DsPipelineEntry
@@ -60,8 +59,8 @@ struct _DsPipelineEntry
     struct _DsPipelineObjectEntry
     {
       DsRenderable* object;
-      GList* next;
-      GList* prev;
+      DsPipelineObjectList* next;
+      DsPipelineObjectList* prev;
     } c;
   } *objects;
 };
@@ -94,6 +93,7 @@ static
 void ds_pipeline_class_finalize(GObject* pself) {
   DsPipeline* self = DS_PIPELINE(pself);
   g_hash_table_unref(self->shaders);
+  _ds_jit_compile_free(&(self->ctx));
 G_OBJECT_CLASS(ds_pipeline_parent_class)->finalize(pself);
 }
 
@@ -148,13 +148,6 @@ void ds_pipeline_init(DsPipeline* self) {
    (GEqualFunc) g_str_equal,
    (GDestroyNotify) g_free,
    (GDestroyNotify) _ds_entry_free0);
-  self->binary = (GMemoryOutputStream*)
-  g_memory_output_stream_new_resizable();
-  g_assert(g_seekable_can_seek(G_SEEKABLE(self->binary)));
-  self->code = (GDataOutputStream*)
-  g_data_output_stream_new(G_OUTPUT_STREAM(self->binary));
-  g_data_output_stream_set_byte_order(self->code, G_DATA_STREAM_BYTE_ORDER_HOST_ENDIAN);
-  self->modified = TRUE;
 }
 
 /*
@@ -307,55 +300,38 @@ ds_pipeline_update(DsPipeline    *pipeline,
 {
   g_return_val_if_fail(DS_IS_PIPELINE(pipeline), FALSE);
   g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
-  GDataOutputStream* code = pipeline->code;
+  JitState* ctx = &(pipeline->ctx);
   gboolean success = TRUE;
   GError* tmp_err = NULL;
 
-  /* reset binary stream */
-  g_seekable_seek
-  (G_SEEKABLE(pipeline->binary),
-   0,
-   G_SEEK_SET,
-   cancellable,
-   &tmp_err);
+  /* begin code */
+  _ds_jit_compile_free(ctx);
+  _ds_jit_compile_start(ctx);
 
-  if G_UNLIKELY(tmp_err != NULL)
+  /* cycle through programs */
+  GHashTableIter iter;
+  DsPipelineEntry* entry;
+  g_hash_table_iter_init(&iter, pipeline->shaders);
+  while(g_hash_table_iter_next(&iter, NULL, (gpointer*) &entry))
   {
-    g_propagate_error(error, tmp_err);
-    goto_error();
+  /*
+   * Use program
+   *
+   */
+    GLuint pid =
+    _ds_shader_get_pid(entry->shader);
+    _ds_jit_compile_use_shader(ctx, pid);
   }
 
-  /* copy prologue */
-  g_output_stream_write
-  (G_OUTPUT_STREAM(code),
-   DS_SNIPPET_POINTER(function_prologue),
-   DS_SNIPPET_SIZE(function_prologue),
-   cancellable,
-   &tmp_err);
-
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-  /* copy epilogue */
-  g_output_stream_write
-  (G_OUTPUT_STREAM(code),
-   DS_SNIPPET_POINTER(function_epilogue),
-   DS_SNIPPET_SIZE(function_epilogue),
-   cancellable,
-   &tmp_err);
-
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
+  /* finalize code */
+  _ds_jit_compile_end(ctx);
 
 _error_:
   if G_LIKELY(success == TRUE)
+  {
+    pipeline->code = jitmain;
     pipeline->modified = FALSE;
+  }
 return success;
 }
 
@@ -382,7 +358,16 @@ ds_pipeline_execute(DsPipeline* pipeline)
     }
   }
 
-  gpointer code =
-  g_memory_output_stream_get_data(pipeline->binary);
-  asm volatile("call *%0"::"r"(code):);
+  GError* tmp_err = NULL;
+  pipeline->code(&tmp_err, NULL);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_critical
+    ("%s: %i: %s\r\n",
+     g_quark_to_string(tmp_err->domain),
+     tmp_err->code,
+     tmp_err->message);
+    g_error_free(tmp_err);
+    g_assert_not_reached();
+  }
 }

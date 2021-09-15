@@ -68,7 +68,7 @@ ds_pipeline_update(DsPipeline    *pipeline,
                    GCancellable  *cancellable,
                    GError       **error);
 void
-ds_pipeline_execute(DsPipeline* pipeline);
+ds_pipeline_execute(DsPipeline   *pipeline);
 
 #if __cplusplus
 }

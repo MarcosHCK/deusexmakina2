@@ -61,6 +61,8 @@ extern "C" {
 
 GType
 ds_gl_error_get_type();
+GQuark
+ds_gl_error_quark();
 
 #define __gl_try(code) \
   G_STMT_START { \

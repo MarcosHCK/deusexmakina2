@@ -15,44 +15,5 @@
 # along with deusexmakina2. If not, see <http://www.gnu.org/licenses/>.
 #
 
-#
-# Code::Blocks files
-#
-deusexmakina2.cbp
-deusexmakina2.layout
-
-#
-# Build system files
-#
-Makefile
-Makefile.in
-/aclocal.m4
-/autom4te.cache/*
-/compile
-/config.guess
-/config.h.in
-/config.h
-/config.log
-/config.rpath
-/config.status
-/config.sub
-/configure
-/depcomp
-/install-sh
-/libtool
-/ltmain.sh
-/m4/*
-/missing
-
-#
-# automake stamps
-#
-stamp-*
-*.stamp*
-
-#
-# Source code taken
-# from LuaJIT
-#
-/dynasm/*
-/src/jit/minilua.c
+minilua
+*.c

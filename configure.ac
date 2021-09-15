@@ -96,6 +96,12 @@ if test "x$GLIB_COMPILE_SCHEMAS" = "xno"; then
   AC_MSG_FAILURE([glib-compile-schemas not found our your system])
 fi
 
+AC_CHECK_PROG([MINILUA], [luajit], [luajit], [no])
+AM_CONDITIONAL([MINILUA_LOCAL], [test "x$MINILUA" = "xno"])
+if test "x$MINILUA" = "xno"; then
+  AC_SUBST([MINILUA], [./minilua])
+fi
+
 #
 # Do you want to debug? Tell me!
 #
@@ -139,25 +145,51 @@ PKG_CHECK_MODULES([LUA], [luajit lua5.1 lua51])
 #
 # Checks for header files.
 #
-AC_CHECK_HEADERS([stdlib.h string.h])
+
+AC_CHECK_HEADERS([stdlib.h string.h limits.h])
+
+if test "x$MINILUA" != "xno"; then
+  AC_CHECK_HEADERS([stddef.h])
+fi
 
 #
 # Checks for typedefs, structures, and compiler characteristics.
 #
+
 AC_C_INLINE
+AC_TYPE_SIZE_T
+
+if test "x$MINILUA" != "xno"; then
+  AC_CHECK_TYPES([ptrdiff_t])
+fi
 
 #
 # Checks for library functions.
 #
+
 AC_CHECK_FUNCS([memset])
+
+if test "x$MINILUA" != "xno"; then
+  AC_CHECK_FUNCS([memchr])
+  AC_CHECK_FUNCS([strchr])
+  AC_CHECK_FUNCS([strcspn])
+  AC_CHECK_FUNCS([strerror])
+  AC_CHECK_FUNCS([strpbrk])
+  AC_CHECK_FUNCS([strtoul])
+  AC_FUNC_REALLOC
+  AC_FUNC_STRCOLL
+fi
 
 #
 # Prepare output
 #
+
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([
 Makefile
 src/Makefile
+src/jit/Makefile
+src/vapi/Makefile
 settings/Makefile
 scripts/Makefile
 scripts/build.lua

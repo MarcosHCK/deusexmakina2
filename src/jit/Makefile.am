@@ -15,12 +15,6 @@
 # along with deusexmakina2. If not, see <http://www.gnu.org/licenses/>.
 #
 
-# Keep sync with settings/Makefile.am
-schemasdir=${pkgdatadir}/schemas/
-
-# Keep sync with gfx/Makefile.am
-gfxdir=${pkgdatadir}/gfx/
-
 #
 # Some variables
 #
@@ -36,66 +30,36 @@ EXTRA_DIST=
 VOID=
 
 #
-# Subdirectories
+# Build minilua
+# if luajit is not present
 #
 
-SUBDIRS=\
-	jit \
-	vapi \
-	$(VOID)
+if MINILUA_LOCAL
+noinst_PROGRAMS=minilua
+minilua_SOURCES=minilua.c
+minilua_CFLAGS=
+minilua_LDADD=-lm
+endif
+
+%.c: %.dynasm.c
+	$(MINILUA) ${top_builddir}/dynasm/dynasm.lua -o $(@:.dynasm.c=.c) $<
 
 #
-# Source files where
-# at least an enum is defined
-#
-ENUM_FILES=\
-	ds_gl.h \
-	$(VOID)
-
-ds_enums.c: $(ENUM_FILES) ds_enums.c.template
-	$(GLIB_MKENUMS) --symbol-prefix "ds" \
-									--identifier-prefix "Ds" \
-									--template "ds_enums.c.template" \
-									--output $@ \
-									$(ENUM_FILES)
-
-#
-# C headers
+# Library
 #
 
 EXTRA_DIST+=\
-	ds_application.h \
-	ds_application_private.h \
-	ds_events.h \
-	ds_gl.h \
-	ds_lua.h \
-	ds_macros.h \
-	ds_pipeline.h \
-	ds_renderable.h \
-	ds_renderer.h \
-	ds_settings.h \
-	ds_shader.h \
+	jit.h \
+	overwrites.h \
 	$(VOID)
 
-#
-# Binaries and libraries
-#
+noinst_LTLIBRARIES=libjit.la
 
-bin_PROGRAMS=deusexmakina2
-deusexmakina2_SOURCES=\
-	ds_application.c \
-	ds_enums.c \
-	ds_events.c \
-	ds_gl.c \
-	ds_lua.c \
-	ds_pipeline.c \
-	ds_renderable.c \
-	ds_renderer.c \
-	ds_settings.vala \
-	ds_shader.c \
+libjit_la_SOURCES=\
+	x86_64.c \
 	$(VOID)
 
-deusexmakina2_CFLAGS=\
+libjit_la_CFLAGS=\
 	$(GIO_CFLAGS) \
 	$(GOBJECT_CFLAGS) \
 	$(GLIB_CFLAGS) \
@@ -116,34 +80,6 @@ deusexmakina2_CFLAGS=\
 	-DGAPPNAME=\"org.hck.${PACKAGE_NAME}\"
 	$(VOID)
 
-deusexmakina2_LDADD=\
-	$(GIO_LIBS) \
-	$(GOBJECT_LIBS) \
-	$(GLIB_LIBS) \
-	$(LIBSOUP_LIBS) \
-	$(LIBAKASHIC_LIBS) \
-	$(OPENGL_LIBS) \
-	$(SDL2_LIBS) \
-	$(SDL2_IMG_LIBS) \
-	$(SDL2_TTF_LIBS) \
-	$(GLEW_LIBS) \
-	$(CGLM_LIBS) \
-	$(LUA_LIBS) \
-	jit/libjit.la \
-	$(VOID)
-
-#
-# VALA
-#
-
-VALA_PKG=\
-	gio-2.0 \
-	gobject-2.0 \
-	glib-2.0 \
-	config \
-	$(VOID)
-
-AM_VALAFLAGS=\
-	--vapidir=vapi/ \
-	$(addprefix --pkg , ${VALA_PKG}) \
+libjit_la_LDFLAGS=\
+	-static \
 	$(VOID)

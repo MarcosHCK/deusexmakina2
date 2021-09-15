@@ -15,28 +15,25 @@
  *  along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#ifndef __DS_PIPELINE_PRIVATE_INCLUDED__
-#define __DS_PIPELINE_PRIVATE_INCLUDED__
+#ifndef __OVERWRITES_INCLUDED__
+#define __OVERWRITES_INCLUDED__
+#define __INSIDE_DYNASM_FILE__
+#include <glib.h>
 
-#include <ds_macros.h>
-#include <ds_pipeline.h>
-#include <GL/glew.h>
+#define DASM_FDEF   static
 
-/*
- * Some macros
- *
- */
+#define DASM_M_GROW(ctx, t, p, sz, need) \
+  G_STMT_START { \
+    size_t _sz = (sz), _need = (need); \
+    if (_sz < _need) { \
+      if (_sz < 16) _sz = 16; \
+      while (_sz < _need) _sz += _sz; \
+      (p) = (t *)g_realloc((p), _sz); \
+      if ((p) == NULL) exit(1); \
+      (sz) = _sz; \
+    } \
+  } G_STMT_END
 
-#define DS_DEFINE_SNIPPET(name) \
-void \
-_ds_##name##_init (); \
-void \
-_ds_##name##_fini ();
+#define DASM_M_FREE(ctx, p, sz) g_free(p);
 
-#define DS_SNIPPET_POINTER(name) \
-((gconstpointer) _ds_##name##_init)
-
-#define DS_SNIPPET_SIZE(name) \
-((gsize) (_ds_##name##_fini - _ds_##name##_init))
-
-#endif // __DS_PIPELINE_PRIVATE_INCLUDED__
+#endif // __OVERWRITES_INCLUDED__
