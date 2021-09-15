@@ -372,6 +372,8 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
 
   success =
   _ds_renderer_init(self, cancellable, &tmp_err);
+  self->gsettings = NULL;
+
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -413,6 +415,66 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
+  GFile *vertex_file, *fragment_file;
+
+  if G_UNLIKELY
+    (g_strcmp0
+     (g_getenv("DS_DEBUG"),
+      "true") == 0)
+  {
+    vertex_file =
+    g_file_new_build_filename
+    (ABSTOPBUILDDIR
+     "/gfx/",
+     "skybox_vs.glsl",
+     NULL);
+    fragment_file =
+    g_file_new_build_filename
+    (ABSTOPBUILDDIR
+     "/gfx/",
+     "skybox_fs.glsl",
+     NULL);
+  }
+  else
+  {
+    vertex_file =
+    g_file_new_build_filename
+    (GFXDIR,
+     "skybox_vs.glsl",
+     NULL);
+    fragment_file =
+    g_file_new_build_filename
+    (GFXDIR,
+     "skybox_fs.glsl",
+     NULL);
+  }
+
+  DsShader* shader = NULL;
+  shader =
+  ds_shader_new
+  (vertex_file,
+   NULL,
+   fragment_file,
+   NULL,
+   NULL,
+   NULL,
+   cancellable,
+   &tmp_err);
+
+  g_clear_object(&vertex_file);
+  g_clear_object(&fragment_file);
+
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    g_clear_object(&shader);
+    goto_error();
+  }
+
+  ds_pipeline_register_shader(pipeline, "skybox", shader);
+  g_clear_object(&shader);
+
+  /* update pipeline */
   success =
   ds_pipeline_update(pipeline, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
