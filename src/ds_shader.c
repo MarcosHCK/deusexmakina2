@@ -156,7 +156,12 @@ ds_shader_g_initable_iface_init_sync(GInitable     *pself,
   );
 
   GLuint* sids = g_newa(GLuint, n_shaders);
+#ifdef HAVE_MEMSET
   memset(sids, 0, sizeof(GLuint) * n_shaders);
+#else
+  for(i = 0;i < n_shaders;i++)
+    sids[i] = 0;
+#endif
 
   for(i = 0;i < n_shaders;i++)
   {

@@ -15,7 +15,7 @@
  *  along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-
+#include <config.h>
 #define C(n) .globl n; n:
 
 /*

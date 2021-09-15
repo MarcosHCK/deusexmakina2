@@ -68,11 +68,16 @@ AC_SUBST([PACKAGE_RELEASE], [p_RELEASE])
 #  Checks for programs we'll
 # need to build
 #
-AC_PROG_CC
 AC_PROG_CXX
+AC_PROG_AWK
+AC_PROG_CC
+AC_PROG_CPP
+AC_PROG_INSTALL
+AC_PROG_LN_S
+AC_PROG_MAKE_SET
+AC_PROG_RANLIB
 AM_PROG_AS
 AM_PROG_VALAC
-AC_PROG_INSTALL
 
 LT_PREREQ([2.4.6])
 LT_INIT
@@ -130,6 +135,21 @@ PKG_CHECK_MODULES([SDL2_TTF], [SDL2_ttf])
 PKG_CHECK_MODULES([GLEW], [glew])
 PKG_CHECK_MODULES([CGLM], [cglm])
 PKG_CHECK_MODULES([LUA], [luajit lua5.1 lua51])
+
+#
+# Checks for header files.
+#
+AC_CHECK_HEADERS([stdlib.h string.h])
+
+#
+# Checks for typedefs, structures, and compiler characteristics.
+#
+AC_C_INLINE
+
+#
+# Checks for library functions.
+#
+AC_CHECK_FUNCS([memset])
 
 #
 # Prepare output
