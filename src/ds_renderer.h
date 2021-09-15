@@ -17,7 +17,7 @@
  */
 #ifndef __DS_RENDERER_INCLUDED__
 #define __DS_RENDERER_INCLUDED__
-#include <glib.h>
+#include <ds_gl.h>
 
 #if __cplusplus
 extern "C" {

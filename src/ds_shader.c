@@ -302,14 +302,14 @@ ds_shader_g_initable_iface_init_sync(GInitable     *pself,
    *
    */
 
-  glGetShaderiv(sid, GL_LINK_STATUS, &return_);
-  glGetShaderiv(sid, GL_INFO_LOG_LENGTH, &infolen);
+  glGetProgramiv(pid, GL_LINK_STATUS, &return_);
+  glGetProgramiv(pid, GL_INFO_LOG_LENGTH, &infolen);
 
   if G_UNLIKELY(return_ == GL_FALSE)
   {
     g_assert(infolen > 0);
     gchar* msg = g_malloc(infolen + 1);
-    glGetShaderInfoLog(sid, infolen, NULL, msg);
+    glGetProgramInfoLog(pid, infolen, NULL, msg);
 
     g_set_error_literal
     (error,
@@ -325,6 +325,9 @@ ds_shader_g_initable_iface_init_sync(GInitable     *pself,
    */
   for(i = 0;i < n_shaders;i++)
   {
+    if(sids[i] == 0)
+      continue;
+
     __gl_try(
       glDetachShader(pid, sids[i]);
     );
@@ -395,7 +398,18 @@ void ds_shader_class_finalize(GObject* pself) {
  * Finalize
  *
  */
-  glDeleteProgram(self->pid);
+
+  __gl_try(
+    glDeleteProgram(self->pid);
+  );
+  __gl_catch(
+    g_critical
+    ("%s: %i: %s\r\n",
+     g_quark_to_string(glerror->domain),
+     glerror->code,
+     glerror->message);
+    g_error_free(glerror);
+  ,);
 
 /*
  * Chain-up
@@ -549,17 +563,17 @@ ds_shader_use(DsShader     *shader,
   g_return_val_if_fail(DS_IS_SHADER(shader), FALSE);
   g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
   GLuint pid = shader->pid;
-  gboolean success = TRUE;
 
   g_return_val_if_fail(pid != 0, FALSE);
-  glUseProgram(pid);
 
-  if G_UNLIKELY
-    (glGetError() != GL_NO_ERROR)
-  {
-    g_propagate_error(error, ds_gl_get_error());
-    goto_error();
-  }
-_error_:
-return success;
+  __gl_try(
+    glUseProgram(pid);
+  );
+  __gl_catch(
+    g_propagate_error(error, glerror);
+    return FALSE;
+  ,
+    return TRUE;
+  );
+return FALSE;
 }

@@ -149,9 +149,15 @@ _ds_renderer_init(DsApplication  *self,
   gboolean success = TRUE;
   GError* tmp_err = NULL;
 
-  glEnable(GL_DEPTH_TEST);
-  glEnable(GL_CULL_FACE);
-  glDepthFunc(GL_LESS);
+  __gl_try(
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glDepthFunc(GL_LESS);
+  );
+  __gl_catch(
+    g_propagate_error(error, glerror);
+    goto_error();
+  ,);
 
   g_signal_connect
   (self->gsettings,
