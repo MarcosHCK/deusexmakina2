@@ -32,6 +32,7 @@
  * DsApplicationError:
  * @DS_SHADER_ERROR_FAILED: generic error condition.
  * @DS_SHADER_ERROR_COMPILE: error compiling shader.
+ * @DS_SHADER_ERROR_LINK: error linking program.
  *
  * Error code returned by DsApplication API.
  * Note that %DS_SHADER_ERROR_FAILED is here only for compatibility with
@@ -40,6 +41,7 @@
 typedef enum {
   DS_SHADER_ERROR_FAILED,
   DS_SHADER_ERROR_COMPILE,
+  DS_SHADER_ERROR_LINK,
 } DsShaderError;
 
 #define DS_TYPE_SHADER            (ds_shader_get_type())

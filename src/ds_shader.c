@@ -25,8 +25,6 @@ G_DEFINE_QUARK(ds-shader-error-quark,
 
 static
 void ds_shader_g_initable_iface_init(GInitableIface* iface);
-static
-void ds_shader_g_async_initable_iface_init(GAsyncInitableIface* iface);
 
 /*
  * Object definition
@@ -96,10 +94,7 @@ G_DEFINE_TYPE_WITH_CODE
  G_TYPE_OBJECT,
  G_IMPLEMENT_INTERFACE
  (G_TYPE_INITABLE,
-  ds_shader_g_initable_iface_init)
- G_IMPLEMENT_INTERFACE
- (G_TYPE_ASYNC_INITABLE,
-  ds_shader_g_async_initable_iface_init));
+  ds_shader_g_initable_iface_init));
 
 static inline gboolean
 assert_stream(GFile          *file,
@@ -128,14 +123,14 @@ _error_:
 return success;
 }
 
-static
-void init_fn(GTask         *task,
-             DsShader      *self,
-             gpointer       task_data,
-             GCancellable  *cancellable)
+static gboolean
+ds_shader_g_initable_iface_init_sync(GInitable     *pself,
+                                     GCancellable  *cancellable,
+                                     GError       **error)
 {
   gboolean success = TRUE;
   GError* tmp_err = NULL;
+  DsShader* self = DS_SHADER(pself);
   GMemoryOutputStream* mem = NULL;
   GBytes* bytes = NULL;
   GLuint pid, sid;
@@ -146,8 +141,7 @@ void init_fn(GTask         *task,
   pid = glCreateProgram();
   if G_UNLIKELY(pid == 0)
   {
-    g_task_return_error
-    (task, ds_gl_get_error());
+    g_propagate_error(error, ds_gl_get_error());
     goto_error();
   }
 
@@ -169,7 +163,7 @@ void init_fn(GTask         *task,
      &tmp_err);
     if G_UNLIKELY(tmp_err != NULL)
     {
-      g_task_return_error(task, tmp_err);
+      g_propagate_error(error, tmp_err);
       goto_error();
     }
 
@@ -198,7 +192,7 @@ void init_fn(GTask         *task,
      &tmp_err);
     if G_UNLIKELY(tmp_err != NULL)
     {
-      g_task_return_error(task, tmp_err);
+      g_propagate_error(error, tmp_err);
       goto_error();
     }
 
@@ -227,8 +221,7 @@ void init_fn(GTask         *task,
     glCreateShader(shader_types[i]);
     if G_UNLIKELY(sid == 0)
     {
-      g_task_return_error
-      (task, ds_gl_get_error());
+      g_propagate_error(error, ds_gl_get_error());
       goto_error();
     }
 
@@ -249,12 +242,11 @@ void init_fn(GTask         *task,
       gchar* msg = g_malloc(infolen + 1);
       glGetShaderInfoLog(sid, infolen, NULL, msg);
 
-      g_task_return_error
-      (task,
-       g_error_new_literal
-       (DS_SHADER_ERROR,
-        DS_SHADER_ERROR_COMPILE,
-        msg));
+      g_set_error_literal
+      (error,
+       DS_SHADER_ERROR,
+       DS_SHADER_ERROR_COMPILE,
+       msg);
       goto_error();
     }
 
@@ -264,7 +256,7 @@ void init_fn(GTask         *task,
    */
 
     glAttachShader(pid, sid);
-    sids[i] = sid;
+    sids[i] = sid; sid = 0;
   }
 
   /*
@@ -288,12 +280,11 @@ void init_fn(GTask         *task,
     gchar* msg = g_malloc(infolen + 1);
     glGetShaderInfoLog(sid, infolen, NULL, msg);
 
-    g_task_return_error
-    (task,
-     g_error_new_literal
-     (DS_SHADER_ERROR,
-      DS_SHADER_ERROR_COMPILE,
-      msg));
+    g_set_error_literal
+    (error,
+     DS_SHADER_ERROR,
+     DS_SHADER_ERROR_LINK,
+     msg);
     goto_error();
   }
 
@@ -314,7 +305,7 @@ void init_fn(GTask         *task,
   if G_UNLIKELY
     (glGetError() != GL_NO_ERROR)
   {
-    g_task_return_error(task, ds_gl_get_error());
+    g_propagate_error(error, ds_gl_get_error());
     goto_error();
   }
 
@@ -325,73 +316,21 @@ void init_fn(GTask         *task,
   self->pid = pid; pid = 0;
 
 _error_:
-  if G_UNLIKELY(success == TRUE)
-    g_task_return_boolean(task, success);
   if G_UNLIKELY(pid != 0)
     glDeleteProgram(pid);
+  if G_UNLIKELY(sid != 0)
+    glDeleteShader(sid);
   for(i = 0;i < n_shaders;i++)
     glDeleteShader(sids[i]);
   g_clear_pointer
   (&bytes, g_bytes_unref);
   g_clear_object(&mem);
-}
-
-static gboolean
-ds_shader_g_initable_iface_init_sync(GInitable     *initable,
-                                     GCancellable  *cancellable,
-                                     GError       **error)
-{
-  GTask* task =
-  g_task_new
-  (G_OBJECT(initable),
-   cancellable,
-   NULL, NULL);
-
-  g_task_set_name(task, "DsShader::init");
-  g_task_set_priority(task, G_PRIORITY_DEFAULT);
-  g_task_run_in_thread_sync(task, (GTaskThreadFunc) init_fn);
-  gboolean return_ = g_task_propagate_boolean(task, error);
-  g_object_unref(task);
-return return_;
+return success;
 }
 
 static
 void ds_shader_g_initable_iface_init(GInitableIface* iface) {
   iface->init = ds_shader_g_initable_iface_init_sync;
-}
-
-static void
-ds_shader_g_initable_iface_init_async(GAsyncInitable       *initable,
-                                      int                   io_priority,
-                                      GCancellable         *cancellable,
-                                      GAsyncReadyCallback   callback,
-                                      gpointer              user_data)
-{
-  GTask* task =
-  g_task_new
-  (G_OBJECT(initable),
-   cancellable,
-   callback,
-   user_data);
-
-  g_task_set_name(task, "DsShader::init_async");
-  g_task_set_priority(task, io_priority);
-  g_task_run_in_thread(task, (GTaskThreadFunc) init_fn);
-  g_object_unref(task);
-}
-
-static gboolean
-ds_shader_g_initable_iface_init_finish(GAsyncInitable  *initable,
-                                       GAsyncResult    *res,
-                                       GError         **error)
-{
-  return g_task_propagate_boolean(G_TASK(res), error);
-}
-
-static
-void ds_shader_g_async_initable_iface_init(GAsyncInitableIface* iface) {
-  iface->init_async = ds_shader_g_initable_iface_init_async;
-  iface->init_finish = ds_shader_g_initable_iface_init_finish;
 }
 
 static
@@ -569,44 +508,6 @@ ds_shader_new(GFile        *vertex_file,
    "geometry-file", geometry_file,
    "geometry-stream", geometry_stream,
    NULL);
-}
-
-void
-ds_shader_new_async(GFile                *vertex_file,
-                    GInputStream         *vertex_stream,
-                    GFile                *fragment_file,
-                    GInputStream         *fragment_stream,
-                    GFile                *geometry_file,
-                    GInputStream         *geometry_stream,
-                    int                   io_priority,
-                    GCancellable         *cancellable,
-                    GAsyncReadyCallback   callback,
-                    gpointer              user_data)
-{
-  g_async_initable_new_async
-  (DS_TYPE_SHADER,
-   io_priority,
-   cancellable,
-   callback,
-   user_data,
-   "vertex-file", vertex_file,
-   "vertex-stream", vertex_stream,
-   "fragment-file", fragment_file,
-   "fragment-stream", fragment_stream,
-   "geometry-file", geometry_file,
-   "geometry-stream", geometry_stream,
-   NULL);
-}
-
-DsShader*
-ds_shader_new_finish(GAsyncResult  *res,
-                     GError       **error)
-{
-  return (DsShader*)
-  g_async_initable_new_finish
-  (g_task_get_source_object(G_TASK(res)),
-   res,
-   error);
 }
 
 GLuint

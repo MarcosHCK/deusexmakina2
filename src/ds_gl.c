@@ -21,12 +21,28 @@
 G_DEFINE_QUARK(ds-gl-error-quark,
                ds_gl_error);
 
+static GEnumClass*
+ds_gl_error_get_class()
+{
+  static
+  GEnumClass* klass = NULL;
+  if G_UNLIKELY(klass == NULL)
+  {
+    GType g_type =
+    ds_gl_error_get_type();
+
+    klass =
+    g_type_class_ref(g_type);
+  }
+return klass;
+}
+
 GError*
 ds_gl_get_error()
 {
   GEnumValue* value =
   g_enum_get_value
-  (ds_gl_error_get_type(),
+  (ds_gl_error_get_class(),
    glGetError());
 
   g_assert(value != NULL);
