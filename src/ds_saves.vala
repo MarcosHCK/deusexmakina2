@@ -18,16 +18,36 @@
 
 namespace Ds
 {
-  public class Saves : GLib.Object, GLib.Initable
+  const string AUTOSAVE = "autosave";
+
+  public class Save : GLib.Object, GLib.Initable
   {
+    public string name {get; construct;}
+    private GLib.File savesdir = null;
+    private GLib.File file = null;
+
     public bool init(GLib.Cancellable? cancellable = null) throws GLib.Error
     {
-      return true;
+      var time = new GLib.DateTime.now_local();
+      string fullname = this._name + time.format("-%F-%T");
+      this.file = savesdir.get_child(fullname);
+    return true;
     }
 
-    public Saves.sync(GLib.Cancellable? cancellable = null) throws GLib.Error
+    public GLib.OutputStream save(GLib.Cancellable? cancellable = null) throws GLib.Error
     {
-      Object();
+      return file.create(GLib.FileCreateFlags.PRIVATE, cancellable) as GLib.OutputStream;
+    }
+
+    public GLib.InputStream load(GLib.Cancellable? cancellable = null) throws GLib.Error
+    {
+      return file.read(cancellable) as GLib.InputStream;
+    }
+
+    public Save(string name, GLib.File savesdir, GLib.Cancellable? cancellable = null) throws GLib.Error
+    {
+      Object(name: name);
+      this.savesdir = savesdir;
       this.init(cancellable);
     }
   }

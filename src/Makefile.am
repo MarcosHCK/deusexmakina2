@@ -73,6 +73,7 @@ EXTRA_DIST+=\
 	ds_pipeline.h \
 	ds_renderable.h \
 	ds_renderer.h \
+	ds_saves.h \
 	ds_settings.h \
 	ds_shader.h \
 	$(VOID)
@@ -94,6 +95,7 @@ deusexmakina2_SOURCES=\
 	ds_saves.vala \
 	ds_settings.vala \
 	ds_shader.c \
+	ds_utils.vala \
 	$(VOID)
 
 deusexmakina2_CFLAGS=\

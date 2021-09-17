@@ -27,6 +27,8 @@ G_DEFINE_QUARK(ds-application-error-quark,
 static
 void ds_application_g_initiable_iface_init(GInitableIface* iface);
 
+#define _g_object_unref0(var) ((var == NULL) ? NULL : (var = (g_object_unref (var), NULL)))
+
 /*
  * Clean-up
  *
@@ -99,6 +101,8 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
 
   DsSettings* dssettings = NULL;
   GSettings* gsettings = NULL;
+  GFile* basedatadir = NULL;
+  GFile* savesdir = NULL;
   lua_State* L = NULL;
   guint sdl_init = 0;
   guint img_init = 0;
@@ -151,6 +155,27 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
      DS_APPLICATION_ERROR_GSETTINGS_INIT,
      "ds_settings_get_settings(): failed!: schema '%s' not found\r\n",
      schema_id);
+    goto_error();
+  }
+
+/*
+ * Saves manager
+ *
+ */
+
+  basedatadir =
+  _ds_base_data_dir_pick(cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+  savesdir =
+  _ds_base_data_dir_child("saves", basedatadir, cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
     goto_error();
   }
 
@@ -490,6 +515,8 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
 
   self->dssettings = g_steal_pointer(&dssettings);
   self->gsettings = g_steal_pointer(&gsettings);
+  self->basedatadir = g_steal_pointer(&basedatadir);
+  self->savesdir = g_steal_pointer(&savesdir);
   self->L = g_steal_pointer(&L);
   self->sdl_init = ds_steal_handle_id(&sdl_init);
   self->img_init = ds_steal_handle_id(&img_init);
@@ -515,6 +542,8 @@ _error_:
   (&sdl_init, _SDL_fini0);
   g_clear_pointer
   (&L, _lua_close0);
+  g_clear_object(&savesdir);
+  g_clear_object(&basedatadir);
   g_clear_object(&gsettings);
   g_clear_object(&dssettings);
 return success;
@@ -557,7 +586,8 @@ void ds_application_class_dispose(GObject* pself) {
  * Dispose
  *
  */
-  g_clear_object(&(self->pipeline));
+  g_clear_object(&(self->savesdir));
+  g_clear_object(&(self->basedatadir));
   g_clear_object(&(self->gsettings));
   g_clear_object(&(self->dssettings));
 

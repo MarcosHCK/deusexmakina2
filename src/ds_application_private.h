@@ -21,6 +21,7 @@
 #include <ds_lua.h>
 #include <ds_macros.h>
 #include <ds_pipeline.h>
+#include <ds_saves.h>
 #include <ds_settings.h>
 
 #define DS_EVENTS_PUSH "__DS_EVENTS_PUSH"
@@ -35,6 +36,15 @@ extern "C" {
 #include <SDL_ttf.h>
 #include <GL/glew.h>
 
+GFile*
+_ds_base_data_dir_pick(GCancellable  *cancellable,
+                       GError       **error);
+GFile*
+_ds_base_data_dir_child(const gchar   *name,
+                        GFile         *basedatadir,
+                        GCancellable  *cancellable,
+                        GError       **error);
+
 #if __cplusplus
 }
 #endif // __cplusplus
@@ -46,6 +56,8 @@ struct _DsApplication
   /*<private>*/
   DsSettings* dssettings;
   GSettings* gsettings;
+  GFile* basedatadir;
+  GFile* savesdir;
   lua_State* L;
   guint sdl_init;
   guint img_init;
