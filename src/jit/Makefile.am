@@ -39,6 +39,8 @@ noinst_PROGRAMS=minilua
 minilua_SOURCES=minilua.c
 minilua_CFLAGS=
 minilua_LDADD=-lm
+else
+EXTRA_DIST=minilua.c
 endif
 
 %.c: %.dynasm.c
@@ -56,7 +58,7 @@ EXTRA_DIST+=\
 noinst_LTLIBRARIES=libjit.la
 
 libjit_la_SOURCES=\
-	x86_64.c \
+	pipeline_x86_64.c \
 	$(VOID)
 
 libjit_la_CFLAGS=\

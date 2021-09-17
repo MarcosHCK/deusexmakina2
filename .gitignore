@@ -55,4 +55,3 @@ stamp-*
 # from LuaJIT
 #
 /dynasm/*
-/src/jit/minilua.c
