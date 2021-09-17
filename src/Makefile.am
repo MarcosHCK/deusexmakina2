@@ -91,6 +91,7 @@ deusexmakina2_SOURCES=\
 	ds_pipeline.c \
 	ds_renderable.c \
 	ds_renderer.c \
+	ds_saves.vala \
 	ds_settings.vala \
 	ds_shader.c \
 	$(VOID)

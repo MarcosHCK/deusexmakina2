@@ -26,4 +26,5 @@
 deusexmakina2
 
 ds_enums.c
+ds_saves.c
 ds_settings.c
