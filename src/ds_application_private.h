@@ -18,7 +18,7 @@
 #ifndef __DS_APPLICATION_PRIVATE_INCLUDED__
 #define __DS_APPLICATION_PRIVATE_INCLUDED__ 1
 #include <ds_application.h>
-#include <ds_lua.h>
+#include <ds_luaobj.h>
 #include <ds_macros.h>
 #include <ds_pipeline.h>
 #include <ds_saves.h>

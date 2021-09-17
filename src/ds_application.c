@@ -72,7 +72,7 @@ _TTF_fini0(guint var)
 static void
 _lua_close0(lua_State* var)
 {
-  (var == NULL) ? NULL : (var = (lua_close (var), NULL));
+  (var == NULL) ? NULL : (var = (_ds_lua_fini(var), lua_close (var), NULL));
 }
 
 /*
@@ -225,7 +225,7 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     luaL_loadfile
     (L,
      PKGLIBEXECDIR
-     "patches.lua");
+     "/patches.lua");
     lua_pushstring
     (L,
      PKGLIBEXECDIR);
@@ -261,8 +261,6 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     g_propagate_error(error, tmp_err);
     goto_error();
   }
-
-  lua_settop(L, 0);
 
 /*
  * SDL2
@@ -393,12 +391,8 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   SDL_GL_CreateContext(window);
   SDL_ShowCursor(1);
 
-  self->gsettings = gsettings;
-
   success =
-  _ds_renderer_init(self, cancellable, &tmp_err);
-  self->gsettings = NULL;
-
+  _ds_renderer_init(self, gsettings, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -440,6 +434,11 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
+  /* push object */
+  luaD_pushobject(L, G_OBJECT(pipeline));
+  lua_setglobal(L, "pipeline");
+
+/*
   GFile *vertex_file, *fragment_file;
 
   if G_UNLIKELY
@@ -498,8 +497,62 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
 
   ds_pipeline_register_shader(pipeline, "skybox", shader);
   g_clear_object(&shader);
+*/
 
-  /* update pipeline */
+/*
+ * Execute setup script
+ *
+ */
+
+  if G_UNLIKELY
+    (g_strcmp0
+     (g_getenv("DS_DEBUG"),
+      "true") == 0)
+  {
+    return_ =
+    luaL_loadfile
+    (L,
+     ABSTOPBUILDDIR
+     "/scripts/"
+     "setup.lua");
+  }
+  else
+  {
+    return_ =
+    luaL_loadfile
+    (L,
+     PKGLIBEXECDIR
+     "/setup.lua");
+  }
+
+  if G_UNLIKELY
+    (lua_isfunction(L, -1) == FALSE)
+  {
+    const gchar* err =
+    lua_tostring(L, -1);
+
+    g_set_error
+    (error,
+     DS_LUA_ERROR,
+     DS_LUA_ERROR_FAILED,
+     "luaL_loadfile(): failed!: %s\r\n",
+     (err != NULL) ? err : "unknown error");
+    goto_error();
+  }
+
+  success =
+  ds_xpcall(L, 0, 0, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+/*
+ * Update pipeline
+ *
+ */
+
   success =
   ds_pipeline_update(pipeline, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
@@ -525,6 +578,7 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   self->glctx = g_steal_pointer(&glctx);
   self->glew_init = ds_steal_handle_id(&glew_init);
   self->pipeline = g_steal_pointer(&pipeline);
+  lua_settop(self->L, 0);
 
 _error_:
   g_clear_object(&pipeline);
@@ -568,7 +622,6 @@ void ds_application_class_finalize(GObject* pself) {
   _TTF_fini0(self->ttf_init);
   _IMG_fini0(self->img_init);
   _SDL_fini0(self->sdl_init);
-  _ds_lua_fini(self->L, NULL);
   _lua_close0(self->L);
 
 /*
@@ -586,6 +639,7 @@ void ds_application_class_dispose(GObject* pself) {
  * Dispose
  *
  */
+  g_clear_object(&(self->pipeline));
   g_clear_object(&(self->savesdir));
   g_clear_object(&(self->basedatadir));
   g_clear_object(&(self->gsettings));

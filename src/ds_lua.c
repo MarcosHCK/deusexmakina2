@@ -17,6 +17,7 @@
  */
 #include <config.h>
 #include <ds_lua.h>
+#include <ds_macros.h>
 
 G_DEFINE_QUARK(ds-lua-error-quark,
                ds_lua_error);
@@ -117,19 +118,22 @@ _ds_lua_init(lua_State  *L,
   GError* tmp_err = NULL;
 
   luaL_openlibs(L);
-  lua_settop(L, 0);
+
+  success =
+  _ds_lualib_init(L, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
 
 _error_:
+  lua_settop(L, 0);
 return success;
 }
 
-gboolean
-_ds_lua_fini(lua_State  *L,
-             GError    **error)
+void
+_ds_lua_fini(lua_State  *L)
 {
-  gboolean success = TRUE;
-  GError* tmp_err = NULL;
-
-_error_:
-return success;
+  _ds_lualib_fini(L);
 }

@@ -69,6 +69,7 @@ EXTRA_DIST+=\
 	ds_events.h \
 	ds_gl.h \
 	ds_lua.h \
+	ds_luaobj.h \
 	ds_macros.h \
 	ds_pipeline.h \
 	ds_renderable.h \
@@ -89,6 +90,8 @@ deusexmakina2_SOURCES=\
 	ds_events.c \
 	ds_gl.c \
 	ds_lua.c \
+	ds_lualib.c \
+	ds_luaobj.c \
 	ds_pipeline.c \
 	ds_renderable.c \
 	ds_renderer.c \
@@ -116,7 +119,11 @@ deusexmakina2_CFLAGS=\
 	-DPKGDATADIR=\"${pkgdatadir}\" \
 	-DPKGLIBEXECDIR=\"${pkglibexecdir}\" \
 	-DABSTOPBUILDDIR=\"${abs_top_builddir}\" \
-	-DGAPPNAME=\"org.hck.${PACKAGE_NAME}\"
+	-DGAPPNAME=\"org.hck.${PACKAGE_NAME}\" \
+	-fstack-protector-strong \
+	-funwind-tables \
+	-Winline \
+	-Wpacked \
 	$(VOID)
 
 deusexmakina2_LDADD=\
@@ -143,6 +150,7 @@ VALA_PKG=\
 	gio-2.0 \
 	gobject-2.0 \
 	glib-2.0 \
+	lua \
 	config \
 	$(VOID)
 

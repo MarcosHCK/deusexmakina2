@@ -15,24 +15,39 @@
  *  along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#ifndef __DS_RENDERER_INCLUDED__
-#define __DS_RENDERER_INCLUDED__
-#include <ds_gl.h>
+#ifndef __DS_LUAOBJ_INCLUDED__
+#define __DS_LUAOBJ_INCLUDED__
+#include <ds_lua.h>
+#include <glib-object.h>
 
 #if __cplusplus
 extern "C" {
 #endif // __cplusplus
 
 gboolean
-_ds_renderer_init(DsApplication  *self,
-                  GSettings      *gsettings,
-                  GCancellable   *cancellable,
-                  GError        **error);
-gboolean
-_ds_renderer_step(DsApplication* self);
+_ds_luaobj_init(lua_State  *L,
+                GError    **error);
+void
+_ds_luaobj_fini(lua_State* L);
+
+void
+luaD_tovalue(lua_State* L,
+             gint idx,
+             GValue* value,
+             GType g_type);
+
+void
+luaD_pushobject(lua_State  *L,
+                GObject    *obj);
+GObject*
+luaD_toobject(lua_State  *L,
+              int         idx);
+GObject*
+luaD_checkobject(lua_State  *L,
+                 int         arg);
 
 #if __cplusplus
 }
 #endif // __cplusplus
 
-#endif // __DS_RENDERER_INCLUDED__
+#endif // __DS_LUAOBJ_INCLUDED__

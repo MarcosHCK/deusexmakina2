@@ -139,4 +139,132 @@ namespace _Ds
     return child;
     }
   }
+
+  errordomain PushError
+  {
+    FAILED,
+    UNKNOWN_TRANSLATION,
+    UNEXPECTED_TYPE,
+  }
+
+  private bool checktype(GLib.Type expected, GLib.Type got) throws GLib.Error
+  {
+    if(expected != GLib.Type.INVALID)
+    {
+      if(unlikely(got.is_a(expected) == false))
+      {
+        throw new PushError.UNEXPECTED_TYPE
+        ("expected type '%s', got '%s'\r\n",
+         expected.name(),
+         got.name());
+      }
+    }
+  return true;
+  }
+
+  public bool tovalue(Lua.LuaVM L, int idx, out GLib.Value value, GLib.Type g_type) throws GLib.Error
+  {
+    switch(L.type(idx))
+    {
+    case Lua.Type.BOOLEAN:
+      checktype(g_type, GLib.Type.BOOLEAN);
+      value = GLib.Value(GLib.Type.BOOLEAN);
+      value.set_boolean(L.to_boolean(idx));
+      break;
+    case Lua.Type.LIGHTUSERDATA:
+      checktype(g_type, GLib.Type.POINTER);
+      value = GLib.Value(GLib.Type.POINTER);
+      value.set_pointer(L.to_userdata(idx));
+      break;
+    case Lua.Type.NUMBER:
+      if(g_type == GLib.Type.INVALID)
+      {
+        value = GLib.Value(GLib.Type.DOUBLE);
+        value.set_double((double) L.to_number(idx));
+      }
+      else
+      switch(g_type)
+      {
+      case GLib.Type.FLOAT:
+        value = GLib.Value(g_type);
+        value.set_float((float) L.to_number(idx));
+        break;
+      case GLib.Type.DOUBLE:
+        value = GLib.Value(g_type);
+        value.set_double((double) L.to_number(idx));
+        break;
+      case GLib.Type.CHAR:
+        value = GLib.Value(g_type);
+        value.set_schar((int8) L.to_number(idx));
+        break;
+      case GLib.Type.INT:
+        value = GLib.Value(g_type);
+        value.set_int((int) L.to_number(idx));
+        break;
+      case GLib.Type.LONG:
+        value = GLib.Value(g_type);
+        value.set_long((long) L.to_number(idx));
+        break;
+      case GLib.Type.UCHAR:
+        value = GLib.Value(g_type);
+        value.set_uchar((uint8) L.to_number(idx));
+        break;
+      case GLib.Type.UINT:
+        value = GLib.Value(g_type);
+        value.set_uint((uint) L.to_number(idx));
+        break;
+      case GLib.Type.ULONG:
+        value = GLib.Value(g_type);
+        value.set_ulong((ulong) L.to_number(idx));
+        break;
+      case GLib.Type.INT64:
+        value = GLib.Value(g_type);
+        value.set_int64((int64) L.to_number(idx));
+        break;
+      case GLib.Type.UINT64:
+        value = GLib.Value(g_type);
+        value.set_uint64((uint64) L.to_number(idx));
+        break;
+      default:
+        if(g_type.is_a(GLib.Type.ENUM) == true)
+        {
+          value = GLib.Value(g_type);
+          value.set_enum((int) L.to_number(idx));
+        } else
+        if(g_type.is_a(GLib.Type.FLAGS) == true)
+        {
+          value = GLib.Value(g_type);
+          value.set_flags((uint) L.to_number(idx));
+        } else
+        {
+          throw new PushError.UNEXPECTED_TYPE
+          ("expected type '%s'\r\n",
+           g_type.name());
+        }
+        break;
+      }
+      break;
+    case Lua.Type.STRING:
+      checktype(g_type, GLib.Type.STRING);
+      value = GLib.Value(GLib.Type.STRING);
+      value.set_string(L.to_string(idx));
+      break;
+    case Lua.Type.FUNCTION:
+      //checktype(g_type, GLib.Type.CLOSURE);
+      //value = GLib.Value(GLib.Type.CLOSURE);
+      //value.set_string(L.to_string(idx));
+      assert_not_reached();
+      break;
+    case Lua.Type.USERDATA:
+      assert_not_reached();
+      break;
+    default:
+      throw new PushError.UNKNOWN_TRANSLATION
+      ("unknown type in '%s' translation\r\n",
+       L.type_name
+       (L.type
+        (idx)));
+    }
+  return true;
+  }
 }

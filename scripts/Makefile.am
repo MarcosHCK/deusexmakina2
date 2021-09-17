@@ -24,4 +24,5 @@ dist_pkglibexec_SCRIPTS=\
 	build.lua \
 	event.lua \
 	patches.lua \
+	setup.lua \
 	$(VOID)

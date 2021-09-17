@@ -143,6 +143,7 @@ on_fullscreen_changed(GSettings     *gsettings,
 
 gboolean
 _ds_renderer_init(DsApplication  *self,
+                  GSettings      *gsettings,
                   GCancellable   *cancellable,
                   GError        **error)
 {
@@ -160,31 +161,31 @@ _ds_renderer_init(DsApplication  *self,
   ,);
 
   g_signal_connect
-  (self->gsettings,
+  (gsettings,
    "changed::width",
    G_CALLBACK(on_width_changed),
    self);
 
   g_signal_connect
-  (self->gsettings,
+  (gsettings,
    "changed::height",
    G_CALLBACK(on_height_changed),
    self);
 
   g_signal_connect
-  (self->gsettings,
+  (gsettings,
    "changed::framelimit",
    G_CALLBACK(on_framelimit_changed),
    self);
 
   g_signal_connect
-  (self->gsettings,
+  (gsettings,
    "changed::fullscreen",
    G_CALLBACK(on_fullscreen_changed),
    self);
 
   g_signal_connect
-  (self->gsettings,
+  (gsettings,
    "changed::borderless",
    G_CALLBACK(on_fullscreen_changed),
    self);
