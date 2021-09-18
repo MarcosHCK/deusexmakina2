@@ -16,6 +16,7 @@
  *
  */
 #include <config.h>
+#include <ds_callable.h>
 #include <ds_macros.h>
 #include <ds_pipeline.h>
 #include <GL/glew.h>
@@ -26,6 +27,8 @@ G_DEFINE_QUARK(ds-pipeline-error-quark,
 
 static
 void ds_pipeline_g_initable_iface_init(GInitableIface* iface);
+static
+void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface);
 
 typedef struct _DsPipelineEntry       DsPipelineEntry;
 typedef union  _DsPipelineObjectList  DsPipelineObjectList;
@@ -71,7 +74,10 @@ G_DEFINE_TYPE_WITH_CODE
  G_TYPE_OBJECT,
  G_IMPLEMENT_INTERFACE
  (G_TYPE_INITABLE,
-  ds_pipeline_g_initable_iface_init));
+  ds_pipeline_g_initable_iface_init)
+ G_IMPLEMENT_INTERFACE
+ (DS_TYPE_CALLABLE,
+  ds_pipeline_ds_callable_iface_init));
 
 static gboolean
 ds_pipeline_g_initable_iface_init_sync(GInitable     *pself,
@@ -87,6 +93,74 @@ return success;
 static
 void ds_pipeline_g_initable_iface_init(GInitableIface* iface) {
   iface->init = ds_pipeline_g_initable_iface_init_sync;
+}
+
+static
+void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
+  ds_callable_iface_add_method
+  (iface,
+   "new",
+   G_CALLBACK(ds_pipeline_new),
+   ds_cclosure_marshal_OBJECT__OBJECT_POINTER,
+   ds_cclosure_marshal_OBJECT__OBJECT_POINTERv,
+   DS_TYPE_PIPELINE,
+   2,
+   G_TYPE_CANCELLABLE,
+   G_TYPE_POINTER);
+
+  ds_callable_iface_add_method
+  (iface,
+   "register_shader",
+   G_CALLBACK(ds_pipeline_register_shader),
+   ds_cclosure_marshal_VOID__STRING_OBJECT,
+   ds_cclosure_marshal_VOID__STRING_OBJECTv,
+   G_TYPE_NONE,
+   2,
+   G_TYPE_STRING,
+   DS_TYPE_SHADER);
+
+  ds_callable_iface_add_method
+  (iface,
+   "unregister_shader",
+   G_CALLBACK(ds_pipeline_unregister_shader),
+   g_cclosure_marshal_VOID__STRING,
+   g_cclosure_marshal_VOID__STRINGv,
+   G_TYPE_NONE,
+   1,
+   G_TYPE_STRING);
+
+  ds_callable_iface_add_method
+  (iface,
+   "append_object",
+   G_CALLBACK(ds_pipeline_append_object),
+   ds_cclosure_marshal_VOID__STRING_OBJECT,
+   ds_cclosure_marshal_VOID__STRING_OBJECTv,
+   G_TYPE_NONE,
+   2,
+   G_TYPE_STRING,
+   DS_TYPE_RENDERABLE);
+
+  ds_callable_iface_add_method
+  (iface,
+   "remove_object",
+   G_CALLBACK(ds_pipeline_remove_object),
+   ds_cclosure_marshal_VOID__STRING_OBJECT,
+   ds_cclosure_marshal_VOID__STRING_OBJECTv,
+   G_TYPE_NONE,
+   2,
+   G_TYPE_STRING,
+   DS_TYPE_RENDERABLE);
+
+  ds_callable_iface_add_method
+  (iface,
+   "update",
+   G_CALLBACK(ds_pipeline_update),
+   ds_cclosure_marshal_BOOL__OBJECT_POINTER,
+   ds_cclosure_marshal_BOOL__OBJECT_POINTERv,
+   G_TYPE_BOOLEAN,
+   2,
+   G_TYPE_CANCELLABLE,
+   G_TYPE_POINTER);
 }
 
 static
@@ -232,7 +306,7 @@ ds_pipeline_unregister_shader(DsPipeline   *pipeline,
 void
 ds_pipeline_append_object(DsPipeline   *pipeline,
                           const gchar  *shader_name,
-                          DsShader     *object)
+                          DsRenderable *object)
 {
   g_return_if_fail(DS_IS_PIPELINE(pipeline));
   g_return_if_fail(shader_name != NULL);
@@ -264,7 +338,7 @@ ds_pipeline_append_object(DsPipeline   *pipeline,
 void
 ds_pipeline_remove_object(DsPipeline   *pipeline,
                           const gchar  *shader_name,
-                          DsShader     *object)
+                          DsRenderable *object)
 {
   g_return_if_fail(DS_IS_PIPELINE(pipeline));
   g_return_if_fail(shader_name != NULL);

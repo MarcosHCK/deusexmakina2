@@ -87,6 +87,10 @@ AC_CHECK_PROG([GLIB_MKENUMS], [glib-mkenums], [glib-mkenums], [no])
 if test "x$GLIB_MKENUMS" = "xno"; then
   AC_MSG_FAILURE([glib-mkenums not found our your system])
 fi
+AC_CHECK_PROG([GLIB_GENMARSHAL], [glib-genmarshal], [glib-genmarshal], [no])
+if test "x$GLIB_GENMARSHAL" = "xno"; then
+  AC_MSG_FAILURE([glib-genmarshal not found our your system])
+fi
 AC_CHECK_PROG([GLIB_COMPILE_RESOURCES], [glib-compile-resources], [glib-compile-resources], [no])
 if test "x$GLIB_COMPILE_RESOURCES" = "xno"; then
   AC_MSG_FAILURE([glib-compile-resources not found our your system])

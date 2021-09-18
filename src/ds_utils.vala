@@ -166,6 +166,17 @@ namespace _Ds
   {
     switch(L.type(idx))
     {
+    case Lua.Type.NIL:
+      if(g_type != GLib.Type.INVALID)
+      {
+        value = GLib.Value(g_type);
+      }
+      else
+      {
+        throw new PushError.UNKNOWN_TRANSLATION
+        ("ambiguous translation rule for lua type 'nil'\r\n");
+      }
+      break;
     case Lua.Type.BOOLEAN:
       checktype(g_type, GLib.Type.BOOLEAN);
       value = GLib.Value(GLib.Type.BOOLEAN);

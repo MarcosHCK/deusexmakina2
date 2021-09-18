@@ -48,6 +48,7 @@ SUBDIRS=\
 # Source files where
 # at least an enum is defined
 #
+
 ENUM_FILES=\
 	ds_gl.h \
 	$(VOID)
@@ -60,17 +61,37 @@ ds_enums.c: $(ENUM_FILES) ds_enums.c.template
 									$(ENUM_FILES)
 
 #
+# Marshals
+#
+
+MARSHAL_CFLAGS=\
+	--stdinc \
+	--prototypes \
+	--valist-marshallers \
+	--internal \
+	--prefix="ds_cclosure_marshal" \
+	$(VOID)
+
+ds_marshals.c: ds_marshals.list ds_marshals.h
+	$(GLIB_GENMARSHAL) --body --include-header=config.h $(MARSHAL_CFLAGS) --output=$@ ds_marshals.list
+
+ds_marshals.h: ds_marshals.list
+	$(GLIB_GENMARSHAL) --header $(MARSHAL_CFLAGS) --output=$@ ds_marshals.list
+
+#
 # C headers
 #
 
 EXTRA_DIST+=\
 	ds_application.h \
 	ds_application_private.h \
+	ds_callable.h \
 	ds_events.h \
 	ds_gl.h \
 	ds_lua.h \
 	ds_luaobj.h \
 	ds_macros.h \
+	ds_marshals.h \
 	ds_pipeline.h \
 	ds_renderable.h \
 	ds_renderer.h \
@@ -86,12 +107,14 @@ EXTRA_DIST+=\
 bin_PROGRAMS=deusexmakina2
 deusexmakina2_SOURCES=\
 	ds_application.c \
+	ds_callable.c \
 	ds_enums.c \
 	ds_events.c \
 	ds_gl.c \
 	ds_lua.c \
 	ds_lualib.c \
 	ds_luaobj.c \
+	ds_marshals.c \
 	ds_pipeline.c \
 	ds_renderable.c \
 	ds_renderer.c \

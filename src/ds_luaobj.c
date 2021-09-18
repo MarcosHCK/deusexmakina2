@@ -219,5 +219,4 @@ return success;
 void
 _ds_luaobj_fini(lua_State* L)
 {
-  g_print("fini\r\n");
 }

@@ -58,11 +58,11 @@ ds_pipeline_unregister_shader(DsPipeline   *pipeline,
 void
 ds_pipeline_append_object(DsPipeline   *pipeline,
                           const gchar  *shader_name,
-                          DsShader     *object);
+                          DsRenderable *object);
 void
 ds_pipeline_remove_object(DsPipeline   *pipeline,
                           const gchar  *shader_name,
-                          DsShader     *object);
+                          DsRenderable *object);
 gboolean
 ds_pipeline_update(DsPipeline    *pipeline,
                    GCancellable  *cancellable,

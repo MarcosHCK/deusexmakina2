@@ -16,6 +16,7 @@
  *
  */
 #include <config.h>
+#include <ds_callable.h>
 #include <ds_gl.h>
 #include <ds_macros.h>
 #include <ds_shader.h>
@@ -25,6 +26,8 @@ G_DEFINE_QUARK(ds-shader-error-quark,
 
 static
 void ds_shader_g_initable_iface_init(GInitableIface* iface);
+static
+void ds_shader_ds_callable_iface_init(DsCallableIface* iface);
 
 /*
  * Object definition
@@ -94,7 +97,10 @@ G_DEFINE_TYPE_WITH_CODE
  G_TYPE_OBJECT,
  G_IMPLEMENT_INTERFACE
  (G_TYPE_INITABLE,
-  ds_shader_g_initable_iface_init));
+  ds_shader_g_initable_iface_init)
+ G_IMPLEMENT_INTERFACE
+ (DS_TYPE_CALLABLE,
+  ds_shader_ds_callable_iface_init));
 
 static inline gboolean
 assert_stream(GFile          *file,
@@ -364,6 +370,67 @@ return success;
 static
 void ds_shader_g_initable_iface_init(GInitableIface* iface) {
   iface->init = ds_shader_g_initable_iface_init_sync;
+}
+
+static DsShader*
+_callable_new_simple(const gchar   *vertex_file,
+                     const gchar   *fragment_file,
+                     const gchar   *geometry_file,
+                     GCancellable  *cancellable,
+                     GError       **error)
+{
+  GFile *vertex_file_ = g_file_new_for_path(vertex_file),
+        *fragment_file_ = g_file_new_for_path(fragment_file),
+        *geometry_file_ = g_file_new_for_path(geometry_file);
+
+  DsShader* shader =
+  ds_shader_new
+  (vertex_file_,
+   NULL,
+   fragment_file_,
+   NULL,
+   geometry_file_,
+   NULL,
+   cancellable,
+   error);
+
+  g_object_unref(geometry_file_);
+  g_object_unref(fragment_file_);
+  g_object_unref(vertex_file_);
+return shader;
+}
+
+static
+void ds_shader_ds_callable_iface_init(DsCallableIface* iface) {
+  ds_callable_iface_add_method
+  (iface,
+   "new",
+   G_CALLBACK(ds_shader_new),
+   ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTER,
+   ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTERv,
+   DS_TYPE_SHADER,
+   8,
+   G_TYPE_FILE,
+   G_TYPE_INPUT_STREAM,
+   G_TYPE_FILE,
+   G_TYPE_INPUT_STREAM,
+   G_TYPE_FILE,
+   G_TYPE_INPUT_STREAM,
+   G_TYPE_CANCELLABLE,
+   G_TYPE_POINTER);
+  ds_callable_iface_add_method
+  (iface,
+   "new_simple",
+   G_CALLBACK(_callable_new_simple),
+   ds_cclosure_marshal_OBJECT__STRING_STRING_STRING_OBJECT_POINTER,
+   ds_cclosure_marshal_OBJECT__STRING_STRING_STRING_OBJECT_POINTERv,
+   DS_TYPE_SHADER,
+   5,
+   G_TYPE_STRING,
+   G_TYPE_STRING,
+   G_TYPE_STRING,
+   G_TYPE_CANCELLABLE,
+   G_TYPE_POINTER);
 }
 
 static
