@@ -36,6 +36,7 @@ struct _DsClosure
   GClosure closure;
   GCallback callback;
   GVaClosureMarshal vmarshal;
+  DsCallableMethodType type;
   GType return_type;
   guint n_params;
   GType* params;
@@ -160,6 +161,56 @@ ds_callable_iface_set_field(DsCallableIface* iface,
   g_closure_sink((GClosure*) closure);
 }
 
+DsCallableMethodType
+ds_callable_iface_get_field_type(DsCallableIface* iface,
+                                 const gchar* name)
+{
+  g_return_val_if_fail(iface != NULL, 0);
+  g_return_val_if_fail(name != NULL, 0);
+
+  DsClosure* closure =
+  ds_callable_iface_get_field
+  (iface,
+   name);
+  g_return_val_if_fail(closure != NULL, 0);
+return closure->type;
+}
+
+DsCallable*
+ds_callable_iface_contructv(DsCallableIface* iface,
+                            const gchar* name,
+                            GValue* params)
+{
+  g_return_val_if_fail(iface != NULL, NULL);
+  g_return_val_if_fail(name != NULL, NULL);
+
+  DsClosure* closure =
+  ds_callable_iface_get_field
+  (iface,
+   name);
+  g_return_val_if_fail(closure != NULL, NULL);
+  g_return_val_if_fail(closure->type == DS_CALLABLE_CONTRUCTOR, NULL);
+
+  if(closure->n_params > 0)
+    g_return_val_if_fail(params != NULL, NULL);
+
+  GValue return_ = G_VALUE_INIT;
+  g_value_init(&return_, DS_TYPE_CALLABLE);
+
+  g_closure_invoke
+  ((GClosure*)
+   closure,
+   &return_,
+   closure->n_params,
+   params,
+   NULL);
+
+  DsCallable* return__ =
+  g_value_get_object(&return_);
+  g_value_unset(&return_);
+return return__;
+}
+
 #define _g_free0(var) ((var == NULL) ? NULL : (var = (g_free (var), NULL)))
 
 static void
@@ -171,6 +222,7 @@ _closure_fini0(gpointer notify_data, DsClosure* closure)
 void
 ds_callable_iface_add_methodv(DsCallableIface* iface,
                               const gchar* name,
+                              DsCallableMethodType type,
                               GCallback callback,
                               GClosureMarshal marshal,
                               GVaClosureMarshal vmarshal,
@@ -187,6 +239,7 @@ ds_callable_iface_add_methodv(DsCallableIface* iface,
   closure->callback = callback;
   closure->vmarshal = vmarshal;
   closure->return_type = return_type;
+  closure->type = type;
   closure->n_params = n_params;
   closure->params = g_memdup(params, sizeof(GType) * n_params);
 
@@ -210,6 +263,7 @@ ds_callable_iface_add_methodv(DsCallableIface* iface,
 void
 ds_callable_iface_add_method_valist(DsCallableIface* iface,
                                     const gchar* name,
+                                    DsCallableMethodType type,
                                     GCallback callback,
                                     GClosureMarshal marshal,
                                     GVaClosureMarshal vmarshal,
@@ -237,7 +291,7 @@ ds_callable_iface_add_method_valist(DsCallableIface* iface,
       param_types[i] = va_arg(l, GType);
   }
 
-  ds_callable_iface_add_methodv(iface, name, callback, marshal, vmarshal, return_type, n_params, param_types);
+  ds_callable_iface_add_methodv(iface, name, type, callback, marshal, vmarshal, return_type, n_params, param_types);
 
   if G_UNLIKELY(param_types_heap != NULL)
   {
@@ -250,6 +304,7 @@ ds_callable_iface_add_method_valist(DsCallableIface* iface,
 void
 ds_callable_iface_add_method(DsCallableIface* iface,
                              const gchar* name,
+                             DsCallableMethodType type,
                              GCallback callback,
                              GClosureMarshal marshal,
                              GVaClosureMarshal vmarshal,
@@ -261,7 +316,7 @@ ds_callable_iface_add_method(DsCallableIface* iface,
 
   va_list l;
   va_start(l, n_params);
-  ds_callable_iface_add_method_valist(iface, name, callback, marshal, vmarshal, return_type, n_params, l);
+  ds_callable_iface_add_method_valist(iface, name, type, callback, marshal, vmarshal, return_type, n_params, l);
   va_end(l);
 }
 

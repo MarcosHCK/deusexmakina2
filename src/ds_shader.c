@@ -405,6 +405,7 @@ void ds_shader_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "new",
+   DS_CALLABLE_CONTRUCTOR,
    G_CALLBACK(ds_shader_new),
    ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTER,
    ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTERv,
@@ -421,6 +422,7 @@ void ds_shader_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "new_simple",
+   DS_CALLABLE_CONTRUCTOR,
    G_CALLBACK(_callable_new_simple),
    ds_cclosure_marshal_OBJECT__STRING_STRING_STRING_OBJECT_POINTER,
    ds_cclosure_marshal_OBJECT__STRING_STRING_STRING_OBJECT_POINTERv,

@@ -89,6 +89,7 @@ EXTRA_DIST+=\
 	ds_events.h \
 	ds_gl.h \
 	ds_lua.h \
+	ds_luaclass.h \
 	ds_luaobj.h \
 	ds_macros.h \
 	ds_marshals.h \
@@ -112,6 +113,7 @@ deusexmakina2_SOURCES=\
 	ds_events.c \
 	ds_gl.c \
 	ds_lua.c \
+	ds_luaclass.c \
 	ds_lualib.c \
 	ds_luaobj.c \
 	ds_marshals.c \

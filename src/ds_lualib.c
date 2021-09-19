@@ -16,6 +16,7 @@
  *
  */
 #include <config.h>
+#include <ds_luaclass.h>
 #include <ds_luaobj.h>
 #include <ds_macros.h>
 #include <gio/gio.h>
@@ -200,6 +201,35 @@ luaL_Reg lualib[] =
 };
 
 /*
+ * Type table metaindexes
+ *
+ */
+
+static int
+__index(lua_State* L)
+{
+  const gchar* typename_;
+  if G_LIKELY
+    (lua_isstring(L, 2) == TRUE)
+  {
+    typename_ = lua_tostring(L, 2);
+    if G_UNLIKELY(typename_ == NULL)
+    {
+      return 0;
+    }
+
+    GType g_type =
+    g_type_from_name(typename_);
+    if(g_type != G_TYPE_INVALID)
+    {
+      luaD_pushclass(L, g_type);
+      return 1;
+    }
+  }
+return 0;
+}
+
+/*
  * luaopen_*
  *
  */
@@ -210,6 +240,14 @@ _ds_lualib_init(lua_State  *L,
 {
   gboolean success = TRUE;
   GError* tmp_err = NULL;
+
+  success =
+  _ds_luaclass_init(L, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
 
   success =
   _ds_luaobj_init(L, &tmp_err);
@@ -232,6 +270,17 @@ _ds_lualib_init(lua_State  *L,
   lua_pushliteral(L, PACKAGE_STRING);
   lua_setfield(L, -2, "_VERSION");
 
+  /* create types table */
+  lua_pushliteral(L, "type");
+  lua_createtable(L, 0, 0);
+  lua_createtable(L, 0, 1);
+  lua_pushliteral(L, "__index");
+  lua_pushcfunction(L, __index);
+  lua_settable(L, -3);
+  lua_setmetatable(L, -2);
+  lua_settable(L, -3);
+
+  /* inject module onto package.loaded */
   lua_getglobal(L, "package");
   lua_getfield(L, -1, "loaded");
   lua_remove(L, -2);
@@ -249,4 +298,5 @@ void
 _ds_lualib_fini(lua_State* L)
 {
   _ds_luaobj_fini(L);
+  _ds_luaclass_fini(L);
 }

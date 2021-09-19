@@ -16,48 +16,24 @@
  *
  */
 #include <config.h>
-#include <ds_luaobj.h>
 #include <ds_callable.h>
+#include <ds_luaclass.h>
 
-#define _METATABLE "GObject"
+#define _METATABLE "GObjectClass"
 
 /*
  * Methods
  *
  */
 
-/* defined in ds_utils.vala */
-gboolean
-_ds_tovalue(lua_State* L,
-            gint idx,
-            GValue* value,
-            GType g_type,
-            GError** error);
-
 void
-luaD_tovalue(lua_State* L,
-             gint idx,
-             GValue* value,
-             GType g_type)
+luaD_pushclass(lua_State *L,
+               GType      g_type)
 {
-  GError* tmp_err = NULL;
-  _ds_tovalue(L, idx, value, g_type, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    lua_pushstring(L, tmp_err->message);
-    g_error_free(tmp_err);
-    lua_error(L);
-  }
-}
-
-void
-luaD_pushobject(lua_State  *L,
-                GObject    *obj)
-{
-  GObject** ptr = (GObject**)
-  lua_newuserdata(L, sizeof(GObject*));
+  GObjectClass** ptr = (GObjectClass**)
+  lua_newuserdata(L, sizeof(GObjectClass*));
   luaL_setmetatable(L, _METATABLE);
-  (*ptr) = g_object_ref(obj);
+  (*ptr) = g_type_class_ref(g_type);
 }
 
 /* Taken as-in from LuaJIT code */
@@ -75,11 +51,11 @@ _typeerror(lua_State *L, int arg, const char *tname) {
   return luaL_argerror(L, arg, msg);
 }
 
-GObject*
-luaD_toobject(lua_State  *L,
-              int         idx)
+GObjectClass*
+luaD_toclass(lua_State  *L,
+             int         idx)
 {
-  GObject **ptr =
+  GObjectClass **ptr =
   lua_touserdata(L, idx);
 
   if G_LIKELY(ptr != NULL)
@@ -107,12 +83,12 @@ luaD_toobject(lua_State  *L,
 return NULL;
 }
 
-GObject*
-luaD_checkobject(lua_State  *L,
-                 int         arg)
+GObjectClass*
+luaD_checkclass(lua_State  *L,
+                int         arg)
 {
-  GObject* obj =
-  luaD_toobject(L, arg);
+  GObjectClass* obj =
+  luaD_toclass(L, arg);
   if G_UNLIKELY(obj == NULL)
   {
     _typeerror(L, arg, _METATABLE);
@@ -128,53 +104,49 @@ return obj;
 static int
 __tostring(lua_State* L)
 {
-  GObject* obj =
-  luaD_checkobject(L, 1);
+  GObjectClass* klass =
+  luaD_checkclass(L, 1);
 
   lua_pushfstring
   (L,
-   "%s (%p)",
-   g_type_name_from_instance((GTypeInstance*)obj),
-   (guintptr) obj);
+   "%sClass (%p)",
+   g_type_name_from_class((GTypeClass*) klass),
+   (guintptr) klass);
 return 1;
-}
-
-static int
-__index_ref(lua_State* L)
-{
-  GObject* obj =
-  luaD_checkobject(L, 1);
-  g_object_ref(obj);
-return 1;
-}
-
-static int
-__index_unref(lua_State* L)
-{
-  GObject* obj =
-  luaD_checkobject(L, 1);
-  g_object_unref(obj);
-return 0;
 }
 
 static int
 __index(lua_State* L)
 {
+  GObjectClass* klass =
+  luaD_checkclass(L, 1);
   const gchar* t;
 
   if G_LIKELY
-    (lua_isstring(L, 1)
-     && (t = lua_tostring(L, 1)) != NULL)
+    (lua_isstring(L, 2)
+     && (t = lua_tostring(L, 2)) != NULL)
   {
-    if(!strcmp(t, "ref"))
+    if G_LIKELY
+      (g_type_is_a
+       (G_TYPE_FROM_CLASS(klass),
+        DS_TYPE_CALLABLE)
+       && g_str_has_prefix(t, "new"))
     {
-      lua_pushcfunction(L, __index_ref);
-      return 1;
-    } else
-    if(!strcmp(t, "unref"))
-    {
-      lua_pushcfunction(L, __index_unref);
-      return 1;
+      DsCallableIface* iface =
+      g_type_interface_peek(klass, DS_TYPE_CALLABLE);
+      g_assert(iface != NULL);
+
+      gboolean has =
+      ds_callable_iface_has_field(iface, t);
+      if G_LIKELY(has == TRUE)
+      {
+        DsCallableMethodType type =
+        ds_callable_iface_get_field_type(iface, t);
+        if G_LIKELY(type == DS_CALLABLE_CONTRUCTOR)
+        {
+
+        }
+      }
     }
   }
 return 0;
@@ -183,11 +155,12 @@ return 0;
 static int
 __gc(lua_State* L)
 {
-  luaD_checkobject(L, 1);
+  luaD_checkclass(L, 1);
 
-  GObject** ptr =
+  GObjectClass** ptr =
   lua_touserdata(L, 1);
-  g_clear_object(ptr);
+  g_type_class_unref(*ptr);
+  g_print("%s:%i\r\n", G_STRFUNC, __LINE__);
 return 0;
 }
 
@@ -201,7 +174,7 @@ luaL_Reg instance_mt[] =
 };
 
 gboolean
-_ds_luaobj_init(lua_State  *L,
+_ds_luaclass_init(lua_State  *L,
                 GError    **error)
 {
   gboolean success = TRUE;
@@ -219,6 +192,6 @@ return success;
 }
 
 void
-_ds_luaobj_fini(lua_State* L)
+_ds_luaclass_fini(lua_State* L)
 {
 }

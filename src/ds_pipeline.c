@@ -100,6 +100,7 @@ void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "new",
+   DS_CALLABLE_CONTRUCTOR,
    G_CALLBACK(ds_pipeline_new),
    ds_cclosure_marshal_OBJECT__OBJECT_POINTER,
    ds_cclosure_marshal_OBJECT__OBJECT_POINTERv,
@@ -111,6 +112,7 @@ void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "register_shader",
+   DS_CALLABLE_METHOD,
    G_CALLBACK(ds_pipeline_register_shader),
    ds_cclosure_marshal_VOID__STRING_OBJECT,
    ds_cclosure_marshal_VOID__STRING_OBJECTv,
@@ -122,6 +124,7 @@ void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "unregister_shader",
+   DS_CALLABLE_METHOD,
    G_CALLBACK(ds_pipeline_unregister_shader),
    g_cclosure_marshal_VOID__STRING,
    g_cclosure_marshal_VOID__STRINGv,
@@ -132,6 +135,7 @@ void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "append_object",
+   DS_CALLABLE_METHOD,
    G_CALLBACK(ds_pipeline_append_object),
    ds_cclosure_marshal_VOID__STRING_OBJECT,
    ds_cclosure_marshal_VOID__STRING_OBJECTv,
@@ -143,6 +147,7 @@ void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "remove_object",
+   DS_CALLABLE_METHOD,
    G_CALLBACK(ds_pipeline_remove_object),
    ds_cclosure_marshal_VOID__STRING_OBJECT,
    ds_cclosure_marshal_VOID__STRING_OBJECTv,
@@ -154,6 +159,7 @@ void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "update",
+   DS_CALLABLE_METHOD,
    G_CALLBACK(ds_pipeline_update),
    ds_cclosure_marshal_BOOL__OBJECT_POINTER,
    ds_cclosure_marshal_BOOL__OBJECT_POINTERv,

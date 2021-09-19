@@ -32,6 +32,11 @@ typedef struct _DsCallableIfacePrivate  DsCallableIfacePrivate;
 
 #define DS_INVOKE_STATIC_SCOPE G_SIGNAL_TYPE_STATIC_SCOPE
 
+typedef enum {
+  DS_CALLABLE_METHOD,
+  DS_CALLABLE_CONTRUCTOR,
+} DsCallableMethodType;
+
 #if __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -45,9 +50,20 @@ struct _DsCallableIface
   DsCallableIfacePrivate* priv;
 };
 
+gboolean
+ds_callable_iface_has_field(DsCallableIface* iface,
+                            const gchar* name);
+DsCallableMethodType
+ds_callable_iface_get_field_type(DsCallableIface* iface,
+                                 const gchar* name);
+DsCallable*
+ds_callable_iface_contructv(DsCallableIface* iface,
+                            const gchar* name,
+                            GValue* params);
 void
 ds_callable_iface_add_methodv(DsCallableIface* iface,
                               const gchar* name,
+                              DsCallableMethodType type,
                               GCallback callback,
                               GClosureMarshal marshal,
                               GVaClosureMarshal vmarshal,
@@ -57,6 +73,7 @@ ds_callable_iface_add_methodv(DsCallableIface* iface,
 void
 ds_callable_iface_add_method_valist(DsCallableIface* iface,
                                     const gchar* name,
+                                    DsCallableMethodType type,
                                     GCallback callback,
                                     GClosureMarshal marshal,
                                     GVaClosureMarshal vmarshal,
@@ -66,6 +83,7 @@ ds_callable_iface_add_method_valist(DsCallableIface* iface,
 void
 ds_callable_iface_add_method(DsCallableIface* iface,
                              const gchar* name,
+                             DsCallableMethodType type,
                              GCallback callback,
                              GClosureMarshal marshal,
                              GVaClosureMarshal vmarshal,

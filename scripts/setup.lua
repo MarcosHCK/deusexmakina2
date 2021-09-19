@@ -15,3 +15,9 @@
 -- You should have received a copy of the GNU General Public License
 -- along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
 ]]
+local ds = require('ds');
+
+local klass = ds.type.DsPipeline;
+print(klass);
+klass = nil;
+collectgarbage();
