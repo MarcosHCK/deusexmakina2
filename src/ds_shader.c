@@ -373,15 +373,52 @@ void ds_shader_g_initable_iface_init(GInitableIface* iface) {
 }
 
 static DsShader*
-_callable_new_simple(const gchar   *vertex_file,
+_callable_new(gpointer      null_,
+              GFile        *vertex_file,
+              GInputStream *vertex_stream,
+              GFile        *fragment_file,
+              GInputStream *fragment_stream,
+              GFile        *geometry_file,
+              GInputStream *geometry_stream,
+              GCancellable *cancellable,
+              GError      **error)
+{
+  return
+  ds_shader_new
+  (vertex_file,
+   vertex_stream,
+   fragment_file,
+   fragment_stream,
+   geometry_file,
+   geometry_stream,
+   cancellable,
+   error);
+}
+
+#define _g_object_unref0(var) ((var == NULL) ? NULL : (var = (g_object_unref (var), NULL)))
+
+static DsShader*
+_callable_new_simple(gpointer       null_,
+                     const gchar   *vertex_file,
                      const gchar   *fragment_file,
                      const gchar   *geometry_file,
                      GCancellable  *cancellable,
                      GError       **error)
 {
-  GFile *vertex_file_ = g_file_new_for_path(vertex_file),
-        *fragment_file_ = g_file_new_for_path(fragment_file),
-        *geometry_file_ = g_file_new_for_path(geometry_file);
+  g_print("vertex_file: %s\r\n", vertex_file);
+  g_print("fragment_file: %s\r\n", fragment_file);
+  g_print("geometry_file: %s\r\n", geometry_file);
+
+  GFile *vertex_file_ = NULL,
+        *fragment_file_ = NULL,
+        *geometry_file_ = NULL;
+
+  if G_LIKELY(vertex_file != NULL)
+    vertex_file_ = g_file_new_for_path(vertex_file);
+  if G_LIKELY(fragment_file != NULL)
+    fragment_file_ = g_file_new_for_path(fragment_file);
+  if G_LIKELY(geometry_file != NULL)
+    geometry_file_ = g_file_new_for_path(geometry_file);
 
   DsShader* shader =
   ds_shader_new
@@ -394,9 +431,9 @@ _callable_new_simple(const gchar   *vertex_file,
    cancellable,
    error);
 
-  g_object_unref(geometry_file_);
-  g_object_unref(fragment_file_);
-  g_object_unref(vertex_file_);
+  _g_object_unref0(geometry_file_);
+  _g_object_unref0(fragment_file_);
+  _g_object_unref0(vertex_file_);
 return shader;
 }
 
@@ -405,8 +442,8 @@ void ds_shader_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "new",
-   DS_CALLABLE_CONTRUCTOR,
-   G_CALLBACK(ds_shader_new),
+   DS_CLOSURE_CONSTRUCTOR,
+   G_CALLBACK(_callable_new),
    ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTER,
    ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTERv,
    DS_TYPE_SHADER,
@@ -422,7 +459,7 @@ void ds_shader_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "new_simple",
-   DS_CALLABLE_CONTRUCTOR,
+   DS_CLOSURE_CONSTRUCTOR,
    G_CALLBACK(_callable_new_simple),
    ds_cclosure_marshal_OBJECT__STRING_STRING_STRING_OBJECT_POINTER,
    ds_cclosure_marshal_OBJECT__STRING_STRING_STRING_OBJECT_POINTERv,

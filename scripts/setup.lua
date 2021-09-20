@@ -16,8 +16,31 @@
 -- along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
 ]]
 local ds = require('ds');
+local cancellable = ...;
 
-local klass = ds.type.DsPipeline;
-print(klass);
-klass = nil;
-collectgarbage();
+-- Load skybox shader
+do
+  local shader = nil;
+  local klass = ds.type.DsShader;
+
+  if(_ENV["DS_DEBUG"] == 'true') then
+    shader =
+    klass.new_simple(
+      ds.ABSTOPBUILDDIR .. '/gfx/' .. 'skybox_vs.glsl',
+      ds.ABSTOPBUILDDIR .. '/gfx/' .. 'skybox_fs.glsl',
+      nil,
+      cancellable,
+      nil);
+  else
+    shader =
+    klass.new_simple(
+      ds.GFXDIR .. 'skybox_vs.glsl',
+      ds.GFXDIR .. 'skybox_fs.glsl',
+      nil,
+      cancellable,
+      nil);
+  end
+end
+
+print(shader);
+shader = nil;

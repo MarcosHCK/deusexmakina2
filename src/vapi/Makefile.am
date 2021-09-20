@@ -18,4 +18,5 @@
 VOID=
 EXTRA_DIST=\
   config.vapi \
+  luad.vapi \
   $(VOID)

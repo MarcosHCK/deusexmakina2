@@ -21,11 +21,6 @@
 
 #define _METATABLE "GObject"
 
-/*
- * Methods
- *
- */
-
 /* defined in ds_utils.vala */
 gboolean
 _ds_tovalue(lua_State* L,
@@ -33,6 +28,11 @@ _ds_tovalue(lua_State* L,
             GValue* value,
             GType g_type,
             GError** error);
+
+/*
+ * Methods
+ *
+ */
 
 void
 luaD_tovalue(lua_State* L,

@@ -95,13 +95,19 @@ void ds_pipeline_g_initable_iface_init(GInitableIface* iface) {
   iface->init = ds_pipeline_g_initable_iface_init_sync;
 }
 
+static DsPipeline*
+_callable_new(gpointer null_, GCancellable* cancellable, GError** error)
+{
+  return ds_pipeline_new(cancellable, error);
+}
+
 static
 void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "new",
-   DS_CALLABLE_CONTRUCTOR,
-   G_CALLBACK(ds_pipeline_new),
+   DS_CLOSURE_CONSTRUCTOR,
+   G_CALLBACK(_callable_new),
    ds_cclosure_marshal_OBJECT__OBJECT_POINTER,
    ds_cclosure_marshal_OBJECT__OBJECT_POINTERv,
    DS_TYPE_PIPELINE,
@@ -112,7 +118,7 @@ void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "register_shader",
-   DS_CALLABLE_METHOD,
+   DS_CLOSURE_FLAGS_NONE,
    G_CALLBACK(ds_pipeline_register_shader),
    ds_cclosure_marshal_VOID__STRING_OBJECT,
    ds_cclosure_marshal_VOID__STRING_OBJECTv,
@@ -124,7 +130,7 @@ void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "unregister_shader",
-   DS_CALLABLE_METHOD,
+   DS_CLOSURE_FLAGS_NONE,
    G_CALLBACK(ds_pipeline_unregister_shader),
    g_cclosure_marshal_VOID__STRING,
    g_cclosure_marshal_VOID__STRINGv,
@@ -135,7 +141,7 @@ void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "append_object",
-   DS_CALLABLE_METHOD,
+   DS_CLOSURE_FLAGS_NONE,
    G_CALLBACK(ds_pipeline_append_object),
    ds_cclosure_marshal_VOID__STRING_OBJECT,
    ds_cclosure_marshal_VOID__STRING_OBJECTv,
@@ -147,7 +153,7 @@ void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "remove_object",
-   DS_CALLABLE_METHOD,
+   DS_CLOSURE_FLAGS_NONE,
    G_CALLBACK(ds_pipeline_remove_object),
    ds_cclosure_marshal_VOID__STRING_OBJECT,
    ds_cclosure_marshal_VOID__STRING_OBJECTv,
@@ -159,10 +165,10 @@ void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "update",
-   DS_CALLABLE_METHOD,
+   DS_CLOSURE_FLAGS_NONE,
    G_CALLBACK(ds_pipeline_update),
-   ds_cclosure_marshal_BOOL__OBJECT_POINTER,
-   ds_cclosure_marshal_BOOL__OBJECT_POINTERv,
+   ds_cclosure_marshal_BOOLEAN__OBJECT_POINTER,
+   ds_cclosure_marshal_BOOLEAN__OBJECT_POINTERv,
    G_TYPE_BOOLEAN,
    2,
    G_TYPE_CANCELLABLE,

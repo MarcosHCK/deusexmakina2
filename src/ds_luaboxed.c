@@ -16,11 +16,17 @@
  *
  */
 #include <config.h>
-#include <ds_callable.h>
-#include <ds_luaclass.h>
-#include <ds_luaclosure.h>
+#include <ds_luaboxed.h>
 
-#define _METATABLE "GObjectClass"
+typedef struct _DsBoxed DsBoxed;
+
+#define _METATABLE "GBoxed"
+
+struct _DsBoxed
+{
+  GType type;
+  gpointer ptr;
+};
 
 /*
  * Methods
@@ -28,13 +34,16 @@
  */
 
 void
-luaD_pushclass(lua_State *L,
-               GType      g_type)
+luaD_pushboxed(lua_State *L,
+               GType      g_type,
+               gpointer   ptr)
 {
-  GObjectClass** ptr = (GObjectClass**)
-  lua_newuserdata(L, sizeof(GObjectClass*));
+  DsBoxed* boxed = (DsBoxed*)
+  lua_newuserdata(L, sizeof(DsBoxed));
   luaL_setmetatable(L, _METATABLE);
-  (*ptr) = g_type_class_ref(g_type);
+
+  boxed->type = g_type;
+  boxed->ptr = g_boxed_copy(g_type, ptr);
 }
 
 /* Taken as-in from LuaJIT code */
@@ -52,14 +61,15 @@ _typeerror(lua_State *L, int arg, const char *tname) {
   return luaL_argerror(L, arg, msg);
 }
 
-GObjectClass*
-luaD_toclass(lua_State  *L,
-             int         idx)
+gpointer
+luaD_toboxed(lua_State  *L,
+             int         idx,
+             GType      *g_type)
 {
-  GObjectClass **ptr =
+  DsBoxed* boxed =
   lua_touserdata(L, idx);
 
-  if G_LIKELY(ptr != NULL)
+  if G_LIKELY(boxed != NULL)
   {
     if G_LIKELY
       (lua_getmetatable
@@ -71,7 +81,9 @@ luaD_toclass(lua_State  *L,
          (L, -1, -2) == TRUE)
       {
         lua_pop(L, 2);
-        return (*ptr);
+        if(g_type != NULL)
+          *g_type = boxed->type;
+        return boxed->ptr;
       }
       else
       {
@@ -84,17 +96,18 @@ luaD_toclass(lua_State  *L,
 return NULL;
 }
 
-GObjectClass*
-luaD_checkclass(lua_State  *L,
-                int         arg)
+gpointer
+luaD_checkboxed(lua_State *L,
+                int        arg,
+                GType     *g_type)
 {
-  GObjectClass* obj =
-  luaD_toclass(L, arg);
-  if G_UNLIKELY(obj == NULL)
+  gpointer ptr =
+  luaD_toboxed(L, arg, g_type);
+  if G_UNLIKELY(ptr == NULL)
   {
     _typeerror(L, arg, _METATABLE);
   }
-return obj;
+return ptr;
 }
 
 /*
@@ -105,46 +118,35 @@ return obj;
 static int
 __tostring(lua_State* L)
 {
-  GObjectClass* klass =
-  luaD_checkclass(L, 1);
+  GType btype = G_TYPE_INVALID;
+  gpointer boxed =
+  luaD_checkboxed(L, 1, &btype);
 
   lua_pushfstring
   (L,
-   "%sClass (%p)",
-   g_type_name_from_class((GTypeClass*) klass),
-   (guintptr) klass);
+   "%s (%p)",
+   g_type_name(btype),
+   (guintptr) boxed);
 return 1;
 }
 
 static int
 __index(lua_State* L)
 {
-  GObjectClass* klass =
-  luaD_checkclass(L, 1);
-  const gchar* t;
+  GType btype = G_TYPE_INVALID;
+  gpointer boxed =
+  luaD_checkboxed(L, 1, &btype);
 
-  if G_LIKELY
-    (lua_isstring(L, 2)
-     && (t = lua_tostring(L, 2)) != NULL)
+  if(g_type_is_a(btype, G_TYPE_ERROR))
   {
-    if G_LIKELY
-      (g_type_is_a
-       (G_TYPE_FROM_CLASS(klass),
-        DS_TYPE_CALLABLE))
+    const gchar* t =
+    luaL_checkstring(L, 2);
+    if(!strcmp(t, "ref"))
     {
-      DsCallableIface* iface =
-      g_type_interface_peek(klass, DS_TYPE_CALLABLE);
-      g_assert(iface != NULL);
-
-      DsClosure* closure =
-      ds_callable_iface_get_field(iface, t);
-      if G_LIKELY
-        (closure != NULL
-         && closure->flags & DS_CLOSURE_CONSTRUCTOR)
-      {
-        luaD_pushclosure(L, closure);
-        return 1;
-      }
+      DsBoxed* boxed =
+      lua_touserdata(L, 1);
+      lua_pushlightuserdata(L, &(boxed->ptr));
+      return 1;
     }
   }
 return 0;
@@ -153,11 +155,10 @@ return 0;
 static int
 __gc(lua_State* L)
 {
-  luaD_checkclass(L, 1);
-
-  GObjectClass** ptr =
-  lua_touserdata(L, 1);
-  g_type_class_unref(*ptr);
+  GType btype = G_TYPE_INVALID;
+  gpointer boxed =
+  luaD_checkboxed(L, 1, &btype);
+  g_boxed_free(btype, boxed);
 return 0;
 }
 
@@ -171,7 +172,7 @@ luaL_Reg instance_mt[] =
 };
 
 gboolean
-_ds_luaclass_init(lua_State  *L,
+_ds_luaboxed_init(lua_State  *L,
                 GError    **error)
 {
   gboolean success = TRUE;
@@ -189,6 +190,6 @@ return success;
 }
 
 void
-_ds_luaclass_fini(lua_State* L)
+_ds_luaboxed_fini(lua_State* L)
 {
 }

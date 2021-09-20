@@ -86,10 +86,13 @@ EXTRA_DIST+=\
 	ds_application.h \
 	ds_application_private.h \
 	ds_callable.h \
+	ds_closure.h \
 	ds_events.h \
 	ds_gl.h \
 	ds_lua.h \
+	ds_luaboxed.h \
 	ds_luaclass.h \
+	ds_luaclosure.h \
 	ds_luaobj.h \
 	ds_macros.h \
 	ds_marshals.h \
@@ -109,10 +112,12 @@ bin_PROGRAMS=deusexmakina2
 deusexmakina2_SOURCES=\
 	ds_application.c \
 	ds_callable.c \
+	ds_closure.c \
 	ds_enums.c \
 	ds_events.c \
 	ds_gl.c \
 	ds_lua.c \
+	ds_luaboxed.c \
 	ds_luaclass.c \
 	ds_lualib.c \
 	ds_luaobj.c \
@@ -177,6 +182,7 @@ VALA_PKG=\
 	glib-2.0 \
 	lua \
 	config \
+	luad \
 	$(VOID)
 
 AM_VALAFLAGS=\

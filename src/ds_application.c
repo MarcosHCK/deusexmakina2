@@ -18,6 +18,7 @@
 #include <config.h>
 #include <ds_application_private.h>
 #include <ds_events.h>
+#include <ds_luaobj.h>
 #include <ds_renderer.h>
 #undef main
 
@@ -540,8 +541,13 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
+  if(cancellable != NULL)
+    luaD_pushobject(L, G_OBJECT(cancellable));
+  else
+    lua_pushnil(L);
+
   success =
-  ds_xpcall(L, 0, 0, &tmp_err);
+  ds_xpcall(L, 1, 0, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);

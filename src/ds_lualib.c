@@ -16,7 +16,9 @@
  *
  */
 #include <config.h>
+#include <ds_luaboxed.h>
 #include <ds_luaclass.h>
+#include <ds_luaclosure.h>
 #include <ds_luaobj.h>
 #include <ds_macros.h>
 #include <gio/gio.h>
@@ -222,8 +224,22 @@ __index(lua_State* L)
     g_type_from_name(typename_);
     if(g_type != G_TYPE_INVALID)
     {
-      luaD_pushclass(L, g_type);
-      return 1;
+      GTypeQuery info;
+      g_type_query(g_type, &info);
+      if G_LIKELY(info.instance_size > 0)
+      {
+        luaD_pushclass(L, g_type);
+        return 1;
+      }
+      else
+      {
+        lua_pushfstring
+        (L,
+         "%s is an unclassed type\r\n",
+         typename_);
+        lua_error(L);
+        return 0;
+      }
     }
   }
 return 0;
@@ -242,7 +258,23 @@ _ds_lualib_init(lua_State  *L,
   GError* tmp_err = NULL;
 
   success =
+  _ds_luaboxed_init(L, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+  success =
   _ds_luaclass_init(L, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+  success =
+  _ds_luaclosure_init(L, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -280,6 +312,22 @@ _ds_lualib_init(lua_State  *L,
   lua_setmetatable(L, -2);
   lua_settable(L, -3);
 
+  /* Set compile-time strings */
+#define set_macro(MacroName) \
+  G_STMT_START { \
+    lua_pushliteral(L, #MacroName ); \
+    lua_pushliteral(L,  MacroName ); \
+    lua_settable(L, -3); \
+  } G_STMT_END
+
+  set_macro(SCHEMASDIR);
+  set_macro(GFXDIR);
+  set_macro(PKGDATADIR);
+  set_macro(PKGLIBEXECDIR);
+  set_macro(ABSTOPBUILDDIR);
+
+#undef set_macro
+
   /* inject module onto package.loaded */
   lua_getglobal(L, "package");
   lua_getfield(L, -1, "loaded");
@@ -298,5 +346,7 @@ void
 _ds_lualib_fini(lua_State* L)
 {
   _ds_luaobj_fini(L);
+  _ds_luaclosure_fini(L);
   _ds_luaclass_fini(L);
+  _ds_luaboxed_fini(L);
 }

@@ -18,6 +18,7 @@
 #ifndef __DS_CALLABLE_INCLUDED__
 #define __DS_CALLABLE_INCLUDED__
 #include <ds_marshals.h>
+#include <ds_closure.h>
 #include <gio/gio.h>
 
 #define DS_TYPE_CALLABLE            (ds_callable_get_type())
@@ -31,11 +32,6 @@ typedef struct _DsCallableIface         DsCallableIface;
 typedef struct _DsCallableIfacePrivate  DsCallableIfacePrivate;
 
 #define DS_INVOKE_STATIC_SCOPE G_SIGNAL_TYPE_STATIC_SCOPE
-
-typedef enum {
-  DS_CALLABLE_METHOD,
-  DS_CALLABLE_CONTRUCTOR,
-} DsCallableMethodType;
 
 #if __cplusplus
 extern "C" {
@@ -53,9 +49,13 @@ struct _DsCallableIface
 gboolean
 ds_callable_iface_has_field(DsCallableIface* iface,
                             const gchar* name);
-DsCallableMethodType
-ds_callable_iface_get_field_type(DsCallableIface* iface,
-                                 const gchar* name);
+DsClosure*
+ds_callable_iface_get_field(DsCallableIface* iface,
+                            const gchar* name);
+void
+ds_callable_iface_set_field(DsCallableIface* iface,
+                            const gchar* name,
+                            DsClosure* closure);
 DsCallable*
 ds_callable_iface_contructv(DsCallableIface* iface,
                             const gchar* name,
@@ -63,7 +63,7 @@ ds_callable_iface_contructv(DsCallableIface* iface,
 void
 ds_callable_iface_add_methodv(DsCallableIface* iface,
                               const gchar* name,
-                              DsCallableMethodType type,
+                              DsClosureFlags flags,
                               GCallback callback,
                               GClosureMarshal marshal,
                               GVaClosureMarshal vmarshal,
@@ -73,7 +73,7 @@ ds_callable_iface_add_methodv(DsCallableIface* iface,
 void
 ds_callable_iface_add_method_valist(DsCallableIface* iface,
                                     const gchar* name,
-                                    DsCallableMethodType type,
+                                    DsClosureFlags flags,
                                     GCallback callback,
                                     GClosureMarshal marshal,
                                     GVaClosureMarshal vmarshal,
@@ -83,7 +83,7 @@ ds_callable_iface_add_method_valist(DsCallableIface* iface,
 void
 ds_callable_iface_add_method(DsCallableIface* iface,
                              const gchar* name,
-                             DsCallableMethodType type,
+                             DsClosureFlags flags,
                              GCallback callback,
                              GClosureMarshal marshal,
                              GVaClosureMarshal vmarshal,

@@ -162,10 +162,82 @@ namespace _Ds
   return true;
   }
 
+  public bool pushvalue(Lua.LuaVM L, GLib.Value value) throws GLib.Error
+  {
+    var gtype = value.type();
+    switch(gtype)
+    {
+    case GLib.Type.CHAR:
+      L.push_number((double) value.get_schar());
+      break;
+    case GLib.Type.UCHAR:
+      L.push_number((double) value.get_uchar());
+      break;
+    case GLib.Type.BOOLEAN:
+      L.push_boolean((int) value.get_boolean());
+      break;
+    case GLib.Type.INT:
+      L.push_number((double) value.get_int());
+      break;
+    case GLib.Type.UINT:
+      L.push_number((double) value.get_uint());
+      break;
+    case GLib.Type.LONG:
+      L.push_number((double) value.get_long());
+      break;
+    case GLib.Type.ULONG:
+      L.push_number((double) value.get_ulong());
+      break;
+    case GLib.Type.INT64:
+      L.push_number((double) value.get_int64());
+      break;
+    case GLib.Type.UINT64:
+      L.push_number((double) value.get_uint64());
+      break;
+    case GLib.Type.FLOAT:
+      L.push_number((double) value.get_float());
+      break;
+    case GLib.Type.DOUBLE:
+      L.push_number((double) value.get_double());
+      break;
+    case GLib.Type.STRING:
+      L.push_string(value.get_string());
+      break;
+    case GLib.Type.POINTER:
+      L.push_lightuserdata(value.get_pointer());
+      break;
+    default:
+      if(gtype.is_a(GLib.Type.ENUM))
+      {
+        L.push_number((double) value.get_enum());
+      } else
+      if(gtype.is_a(GLib.Type.FLAGS))
+      {
+        L.push_number((double) value.get_flags());
+      } else
+      if(gtype.is_a(GLib.Type.BOXED))
+      {
+        luaD.pushboxed(L, gtype, value.get_boxed());
+      } else
+      if(gtype.is_a(GLib.Type.OBJECT))
+      {
+        luaD.pushobject(L, value.get_object());
+      } else
+      {
+        throw new PushError.UNKNOWN_TRANSLATION
+        ("unknown translation to Lua values for type '%s'\r\n",
+         gtype.name());
+      }
+      break;
+    }
+  return true;
+  }
+
   public bool tovalue(Lua.LuaVM L, int idx, out GLib.Value value, GLib.Type g_type) throws GLib.Error
   {
     switch(L.type(idx))
     {
+    case Lua.Type.NONE:
     case Lua.Type.NIL:
       if(g_type != GLib.Type.INVALID)
       {
