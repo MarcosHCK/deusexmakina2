@@ -87,6 +87,7 @@ EXTRA_DIST+=\
 	ds_application_private.h \
 	ds_callable.h \
 	ds_closure.h \
+	ds_error.h \
 	ds_events.h \
 	ds_gl.h \
 	ds_lua.h \
@@ -114,6 +115,7 @@ deusexmakina2_SOURCES=\
 	ds_callable.c \
 	ds_closure.c \
 	ds_enums.c \
+	ds_error.c \
 	ds_events.c \
 	ds_gl.c \
 	ds_lua.c \

@@ -22,6 +22,7 @@ local cancellable = ...;
 do
   local shader = nil;
   local klass = ds.type.DsShader;
+  local error = ds.type.DsError.new();
 
   if(_ENV["DS_DEBUG"] == 'true') then
     shader =
@@ -30,7 +31,7 @@ do
       ds.ABSTOPBUILDDIR .. '/gfx/' .. 'skybox_fs.glsl',
       nil,
       cancellable,
-      nil);
+      error:ref());
   else
     shader =
     klass.new_simple(
@@ -38,8 +39,10 @@ do
       ds.GFXDIR .. 'skybox_fs.glsl',
       nil,
       cancellable,
-      nil);
+      error:ref());
   end
+
+  error:check();
 end
 
 print(shader);

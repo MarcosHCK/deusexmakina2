@@ -17,6 +17,7 @@
  */
 #include <config.h>
 #include <ds_application_private.h>
+#include <ds_error.h>
 #include <ds_events.h>
 #include <ds_luaobj.h>
 #include <ds_renderer.h>
@@ -112,6 +113,18 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   SDL_GLContext* glctx = NULL;
   guint glew_init = 0;
   DsPipeline* pipeline = NULL;
+
+/*
+ * Ensure class initialization
+ *
+ */
+
+  g_type_ensure(DS_TYPE_APPLICATION);
+  g_type_ensure(DS_TYPE_ERROR);
+  g_type_ensure(DS_TYPE_PIPELINE);
+  g_type_ensure(DS_TYPE_SAVE);
+  g_type_ensure(DS_TYPE_SETTINGS);
+  g_type_ensure(DS_TYPE_SHADER);
 
 /*
  * Settings
