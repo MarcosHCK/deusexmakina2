@@ -150,7 +150,13 @@ _ds_closure__call(lua_State* L,
 
   GValue* params = NULL;
   GValue return_ = G_VALUE_INIT;
-  g_value_init(&return_, closure->return_type);
+
+  GType rtype = closure->return_type & ~DS_INVOKE_STATIC_SCOPE;
+  gboolean static_scope = closure->return_type & DS_INVOKE_STATIC_SCOPE;
+  if(closure->return_type != G_TYPE_NONE)
+  {
+    g_value_init(&return_, rtype);
+  }
 
   GValue* params_ = g_alloca(sizeof(GValue) * (n_params + 1));
   memset(params_, 0, sizeof(GValue) * (n_params + 1));
@@ -180,7 +186,8 @@ _ds_closure__call(lua_State* L,
       i < closure->n_params;
       i++)
   {
-    _ds_tovalue(L, j++, &(params[i]), closure->params[i], &tmp_err);
+    GType ptype = closure->params[i] & ~DS_INVOKE_STATIC_SCOPE;
+    _ds_tovalue(L, j++, &(params[i]), ptype, &tmp_err);
     if G_UNLIKELY(tmp_err != NULL)
     {
       g_propagate_error(error, tmp_err);
@@ -196,14 +203,18 @@ _ds_closure__call(lua_State* L,
    params_,
    NULL);
 
-  _ds_pushvalue(L, &return_, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
+  if(rtype != G_TYPE_NONE)
   {
-    g_propagate_error(error, tmp_err);
-    goto_error();
+    _ds_pushvalue(L, &return_, &tmp_err);
+    if G_UNLIKELY(tmp_err != NULL)
+    {
+      g_propagate_error(error, tmp_err);
+      goto_error();
+    }
   }
 
 _error_:
+  g_value_unset(&return_);
   for(i = 0;
       i < n_params;
       i++)

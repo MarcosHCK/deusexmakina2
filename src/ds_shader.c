@@ -405,10 +405,6 @@ _callable_new_simple(gpointer       null_,
                      GCancellable  *cancellable,
                      GError       **error)
 {
-  g_print("vertex_file: %s\r\n", vertex_file);
-  g_print("fragment_file: %s\r\n", fragment_file);
-  g_print("geometry_file: %s\r\n", geometry_file);
-
   GFile *vertex_file_ = NULL,
         *fragment_file_ = NULL,
         *geometry_file_ = NULL;

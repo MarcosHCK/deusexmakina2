@@ -31,8 +31,6 @@ typedef struct _DsCallable              DsCallable;
 typedef struct _DsCallableIface         DsCallableIface;
 typedef struct _DsCallableIfacePrivate  DsCallableIfacePrivate;
 
-#define DS_INVOKE_STATIC_SCOPE G_SIGNAL_TYPE_STATIC_SCOPE
-
 #if __cplusplus
 extern "C" {
 #endif // __cplusplus

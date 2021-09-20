@@ -21,7 +21,7 @@
 
 #define goto_error() \
 G_STMT_START { \
-  /*g_warn_message(G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC, "goto_error()");*/ \
+  g_warn_message(G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC, "goto_error()"); \
   success = FALSE; \
   goto _error_; \
 } G_STMT_END

@@ -16,8 +16,9 @@
  *
  */
 #include <config.h>
-#include <ds_luaobj.h>
 #include <ds_callable.h>
+#include <ds_luaclosure.h>
+#include <ds_luaobj.h>
 
 #define _METATABLE "GObject"
 
@@ -140,41 +141,28 @@ return 1;
 }
 
 static int
-__index_ref(lua_State* L)
-{
-  GObject* obj =
-  luaD_checkobject(L, 1);
-  g_object_ref(obj);
-return 1;
-}
-
-static int
-__index_unref(lua_State* L)
-{
-  GObject* obj =
-  luaD_checkobject(L, 1);
-  g_object_unref(obj);
-return 0;
-}
-
-static int
 __index(lua_State* L)
 {
   const gchar* t;
+  GObject* obj =
+  luaD_checkobject(L, 1);
 
   if G_LIKELY
-    (lua_isstring(L, 1)
-     && (t = lua_tostring(L, 1)) != NULL)
+    (lua_isstring(L, 2)
+     && (t = lua_tostring(L, 2)) != NULL)
   {
-    if(!strcmp(t, "ref"))
+    if(DS_IS_CALLABLE(obj))
     {
-      lua_pushcfunction(L, __index_ref);
-      return 1;
-    } else
-    if(!strcmp(t, "unref"))
-    {
-      lua_pushcfunction(L, __index_unref);
-      return 1;
+      DsCallableIface* iface =
+      DS_CALLABLE_GET_IFACE(obj);
+
+      DsClosure* closure =
+      ds_callable_iface_get_field(iface, t);
+      if(closure != NULL)
+      {
+        luaD_pushclosure(L, closure);
+        return 1;
+      }
     }
   }
 return 0;

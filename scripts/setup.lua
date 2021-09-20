@@ -43,7 +43,6 @@ do
   end
 
   error:check();
-end
 
-print(shader);
-shader = nil;
+  pipeline:register_shader('skybox', shader);
+end

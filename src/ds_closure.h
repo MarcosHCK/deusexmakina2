@@ -26,10 +26,6 @@ typedef enum {
   DS_CLOSURE_CONSTRUCTOR,
 } DsClosureFlags;
 
-#if __cplusplus
-extern "C" {
-#endif // __cplusplus
-
 struct _DsClosure
 {
   GClosure closure;
@@ -40,6 +36,12 @@ struct _DsClosure
   guint n_params;
   GType* params;
 };
+
+#define DS_INVOKE_STATIC_SCOPE G_SIGNAL_TYPE_STATIC_SCOPE
+
+#if __cplusplus
+extern "C" {
+#endif // __cplusplus
 
 #if __cplusplus
 }
