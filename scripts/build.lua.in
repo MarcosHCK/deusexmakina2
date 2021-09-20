@@ -32,7 +32,7 @@ build.PACKAGE_VERSION_BUILD = "@PACKAGE_VERSION_BUILD@"
 build.PACKAGE_VERSION_MAYOR = "@PACKAGE_VERSION_MAYOR@"
 build.PACKAGE_VERSION_MICRO = "@PACKAGE_VERSION_MICRO@"
 build.PACKAGE_VERSION_MINOR = "@PACKAGE_VERSION_MINOR@"
-build.target_os = "@target_os@"
+build.host_os = "@host_os@"
 
 -- Check OS
 
@@ -43,11 +43,11 @@ do
     build.jit = jit;
     build.os = jit.os;
   else
-    if(build.target_os:match('linux')) then
+    if(build.host_os:match('linux')) then
       build.os = 'Linux';
-    elseif(build.target_os:match('mingw')) then
+    elseif(build.host_os:match('mingw')) then
       build.os = 'Windows';
-    elseif(build.target_os:match('bsd') or build.target_os:match('BSD')) then
+    elseif(build.host_os:match('bsd') or build.host_os:match('BSD')) then
       build.os = 'Posix';
     else
       build.os = 'Other';

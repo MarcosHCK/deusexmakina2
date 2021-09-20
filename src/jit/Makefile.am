@@ -40,14 +40,18 @@ minilua_SOURCES=minilua.c
 minilua_CFLAGS=
 minilua_LDADD=-lm
 else
-EXTRA_DIST=minilua.c
+EXTRA_DIST+=minilua.c
 endif
 
-%.c: %.dynasm.c
-	$(MINILUA) ${top_builddir}/dynasm/dynasm.lua -o $(@:.dynasm.c=.c) $<
+#
+# *.dasc.c to *.c make target
+#
+
+%.c: %.dasc.c
+	$(MINILUA) ${top_builddir}/dynasm/dynasm.lua -D fastcall_style=\"${fastcall_style}\" -o $(@:.dynasm.c=.c) $<
 
 #
-# Library
+# C headers
 #
 
 EXTRA_DIST+=\
@@ -55,10 +59,22 @@ EXTRA_DIST+=\
 	overwrites.h \
 	$(VOID)
 
+#
+# DynASM source files
+#
+
+EXTRA_DIST+=\
+	pipeline_x86_64.dasc.c \
+	$(VOID)
+
+#
+# Library
+#
+
 noinst_LTLIBRARIES=libjit.la
 
 libjit_la_SOURCES=\
-	pipeline_x86_64.c \
+	pipeline_${host_cpu}.c \
 	$(VOID)
 
 libjit_la_CFLAGS=\
@@ -74,6 +90,7 @@ libjit_la_CFLAGS=\
 	$(GLEW_CFLAGS) \
 	$(CGLM_CFLAGS) \
 	$(LUA_CFLAGS) \
+	-DFASTCALL_STYLE=\"${fastcall_style}\" \
 	-DSCHEMASDIR=\"${schemasdir}\" \
 	-DGFXDIR=\"${gfxdir}\" \
 	-DPKGDATADIR=\"${pkgdatadir}\" \

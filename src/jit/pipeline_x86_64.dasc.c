@@ -23,13 +23,60 @@
 
 |.arch x64
 |.section code
+|.globals globl_
+|.actionlist actions
+|.globalnames globl_names
+|.externnames extern_names
+
+|.if fastcall_style == "linux"
+|.define arg1, rdi
+|.define arg2, rsi
+|.define arg3, rdx
+|.define arg4, rcx
+|.define arg5, r8
+|.define arg6, r9
+|.endif
+|.if fastcall_style == "windows"
+|.define arg1, rcx
+|.define arg2, rdx
+|.define arg3, r8
+|.define arg4, r9
+|.define arg5, [rsp+0*8]
+|.define arg5, [rsp+1*8]
+|.endif
+
+|.macro epilogue
+| pop rbx
+| ret
+|.endmacro
+
+|.macro invoke, name
+| mov64 rax, ((guintptr) name)
+| call rax
+|.endmacro
+
+/*
+ * if G_UNLIKELY
+ *  (ds_gl_has_error() == TRUE)
+ *  {
+ *    *error = ds_gl_get_error();
+ *    return;
+ *  }
+ *
+ */
+|.macro __gl_catch
+| invoke ds_gl_has_error
+| test rax, rax
+| jz >1
+| invoke ds_gl_get_error
+| mov [rbx], rax
+| epilogue
+|1:
+|.endmacro
 
 void
 _ds_jit_compile_start(JitState* ctx)
 {
-  |.globals lbl_
-  |.actionlist actions
-
 /*
  * Pre-init dasm state
  *
@@ -42,10 +89,11 @@ _ds_jit_compile_start(JitState* ctx)
  *
  */
 
-  ctx->labels = g_slice_alloc0(sizeof(gpointer) * lbl__MAX);
-  ctx->n_labels = lbl__MAX;
-  ctx->n_main = lbl_jitmain;
-  dasm_setupglobal(Dst, ctx->labels, lbl__MAX);
+  ctx->labels = g_slice_alloc0(sizeof(gpointer) * globl__MAX);
+  ctx->n_labels = globl__MAX;
+  ctx->n_main = globl_jitmain;
+
+  dasm_setupglobal(Dst, ctx->labels, globl__MAX);
 
 /*
  * Finish setup
@@ -59,7 +107,7 @@ _ds_jit_compile_start(JitState* ctx)
  *
  */
 
-  unsigned npc = 8;
+  unsigned npc = 0;
   dasm_growpc(Dst, npc);
 
 /*
@@ -72,38 +120,7 @@ _ds_jit_compile_start(JitState* ctx)
 
   /* GError** -> rbx */
   | push rbx
-#ifdef G_OS_WINDOWS
-  /* fastcall in Windows works passing first argument through rcx */
-  | mov rbx, rcx
-#else // G_OS_WINDOWS
-  /* fastcall in Linux works passing first argument through rdi */
-  | mov rbx, rdi
-#endif // G_OS_WINDOWS
-
-  |.macro epilogue
-  | pop rbx
-  | ret
-  |.endmacro
-
-  /*
-  if G_UNLIKELY
-    (ds_gl_has_error() == TRUE)
-  {
-    *error = ds_gl_get_error();
-    return;
-  }
-  */
-  |.macro __gl_catch
-  | mov64 rax, ((guintptr) ds_gl_has_error)
-  | call rax
-  | test rax, rax
-  | jz >1
-  | mov64 rax, ((guintptr) ds_gl_get_error)
-  | call rax
-  | mov [rbx], rax
-  | epilogue
-  |1:
-  |.endmacro
+  | mov rbx, arg1
 }
 
 void
@@ -183,12 +200,7 @@ void
 _ds_jit_compile_use_shader(JitState* ctx,
                            GLuint shader)
 {
-#ifdef G_OS_WINDOWS
-  | mov64 rcx, ((guintptr) shader)
-#else
-  | mov64 rdi, ((guintptr) shader)
-#endif // G_OS_WINDOWS
-  | mov64 rax, ((guintptr) glUseProgram)
-  | call rax
+  | mov64 arg1, ((guintptr) shader)
+  | invoke glUseProgram
   | __gl_catch
 }

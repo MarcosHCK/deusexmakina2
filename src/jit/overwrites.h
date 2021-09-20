@@ -20,7 +20,9 @@
 #define __INSIDE_DYNASM_FILE__
 #include <glib.h>
 
-#define DASM_FDEF   static
+#define DASM_FDEF G_GNUC_INTERNAL
+
+#define DASM_EXTERN(ctx, addr, idx, type) 0
 
 #define DASM_M_GROW(ctx, t, p, sz, need) \
   G_STMT_START { \

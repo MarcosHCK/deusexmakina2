@@ -65,6 +65,48 @@ AC_DEFINE([PACKAGE_RELEASE], ["p_RELEASE"], [Release tag])
 AC_SUBST([PACKAGE_RELEASE], [p_RELEASE])
 
 #
+# Guess calling convention
+# linux:
+#   - first argument: rdi (x64), fourth slot on stack (x86)
+#   - second argument: rsi (x64), third slot on stack (x86)
+#   - third argument: rdx (x64), second slot on stack (x86)
+#   - fourth argument: rcx (x64), first slot on stack (x86)
+#   - goes on ...
+# Windos:
+#   - first argument: rcx (x64), fourth slot on stack (x86)
+#   - second argument: rdx (x64), third slot on stack (x86)
+#   - third argument: r8 (x64), second slot on stack (x86)
+#   - fourth argument: r9 (x64), first slot on stack (x86)
+#   - goes on ...
+#
+
+AC_DEFUN([CHECK_FASTCALL_STYLE], [
+AC_SUBST([fastcall_style])
+case "${host_os}" in
+  mingw*)
+    fastcall_style=windows
+    ;;
+  msys*)
+    fastcall_style=windows
+    ;;
+  cygwin*)
+    fastcall_style=linux
+    ;;
+  linux)
+    fastcall_style=linux
+    ;;
+  *)
+    fastcall_style=linux
+    ;;
+esac
+])
+
+
+
+AS_IF([test "x$host_cpu" = "xx86_64"],
+      [CHECK_FASTCALL_STYLE()])
+
+#
 #  Checks for programs we'll
 # need to build
 #
@@ -165,10 +207,15 @@ PKG_CHECK_MODULES([CGLM], [cglm])
 PKG_CHECK_MODULES([LUA], [luajit lua5.1 lua51])
 
 #
+# Check for libraries
+#
+AC_CHECK_LIB([m], [pow])
+
+#
 # Checks for header files.
 #
 
-AC_CHECK_HEADERS([stdlib.h string.h limits.h])
+AC_CHECK_HEADERS([float.h limits.h stddef.h stdlib.h string.h])
 
 if test "x$MINILUA" != "xno"; then
   AC_CHECK_HEADERS([stddef.h])
@@ -189,6 +236,7 @@ fi
 # Checks for library functions.
 #
 
+AC_FUNC_MMAP
 AC_CHECK_FUNCS([memset])
 
 if test "x$MINILUA" != "xno"; then
