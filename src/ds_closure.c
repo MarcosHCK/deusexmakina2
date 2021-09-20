@@ -157,12 +157,48 @@ __tostring(lua_State* L)
 {
   DsClosure* closure =
   luaD_checkclosure(L, 1);
+#if VERBOSE_CLOSURE_TOSTRING
+  #define luaL_addliteral(b_, l) luaL_addlstring(b_, l, sizeof(l)-1)
 
+  G_STMT_START
+  {
+    luaL_Buffer b;
+    luaL_buffinit(L, &b);
+    guint i, n_params = closure->n_params;
+
+    GType rtype = closure->return_type & ~DS_INVOKE_STATIC_SCOPE;
+    luaL_addstring(&b, g_type_name(rtype));
+    luaL_addliteral(&b, " (*) (");
+
+    for(i = 0;
+        i < n_params;
+        i++)
+    {
+      GType ptype = closure->params[i] & ~DS_INVOKE_STATIC_SCOPE;
+      luaL_addstring(&b, g_type_name(ptype));
+
+      if((i + 1) < n_params)
+      {
+        luaL_addliteral(&b, ", ");
+      }
+    }
+
+    luaL_addliteral(&b, ") (");
+    lua_pushfstring(L, "%p", closure->callback);
+    luaL_addvalue(&b);
+    luaL_addchar(&b, ')');
+
+    luaL_pushresult(&b);
+  }
+  G_STMT_END;
+  #undef luaL_addliteral
+#else
   lua_pushfstring
   (L,
    "%s (%p)",
    _METATABLE,
    (guintptr) closure);
+#endif // VERBOSE_CLOSURE_TOSTRING
 return 1;
 }
 

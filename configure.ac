@@ -110,8 +110,8 @@ fi
 # Do you want to debug? Tell me!
 #
 debugging="no"
-AC_ARG_ENABLE(debug,
-              AS_HELP_STRING([--enable-debug], [Enable debug object output @<:@default=no@:>@]),
+AC_ARG_ENABLE([debug],
+              [AS_HELP_STRING([--enable-debug], [Enable debug object output @<:@default=no@:>@])],
               [if test "x$enableval" != "xno"; then
                 debugging="yes"
                fi
@@ -128,6 +128,24 @@ else
 
   AC_DEFINE([DEBUG], [1], [Debugging enabled])
   AC_SUBST([DEBUG], [1])
+fi
+
+#
+# Verbose closure conversion to string?
+#
+verboseclosure="yes"
+AC_ARG_ENABLE([verbose-closure-tostring],
+              [AS_HELP_STRING([--enable-verbose-closure-tostring], [Enables verbose closure to string conversion @<:@default=yes@:>@])],
+              [if test "x$enableval" != "xno"; then
+                verboseclosure="yes"
+               else
+                verboseclosure="no"
+              fi])
+
+if test "x$verboseclosure" = "xno"; then
+  AC_DEFINE([VERBOSE_CLOSURE_TOSTRING], [0], [Verbose closure tostring])
+else
+  AC_DEFINE([VERBOSE_CLOSURE_TOSTRING], [1], [Verbose closure tostring])
 fi
 
 #
