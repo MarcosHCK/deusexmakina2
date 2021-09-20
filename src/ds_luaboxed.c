@@ -61,6 +61,38 @@ _typeerror(lua_State *L, int arg, const char *tname) {
   return luaL_argerror(L, arg, msg);
 }
 
+gboolean
+luaD_isboxed(lua_State  *L,
+             int         idx)
+{
+  DsBoxed* boxed =
+  lua_touserdata(L, idx);
+
+  if G_LIKELY(boxed != NULL)
+  {
+    if G_LIKELY
+      (lua_getmetatable
+       (L, idx) == TRUE)
+    {
+      luaL_getmetatable(L, _METATABLE);
+      if G_LIKELY
+        (lua_rawequal
+         (L, -1, -2) == TRUE)
+      {
+        lua_pop(L, 2);
+        return TRUE;
+      }
+      else
+      {
+        lua_pop(L, 1);
+      }
+
+      lua_pop(L, 1);
+    }
+  }
+return FALSE;
+}
+
 gpointer
 luaD_toboxed(lua_State  *L,
              int         idx,
@@ -101,13 +133,13 @@ luaD_checkboxed(lua_State *L,
                 int        arg,
                 GType     *g_type)
 {
-  gpointer ptr =
-  luaD_toboxed(L, arg, g_type);
-  if G_UNLIKELY(ptr == NULL)
+  gboolean is =
+  luaD_isboxed(L, arg);
+  if G_UNLIKELY(is == FALSE)
   {
     _typeerror(L, arg, _METATABLE);
   }
-return ptr;
+return luaD_toboxed(L, arg, g_type);
 }
 
 /*

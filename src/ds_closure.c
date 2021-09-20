@@ -70,6 +70,38 @@ _typeerror(lua_State *L, int arg, const char *tname) {
   return luaL_argerror(L, arg, msg);
 }
 
+gboolean
+luaD_isclosure(lua_State  *L,
+               int         idx)
+{
+  DsClosure **ptr =
+  lua_touserdata(L, idx);
+
+  if G_LIKELY(ptr != NULL)
+  {
+    if G_LIKELY
+      (lua_getmetatable
+       (L, idx) == TRUE)
+    {
+      luaL_getmetatable(L, _METATABLE);
+      if G_LIKELY
+        (lua_rawequal
+         (L, -1, -2) == TRUE)
+      {
+        lua_pop(L, 2);
+        return TRUE;
+      }
+      else
+      {
+        lua_pop(L, 1);
+      }
+
+      lua_pop(L, 1);
+    }
+  }
+return FALSE;
+}
+
 DsClosure*
 luaD_toclosure(lua_State  *L,
                int         idx)
@@ -106,13 +138,13 @@ DsClosure*
 luaD_checkclosure(lua_State  *L,
                   int         arg)
 {
-  DsClosure* closure =
-  luaD_toclosure(L, arg);
-  if G_UNLIKELY(closure == NULL)
+  gboolean is =
+  luaD_isclosure(L, arg);
+  if G_UNLIKELY(is == FALSE)
   {
     _typeerror(L, arg, _METATABLE);
   }
-return closure;
+return luaD_toclosure(L, arg);
 }
 
 /*
@@ -165,9 +197,9 @@ _ds_closure__call(lua_State* L,
   g_value_init(params_, G_TYPE_OBJECT);
   if(constructor == FALSE)
   {
-    GObject* object =
-    luaD_toobject(L, 2);
-    if(object == NULL)
+    gboolean is =
+    luaD_isobject(L, 2);
+    if(is == FALSE)
     {
       g_set_error
       (error,
@@ -178,6 +210,7 @@ _ds_closure__call(lua_State* L,
     }
     else
     {
+      GObject* object = luaD_toobject(L, 2);
       g_value_set_object(params_, object);
     }
   }

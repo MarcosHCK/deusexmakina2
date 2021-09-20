@@ -95,6 +95,7 @@ EXTRA_DIST+=\
 	ds_luaclass.h \
 	ds_luaclosure.h \
 	ds_luaobj.h \
+	ds_luavala.h \
 	ds_macros.h \
 	ds_marshals.h \
 	ds_pipeline.h \

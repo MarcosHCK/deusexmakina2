@@ -339,7 +339,27 @@ namespace _Ds
       assert_not_reached();
       break;
     case Lua.Type.USERDATA:
-      assert_not_reached();
+      if(luaD.isobject(L, idx) == true)
+      {
+        var obj = luaD.toobject(L, idx);
+        var otype = GLib.Type.from_instance(obj);
+        value = GLib.Value(otype);
+        value.set_object(obj);
+      } else
+      if(luaD.isboxed(L, idx) == true)
+      {
+        GLib.Type btype;
+        var ptr = luaD.toboxed(L, idx, out btype);
+        value = GLib.Value(btype);
+        value.set_boxed(ptr);
+      } else
+      {
+        throw new PushError.UNKNOWN_TRANSLATION
+        ("unknown type in '%s' translation\r\n",
+         L.type_name
+         (L.type
+          (idx)));
+      }
       break;
     default:
       throw new PushError.UNKNOWN_TRANSLATION

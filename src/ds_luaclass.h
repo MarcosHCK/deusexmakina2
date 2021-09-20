@@ -33,6 +33,9 @@ _ds_luaclass_fini(lua_State* L);
 void
 luaD_pushclass(lua_State *L,
                GType      g_type);
+gboolean
+luaD_isclass(lua_State  *L,
+             int         idx);
 GObjectClass*
 luaD_toclass(lua_State  *L,
              int         idx);

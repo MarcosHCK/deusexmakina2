@@ -76,6 +76,38 @@ _typeerror(lua_State *L, int arg, const char *tname) {
   return luaL_argerror(L, arg, msg);
 }
 
+gboolean
+luaD_isobject(lua_State  *L,
+              int         idx)
+{
+  GObject **ptr =
+  lua_touserdata(L, idx);
+
+  if G_LIKELY(ptr != NULL)
+  {
+    if G_LIKELY
+      (lua_getmetatable
+       (L, idx) == TRUE)
+    {
+      luaL_getmetatable(L, _METATABLE);
+      if G_LIKELY
+        (lua_rawequal
+         (L, -1, -2) == TRUE)
+      {
+        lua_pop(L, 2);
+        return TRUE;
+      }
+      else
+      {
+        lua_pop(L, 1);
+      }
+
+      lua_pop(L, 1);
+    }
+  }
+return FALSE;
+}
+
 GObject*
 luaD_toobject(lua_State  *L,
               int         idx)
@@ -112,13 +144,13 @@ GObject*
 luaD_checkobject(lua_State  *L,
                  int         arg)
 {
-  GObject* obj =
-  luaD_toobject(L, arg);
-  if G_UNLIKELY(obj == NULL)
+  gboolean is =
+  luaD_isobject(L, arg);
+  if G_UNLIKELY(is == FALSE)
   {
     _typeerror(L, arg, _METATABLE);
   }
-return obj;
+return luaD_toobject(L, arg);
 }
 
 /*

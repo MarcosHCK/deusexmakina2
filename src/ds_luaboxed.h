@@ -34,6 +34,9 @@ void
 luaD_pushboxed(lua_State *L,
                GType      g_type,
                gpointer   boxed);
+gboolean
+luaD_isboxed(lua_State  *L,
+             int         idx);
 gpointer
 luaD_toboxed(lua_State  *L,
              int         idx,

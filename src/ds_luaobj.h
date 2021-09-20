@@ -39,6 +39,9 @@ luaD_tovalue(lua_State* L,
 void
 luaD_pushobject(lua_State  *L,
                 GObject    *obj);
+gboolean
+luaD_isobject(lua_State  *L,
+              int         idx);
 GObject*
 luaD_toobject(lua_State  *L,
               int         idx);

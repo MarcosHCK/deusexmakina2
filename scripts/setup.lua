@@ -32,6 +32,7 @@ do
       nil,
       cancellable,
       error:ref());
+    error:check();
   else
     shader =
     klass.new_simple(
@@ -40,9 +41,8 @@ do
       nil,
       cancellable,
       error:ref());
+    error:check();
   end
-
-  error:check();
 
   pipeline:register_shader('skybox', shader);
 end
