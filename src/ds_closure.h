@@ -19,12 +19,58 @@
 #define __DS_CLOSURE_INCLUDED__
 #include <glib-object.h>
 
-typedef struct _DsClosure DsClosure;
+/**
+ * DS_CLOSURE_ERROR:
+ *
+ * Error domain for DS_CLOSURE. Errors in this domain will be from the #DsClosureError enumeration.
+ * See #GError for more information on error domains.
+ */
+#define DS_CLOSURE_ERROR (ds_closure_error_quark())
 
+/**
+ * DS_CLOSURE_ERROR:
+ *
+ * See #G_SIGNAL_TYPE_STATIC_SCOPE
+ */
+#define DS_INVOKE_STATIC_SCOPE G_SIGNAL_TYPE_STATIC_SCOPE
+
+/**
+ * DsClosureError:
+ * @DS_CLOSURE_ERROR_FAILED: generic error condition.
+ * @DS_CLOSURE_ERROR_INVALID_ARGUMENT: invalid argument supplied to closure.
+ * @DS_CLOSURE_ERROR_INVALID_RETURN: closure callback had return an invalid value.
+ *
+ * Error code returned by DsClosure API.
+ * Note that %DS_CLOSURE_ERROR_FAILED is here only for compatibility with
+ * error domain definition paradigm as defined on GLib documentation.
+ */
+typedef enum {
+  DS_CLOSURE_ERROR_FAILED,
+  DS_CLOSURE_ERROR_INVALID_ARGUMENT,
+  DS_CLOSURE_ERROR_INVALID_RETURN,
+} DsClosureError;
+
+/**
+ * DsClosureFlags:
+ * @DS_CLOSURE_FLAGS_NONE: normal closure.
+ * @DS_CLOSURE_CONSTRUCTOR: constructor closure (means you don't have
+ * to pass an object instance as first argument).
+ *
+ * Closure flags
+ */
 typedef enum {
   DS_CLOSURE_FLAGS_NONE,
   DS_CLOSURE_CONSTRUCTOR,
 } DsClosureFlags;
+
+typedef struct _DsClosure DsClosure;
+
+#if __cplusplus
+extern "C" {
+#endif // __cplusplus
+
+GQuark
+ds_closure_error_quark();
 
 struct _DsClosure
 {
@@ -36,12 +82,6 @@ struct _DsClosure
   guint n_params;
   GType* params;
 };
-
-#define DS_INVOKE_STATIC_SCOPE G_SIGNAL_TYPE_STATIC_SCOPE
-
-#if __cplusplus
-extern "C" {
-#endif // __cplusplus
 
 #if __cplusplus
 }
