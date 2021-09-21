@@ -19,6 +19,7 @@
 #include <ds_callable.h>
 #include <ds_luaclosure.h>
 #include <ds_luaobj.h>
+#include <ds_macros.h>
 
 #define _METATABLE "GObject"
 
@@ -58,7 +59,7 @@ luaD_pushobject(lua_State  *L,
   GObject** ptr = (GObject**)
   lua_newuserdata(L, sizeof(GObject*));
   luaL_setmetatable(L, _METATABLE);
-  (*ptr) = g_object_ref(obj);
+  (*ptr) = _g_object_ref0(obj);
 }
 
 /* Taken as-in from LuaJIT code */

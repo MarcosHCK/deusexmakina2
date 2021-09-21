@@ -353,6 +353,9 @@ _ds_closure__call(lua_State* L,
     }
   }
 
+  gpointer old = closure->closure.data;
+  closure->closure.data = L;
+
   g_closure_invoke
   ((GClosure*)
    closure,
@@ -360,6 +363,8 @@ _ds_closure__call(lua_State* L,
    n_params + 1,
    params_,
    NULL);
+
+  closure->closure.data = old;
 
   if(rtype != G_TYPE_NONE)
   {

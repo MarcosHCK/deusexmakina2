@@ -17,6 +17,7 @@
  */
 #include <config.h>
 #include <ds_renderable.h>
+#include <jit/jit.h>
 
 static
 void ds_renderable_default_init(DsRenderableIface* iface);
@@ -58,11 +59,90 @@ ds_renderable_get_type (void)
 return renderable_type;
 }
 
+static gboolean
+ds_renderable_default_compile(DsRenderable         *renderable,
+                              DsRenderState        *state,
+                              GLuint                program,
+                              GCancellable         *cancellable,
+                              GError              **error)
+{
+  g_warning
+  ("DsRenderable::compile not implemented for '%s'\r\n",
+   g_type_name(G_TYPE_FROM_INSTANCE(renderable)));
+return FALSE;
+}
+
 static
 void ds_renderable_default_init(DsRenderableIface* iface) {
+  iface->compile = ds_renderable_default_compile;
 }
 
 /*
  * Object methods
  *
  */
+
+gboolean
+ds_renderable_compile(DsRenderable         *renderable,
+                      DsRenderState        *state,
+                      GLuint                program,
+                      GCancellable         *cancellable,
+                      GError              **error)
+{
+  g_return_val_if_fail(DS_IS_RENDERABLE(renderable), FALSE);
+  g_return_val_if_fail(state != NULL, FALSE);
+  g_return_val_if_fail(cancellable == NULL || G_IS_CANCELLABLE(cancellable), FALSE);
+  g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+  DsRenderableIface* iface =
+  DS_RENDERABLE_GET_IFACE(renderable);
+return iface->compile(renderable, state, program, cancellable, error);
+}
+
+void
+ds_render_state_pcall(DsRenderState  *state,
+                      GCallback       callback,
+                      guint           n_params,
+                      ...)
+{
+  va_list l;
+  va_start(l, n_params);
+
+  _ds_jit_compile_call_valist
+  ((JitState*)
+   state,
+   callback,
+   TRUE,
+   n_params,
+   l);
+
+  va_end(l);
+}
+
+void
+ds_render_state_call(DsRenderState  *state,
+                     GCallback       callback,
+                     guint           n_params,
+                     ...)
+{
+  va_list l;
+  va_start(l, n_params);
+
+  _ds_jit_compile_call_valist
+  ((JitState*)
+   state,
+   callback,
+   FALSE,
+   n_params,
+   l);
+
+  va_end(l);
+}
+
+void
+ds_render_state_mvp_set_model(DsRenderState  *state,
+                              gfloat*         mvp_model)
+{
+  JitState* ctx = (JitState*) state;
+  _ds_jit_compile_mvp_model(ctx, (gpointer) mvp_model);
+}

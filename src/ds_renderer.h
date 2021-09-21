@@ -23,11 +23,13 @@
 extern "C" {
 #endif // __cplusplus
 
+G_GNUC_INTERNAL
 gboolean
 _ds_renderer_init(DsApplication  *self,
                   GSettings      *gsettings,
                   GCancellable   *cancellable,
                   GError        **error);
+G_GNUC_INTERNAL
 gboolean
 _ds_renderer_step(DsApplication* self);
 

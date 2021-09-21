@@ -224,9 +224,7 @@ __index(lua_State* L)
     g_type_from_name(typename_);
     if(g_type != G_TYPE_INVALID)
     {
-      GTypeQuery info;
-      g_type_query(g_type, &info);
-      if G_LIKELY(info.instance_size > 0)
+      if(G_TYPE_IS_CLASSED(g_type))
       {
         luaD_pushclass(L, g_type);
         return 1;
@@ -238,7 +236,6 @@ __index(lua_State* L)
          "%s is an unclassed type\r\n",
          typename_);
         lua_error(L);
-        return 0;
       }
     }
   }

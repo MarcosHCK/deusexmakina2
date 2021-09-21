@@ -31,7 +31,7 @@ namespace _Ds
   const string F_DIRECTORY_SEP = "/";
   const string CONFIG_ROOT = Config.PACKAGE_NAME;
 
-  private bool check_dir(string path, GLib.Cancellable? cancellable = null) throws GLib.Error
+  static bool check_dir(string path, GLib.Cancellable? cancellable = null) throws GLib.Error
   {
     bool  exists = GLib.FileUtils.test(path, GLib.FileTest.EXISTS),
           isfolder = GLib.FileUtils.test(path, GLib.FileTest.IS_DIR);
@@ -49,7 +49,7 @@ namespace _Ds
 
   namespace base_data_dir
   {
-    public GLib.File pick(GLib.Cancellable? cancellable = null) throws GLib.Error
+    internal GLib.File pick(GLib.Cancellable? cancellable = null) throws GLib.Error
     {
       var paths = new GenericArray<string>();
       unowned string env = null;
@@ -118,7 +118,7 @@ namespace _Ds
     return GLib.File.new_for_path(baseDir);
     }
 
-    public GLib.File child(string name, GLib.File basedatadir, GLib.Cancellable? cancellable = null) throws GLib.Error
+    internal GLib.File child(string name, GLib.File basedatadir, GLib.Cancellable? cancellable = null) throws GLib.Error
     {
       var child = basedatadir.get_child(name);
       try {
@@ -147,7 +147,7 @@ namespace _Ds
     UNEXPECTED_TYPE,
   }
 
-  private bool checktype(GLib.Type expected, GLib.Type got) throws GLib.Error
+  static bool checktype(GLib.Type expected, GLib.Type got) throws GLib.Error
   {
     if(expected != GLib.Type.INVALID)
     {
@@ -162,7 +162,7 @@ namespace _Ds
   return true;
   }
 
-  public bool pushvalue(Lua.LuaVM L, GLib.Value value) throws GLib.Error
+  internal bool pushvalue(Lua.LuaVM L, GLib.Value value) throws GLib.Error
   {
     var gtype = value.type();
     switch(gtype)
@@ -233,7 +233,7 @@ namespace _Ds
   return true;
   }
 
-  public bool tovalue(Lua.LuaVM L, int idx, out GLib.Value value, GLib.Type g_type) throws GLib.Error
+  internal bool tovalue(Lua.LuaVM L, int idx, out GLib.Value value, GLib.Type g_type) throws GLib.Error
   {
     switch(L.type(idx))
     {

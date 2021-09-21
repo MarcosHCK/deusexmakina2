@@ -15,31 +15,21 @@
  *  along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#ifndef __DS_EVENTS_INCLUDED__
-#define __DS_EVENTS_INCLUDED__
-#include <ds_lua.h>
-
-#if __cplusplus
-extern "C" {
-#endif // __cplusplus
+#include <config.h>
+#include <cglm/cglm.h>
+#include <jit.h>
 
 G_GNUC_INTERNAL
-gboolean
-_ds_events_init(lua_State      *L,
-                GSettings      *settings,
-                GCancellable   *cancellable,
-                GError        **error);
-G_GNUC_INTERNAL
-gboolean
-_ds_events_poll(DsApplication* self);
-G_GNUC_INTERNAL
-gboolean
-ds_events_push(lua_State  *L,
-               int         argc,
-               GError    **error);
-
-#if __cplusplus
+void
+_ds_jit_helper_update_model(JitMvps* mvps, mat4 model)
+{
+  glm_mat4_copy(model, mvps->model);
 }
-#endif // __cplusplus
 
-#endif // __DS_EVENTS_INCLUDED__
+G_GNUC_INTERNAL
+void
+_ds_jit_helper_update_mvps(JitMvps* mvps)
+{
+  glm_mat4_mul(mvps->projection, mvps->view, mvps->mvp);
+  glm_mat4_mul(mvps->mvp, mvps->model, mvps->mvp);
+}

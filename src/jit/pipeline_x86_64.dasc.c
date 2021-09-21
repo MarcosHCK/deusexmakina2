@@ -41,18 +41,31 @@
 |.define arg2, rdx
 |.define arg3, r8
 |.define arg4, r9
-|.define arg5, [rsp+0*8]
-|.define arg5, [rsp+1*8]
 |.endif
-
-|.macro epilogue
-| pop rbx
-| ret
-|.endmacro
 
 |.macro invoke, name
 | mov64 rax, ((guintptr) name)
 | call rax
+|.endmacro
+
+|.define pipeline, [rsp+8*0]
+|.define mvps, [rsp+8*1]
+|.define gerror, [rsp+8*2]
+
+#define local_size \
+  ( 0 \
+    + sizeof(gpointer)  /* gerror     */ \
+    + sizeof(gpointer)  /* mvps       */ \
+    + sizeof(gpointer)  /* pipeline   */ \
+  )
+
+|.macro prologue
+| sub rsp, local_size
+|.endmacro
+
+|.macro epilogue
+| add rsp, local_size
+| ret
 |.endmacro
 
 /*
@@ -69,7 +82,8 @@
 | test rax, rax
 | jz >1
 | invoke ds_gl_get_error
-| mov [rbx], rax
+| mov rdi, gerror
+| mov [rdi], rax
 | epilogue
 |1:
 |.endmacro
@@ -118,10 +132,14 @@ _ds_jit_compile_start(JitState* ctx)
 
   |.code
   |->jitmain:
+  | prologue
 
-  /* GError** -> rbx */
-  | push rbx
-  | mov rbx, arg1
+  /* save pipeline */
+  | mov pipeline, arg1
+  /* save mvps */
+  | mov mvps, arg2
+  /* save error pointer */
+  | mov gerror, arg3
 }
 
 G_GNUC_INTERNAL
@@ -201,10 +219,96 @@ _ds_jit_compile_free(JitState* ctx)
 
 G_GNUC_INTERNAL
 void
-_ds_jit_compile_use_shader(JitState* ctx,
-                           GLuint shader)
+_ds_jit_compile_call_valist(JitState *ctx,
+                            GCallback callback,
+                            gboolean  protected_,
+                            guint     n_params,
+                            va_list   l)
 {
-  | mov64 arg1, ((guintptr) shader)
-  | invoke glUseProgram
-  | __gl_catch
+  guint i, j;
+  guintptr arg;
+
+/*
+ * Push arguments
+ *
+ */
+
+  for(i = 0;
+      i < n_params;
+      i++)
+  {
+    arg = va_arg(l, guintptr);
+    switch(i)
+    {
+    case 0:
+      | mov64 arg1, arg
+      break;
+    case 1:
+      | mov64 arg2, arg
+      break;
+    case 2:
+      | mov64 arg3, arg
+      break;
+    case 3:
+      | mov64 arg4, arg
+      break;
+#ifndef G_OS_WINDOWS
+    case 4:
+      | mov64 arg5, arg
+      break;
+    case 5:
+      | mov64 arg6, arg
+      break;
+#endif // G_OS_WINDOWS
+    default:
+      | mov64 rax, arg
+      | push rax
+      break;
+    }
+  }
+
+/*
+ * Make call
+ *
+ */
+  if(protected_ == TRUE)
+  {
+    | invoke ((guintptr) callback)
+    | __gl_catch
+  }
+  else
+  {
+    | invoke ((guintptr) callback)
+  }
+}
+
+G_GNUC_INTERNAL
+void
+_ds_jit_compile_call(JitState  *ctx,
+                     GCallback  callback,
+                     gboolean  protected_,
+                     guint      n_params,
+                     ...)
+{
+  va_list l;
+  va_start(l, n_params);
+  _ds_jit_compile_call_valist(ctx, callback, protected_, n_params, l);
+  va_end(l);
+}
+
+G_GNUC_INTERNAL
+void
+_ds_jit_compile_mvp_model(JitState *ctx,
+                          mat4      model)
+{
+  | mov arg1, mvps
+  | mov64 arg2, ((guintptr) model)
+  | invoke _ds_jit_helper_update_model
+  | mov arg1, mvps
+  | invoke _ds_jit_helper_update_mvps
+  | mov64 arg1, ((guintptr) ctx->mvpl)
+  | mov arg2, 1
+  | mov arg3, GL_FALSE
+  | mov arg4, mvps
+  | invoke glUniformMatrix4fv
 }

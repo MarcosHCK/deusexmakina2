@@ -18,6 +18,7 @@
 #ifndef __DS_RENDERABLE_INCLUDED__
 #define __DS_RENDERABLE_INCLUDED__
 #include <gio/gio.h>
+#include <ds_gl.h>
 
 #define DS_TYPE_RENDERABLE            (ds_renderable_get_type())
 #define DS_RENDERABLE(obj)            (G_TYPE_CHECK_INSTANCE_CAST((obj), DS_TYPE_RENDERABLE, DsRenderable))
@@ -25,8 +26,9 @@
 #define DS_IS_RENDERABLE(obj)         (G_TYPE_CHECK_INSTANCE_TYPE((obj), DS_TYPE_RENDERABLE))
 #define DS_RENDERABLE_GET_IFACE(obj)  (G_TYPE_INSTANCE_GET_INTERFACE((obj), DS_TYPE_RENDERABLE, DsRenderableIface))
 
-typedef struct _DsRenderable      DsRenderable;
-typedef struct _DsRenderableIface DsRenderableIface;
+typedef struct _DsRenderable        DsRenderable;
+typedef struct _DsRenderableIface   DsRenderableIface;
+typedef struct _DsRenderState       DsRenderState;
 
 #if __cplusplus
 extern "C" {
@@ -38,10 +40,29 @@ ds_renderable_get_type();
 struct _DsRenderableIface
 {
   GTypeInterface parent_iface;
-
-  gboolean (*setup)  (DsRenderable* renderable, GCancellable* cancellable, GError** error);
-  gboolean (*render) (DsRenderable* renderable, GCancellable* cancellable, GError** error);
+  gboolean (*compile) (DsRenderable* renderable, DsRenderState* state, GLuint program, GCancellable* cancellable, GError** error);
 };
+
+gboolean
+ds_renderable_compile(DsRenderable         *renderable,
+                      DsRenderState        *state,
+                      GLuint                program,
+                      GCancellable         *cancellable,
+                      GError              **error);
+
+void
+ds_render_state_pcall(DsRenderState  *state,
+                      GCallback       callback,
+                      guint           n_params,
+                      ...);
+void
+ds_render_state_call(DsRenderState  *state,
+                     GCallback       callback,
+                     guint           n_params,
+                     ...);
+void
+ds_render_state_mvp_set_model(DsRenderState  *state,
+                              gfloat         *mvp_model);
 
 #if __cplusplus
 }

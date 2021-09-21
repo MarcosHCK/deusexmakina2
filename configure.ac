@@ -205,6 +205,7 @@ PKG_CHECK_MODULES([SDL2_TTF], [SDL2_ttf])
 PKG_CHECK_MODULES([GLEW], [glew])
 PKG_CHECK_MODULES([CGLM], [cglm])
 PKG_CHECK_MODULES([LUA], [luajit lua5.1 lua51])
+PKG_CHECK_MODULES([ASSIMP], [assimp])
 
 #
 # Check for libraries
@@ -237,6 +238,7 @@ fi
 #
 
 AC_FUNC_MMAP
+AC_CHECK_FUNCS([memcpy])
 AC_CHECK_FUNCS([memset])
 
 if test "x$MINILUA" != "xno"; then

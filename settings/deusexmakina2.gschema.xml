@@ -39,5 +39,8 @@ Author: MarcosHCK
     <key name="fov" type="d">
       <default>45.0</default>
     </key>
+    <key name="sensitivity" type="d">
+      <default>0.2</default>
+    </key>
   </schema>
 </schemalist>

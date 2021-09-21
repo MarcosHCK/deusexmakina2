@@ -46,3 +46,29 @@ do
 
   pipeline:register_shader('skybox', shader);
 end
+
+do
+  local skybox = nil;
+  local klass = ds.type.DsSkybox;
+  local error = ds.type.DsError.new();
+
+  if(_ENV["DS_DEBUG"] == 'true') then
+    skybox =
+    klass.new_simple(
+      ds.ABSTOPBUILDDIR .. '/assets/',
+      "skybox/%s.dds",
+      cancellable,
+      error:ref());
+    error:check();
+  else
+    skybox =
+    klass.new_simple(
+      ds.ASSETSDIR,
+      "skybox/%s.dds",
+      cancellable,
+      error:ref());
+    error:check();
+  end
+
+  pipeline:append_object('skybox', skybox);
+end

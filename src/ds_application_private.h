@@ -26,6 +26,8 @@
 
 #define DS_EVENTS_PUSH "__DS_EVENTS_PUSH"
 
+typedef struct _MvpBuilderData MvpBuilderData;
+
 #if __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -36,14 +38,38 @@ extern "C" {
 #include <SDL_ttf.h>
 #include <GL/glew.h>
 
+/* CGLM */
+#include <cglm/cglm.h>
+
+/* defined in ds_utils.vala */
+G_GNUC_INTERNAL
 GFile*
 _ds_base_data_dir_pick(GCancellable  *cancellable,
                        GError       **error);
+G_GNUC_INTERNAL
 GFile*
 _ds_base_data_dir_child(const gchar   *name,
                         GFile         *basedatadir,
                         GCancellable  *cancellable,
                         GError       **error);
+
+/* defined in ds_application_intr.c */
+G_GNUC_INTERNAL
+void
+_ds_application_init_mvp_builder(DsApplication  *self,
+                                 GSettings      *gsettings);
+G_GNUC_INTERNAL
+void
+_ds_application_update_projection(DsApplication  *self,
+                                  DsPipeline     *pipeline);
+G_GNUC_INTERNAL
+void
+_ds_application_update_view(DsApplication  *self,
+                            DsPipeline     *pipeline,
+                            gfloat          x,
+                            gfloat          y,
+                            gfloat          xrel,
+                            gfloat          yrel);
 
 #if __cplusplus
 }
@@ -67,8 +93,22 @@ struct _DsApplication
   guint glew_init;
   gint width;
   gint height;
+  gint viewport_w;
+  gint viewport_h;
   gboolean framelimit;
   DsPipeline* pipeline;
+
+  /*<private>*/
+  struct _MvpBuilderData
+  {
+    gfloat fov;
+    vec3 position;
+    vec3 worldup;
+    vec3 front_;
+    gfloat yaw;
+    gfloat pitch;
+    gfloat sensitivity;
+  } mvp_builder;
 };
 
 #endif // __DS_APPLICATION_PRIVATE_INCLUDED__

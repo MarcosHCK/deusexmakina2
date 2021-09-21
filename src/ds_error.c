@@ -18,6 +18,7 @@
 #include <config.h>
 #include <ds_callable.h>
 #include <ds_error.h>
+#include <ds_lua.h>
 
 static
 void ds_error_ds_callable_iface_init(DsCallableIface* iface);
@@ -51,11 +52,23 @@ _callable_ref(DsError* self)
 }
 
 static void
-_callable_check(DsError* self)
+_callable_check(DsError* self, lua_State* L)
 {
-  if G_UNLIKELY(self->error != NULL)
+  if G_UNLIKELY
+    (self->error != NULL
+     && L != NULL)
   {
-    g_critical(self->error->message);
+    GError* error = self->error;
+
+    lua_pushfstring
+    (L,
+     "(%s: %i) %s: %i: %s\r\t",
+     G_STRFUNC,
+     __LINE__,
+     g_quark_to_string(error->domain),
+     error->code,
+     error->message);
+    lua_error(L);
   }
 }
 
@@ -113,6 +126,21 @@ void ds_error_class_finalize(GObject* pself) {
 G_OBJECT_CLASS(ds_error_parent_class)->finalize(pself);
 }
 
+static void
+ds_error_g_value_transform_to_gerror(const GValue* src, GValue* dst)
+{
+  DsError* dserror =
+  g_value_get_object(src);
+  if(dserror != NULL)
+  {
+    g_value_set_boxed(dst, dserror->error);
+  }
+  else
+  {
+    g_value_set_boxed(dst, NULL);
+  }
+}
+
 static
 void ds_error_class_init(DsErrorClass* klass) {
   GObjectClass* oclass = G_OBJECT_CLASS(klass);
@@ -121,7 +149,15 @@ void ds_error_class_init(DsErrorClass* klass) {
  * vtable
  *
  */
+
   oclass->finalize = ds_error_class_finalize;
+
+/*
+ * GValue conversion
+ *
+ */
+
+  g_value_register_transform_func(DS_TYPE_ERROR, G_TYPE_ERROR, ds_error_g_value_transform_to_gerror);
 }
 
 static

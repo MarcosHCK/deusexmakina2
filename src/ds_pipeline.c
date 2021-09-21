@@ -16,7 +16,9 @@
  *
  */
 #include <config.h>
+#include <cglm/cglm.h>
 #include <ds_callable.h>
+#include <ds_gl.h>
 #include <ds_macros.h>
 #include <ds_pipeline.h>
 #include <GL/glew.h>
@@ -32,7 +34,6 @@ void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface);
 
 typedef struct _DsPipelineEntry       DsPipelineEntry;
 typedef union  _DsPipelineObjectList  DsPipelineObjectList;
-typedef struct _DsPipelineObjectEntry DsPipelineObjectEntry;
 
 GLuint
 _ds_shader_get_pid(DsShader *shader);
@@ -50,7 +51,7 @@ struct _DsPipeline
   GHashTable* shaders;
   guint modified : 1;
   JitState ctx;
-  GFunc code;
+  JitMain main;
 };
 
 struct _DsPipelineEntry
@@ -59,12 +60,12 @@ struct _DsPipelineEntry
   union _DsPipelineObjectList
   {
     GList list_;
-    struct _DsPipelineObjectEntry
+    struct
     {
       DsRenderable* object;
       DsPipelineObjectList* next;
       DsPipelineObjectList* prev;
-    } c;
+    };
   } *objects;
 };
 
@@ -203,7 +204,7 @@ void ds_pipeline_class_init(DsPipelineClass* klass) {
 }
 
 static void
-_g_object_unref0(gpointer var)
+(_g_object_unref0)(gpointer var)
 {
   (var == NULL) ? NULL : (var = (g_object_unref (var), NULL));
 }
@@ -397,16 +398,67 @@ ds_pipeline_update(DsPipeline    *pipeline,
   /* cycle through programs */
   GHashTableIter iter;
   DsPipelineEntry* entry;
+  DsPipelineObjectList* list;
+  GLuint program = 0;
+
   g_hash_table_iter_init(&iter, pipeline->shaders);
   while(g_hash_table_iter_next(&iter, NULL, (gpointer*) &entry))
   {
+    program =
+    _ds_shader_get_pid(entry->shader);
+
   /*
-   * Use program
+   * Prepare mvp
    *
    */
-    GLuint pid =
-    _ds_shader_get_pid(entry->shader);
-    _ds_jit_compile_use_shader(ctx, pid);
+
+    __gl_try_catch(
+      glUseProgram(program);
+    ,
+      g_propagate_error(error, glerror);
+      goto_error();
+    );
+
+    __gl_try_catch(
+      ctx->mvpl = glGetUniformLocation(program, "a_mvp");
+    ,
+      g_propagate_error(error, glerror);
+      goto_error();
+    );
+
+  /*
+   * Compile
+   *
+   */
+
+    /* use program call */
+    _ds_jit_compile_call
+    (ctx,
+     G_CALLBACK(glUseProgram),
+     TRUE,
+     1,
+     (guintptr) program);
+
+    /* propagate compile */
+    for(list = entry->objects;
+        list != NULL;
+        list = list->next)
+    {
+      success =
+      ds_renderable_compile
+      (list->object,
+       (DsRenderState*)
+       ctx,
+       program,
+       cancellable,
+       &tmp_err);
+
+      if G_UNLIKELY(tmp_err != NULL)
+      {
+        g_propagate_error(error, tmp_err);
+        goto_error();
+      }
+    }
   }
 
   /* finalize code */
@@ -415,7 +467,7 @@ ds_pipeline_update(DsPipeline    *pipeline,
 _error_:
   if G_LIKELY(success == TRUE)
   {
-    pipeline->code = jitmain;
+    pipeline->main = jitmain;
     pipeline->modified = FALSE;
   }
 return success;
@@ -425,6 +477,7 @@ void
 ds_pipeline_execute(DsPipeline* pipeline)
 {
   g_return_if_fail(DS_IS_PIPELINE(pipeline));
+  JitState* ctx = &(pipeline->ctx);
 
   if G_UNLIKELY(pipeline->modified == TRUE)
   {
@@ -445,7 +498,7 @@ ds_pipeline_execute(DsPipeline* pipeline)
   }
 
   GError* tmp_err = NULL;
-  pipeline->code(&tmp_err, NULL);
+  pipeline->main(pipeline, &(ctx->mvps), &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_critical
@@ -456,4 +509,24 @@ ds_pipeline_execute(DsPipeline* pipeline)
     g_error_free(tmp_err);
     g_assert_not_reached();
   }
+}
+
+void
+ds_pipeline_mvps_set_projection(DsPipeline *pipeline,
+                                gfloat     *projection)
+{
+  g_return_if_fail(DS_IS_PIPELINE(pipeline));
+  JitState* ctx = &(pipeline->ctx);
+
+  glm_mat4_copy((gpointer) projection, ctx->mvps.projection);
+}
+
+void
+ds_pipeline_mvps_set_view(DsPipeline *pipeline,
+                          gfloat     *view)
+{
+  g_return_if_fail(DS_IS_PIPELINE(pipeline));
+  JitState* ctx = &(pipeline->ctx);
+
+  glm_mat4_copy((gpointer) view, ctx->mvps.view);
 }

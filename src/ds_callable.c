@@ -44,7 +44,7 @@ ds_callable_get_type (void)
 
   if G_UNLIKELY(callable_type == 0)
   {
-    const
+    static const
     GTypeInfo type_info = {
       sizeof(DsCallableIface),
       (GBaseInitFunc)
@@ -62,7 +62,8 @@ ds_callable_get_type (void)
     callable_type =
     g_type_register_static
     (G_TYPE_INTERFACE,
-     "DsCallable",
+     g_intern_static_string
+     ("DsCallable"),
      &type_info,
      0);
   }

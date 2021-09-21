@@ -18,7 +18,9 @@
 #include <config.h>
 #include <ds_application_private.h>
 #include <ds_events.h>
+#include <math.h>
 
+G_GNUC_INTERNAL
 gboolean
 _ds_events_poll(DsApplication* self)
 {
@@ -38,6 +40,14 @@ _ds_events_poll(DsApplication* self)
     lua_pushnumber(L, event.motion.y);
     lua_pushnumber(L, event.motion.xrel);
     lua_pushnumber(L, event.motion.yrel);
+
+    _ds_application_update_view
+    (self,
+     self->pipeline,
+     (gfloat) event.motion.x,
+     (gfloat) event.motion.y,
+     (gfloat) event.motion.xrel,
+     (gfloat) event.motion.yrel);
     break;
   case SDL_MOUSEWHEEL:
     lua_pushstring(L, "mouse_wheel");
@@ -106,8 +116,10 @@ ticks(lua_State* L) {
 return 1;
 }
 
+G_GNUC_INTERNAL
 gboolean
 _ds_events_init(lua_State      *L,
+                GSettings      *gsettings,
                 GCancellable   *cancellable,
                 GError        **error)
 {
@@ -155,6 +167,7 @@ _error_:
 return success;
 }
 
+G_GNUC_INTERNAL
 gboolean
 ds_events_push(lua_State  *L,
                int         argc,

@@ -20,7 +20,9 @@
 #include <ds_error.h>
 #include <ds_events.h>
 #include <ds_luaobj.h>
+#include <ds_model.h>
 #include <ds_renderer.h>
+#include <ds_skybox.h>
 #undef main
 
 G_DEFINE_QUARK(ds-application-error-quark,
@@ -121,10 +123,12 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
 
   g_type_ensure(DS_TYPE_APPLICATION);
   g_type_ensure(DS_TYPE_ERROR);
+  g_type_ensure(DS_TYPE_MODEL);
   g_type_ensure(DS_TYPE_PIPELINE);
   g_type_ensure(DS_TYPE_SAVE);
   g_type_ensure(DS_TYPE_SETTINGS);
   g_type_ensure(DS_TYPE_SHADER);
+  g_type_ensure(DS_TYPE_SKYBOX);
 
 /*
  * Settings
@@ -269,7 +273,7 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   }
 
   success =
-  _ds_events_init(L, cancellable, &tmp_err);
+  _ds_events_init(L, gsettings, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -282,7 +286,11 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
  */
 
   return_ =
-  SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
+  SDL_Init
+  (SDL_INIT_VIDEO
+   | SDL_INIT_AUDIO
+   | SDL_INIT_EVENTS);
+
   if G_UNLIKELY(0 > return_)
   {
     const gchar* err =
@@ -373,6 +381,16 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
    "height",
    "i", &height);
 
+  if G_UNLIKELY
+    (g_strcmp0
+     (g_getenv("DS_DEBUG"),
+      "true") == 0)
+  {
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_DEBUG_FLAG, TRUE);
+  }
+
+  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, TRUE);
+
   window =
   SDL_CreateWindow
   (GAPPNAME,
@@ -402,16 +420,25 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
    "b",
    &(self->framelimit));
 
+  glctx =
   SDL_GL_CreateContext(window);
-  SDL_ShowCursor(1);
-
-  success =
-  _ds_renderer_init(self, gsettings, cancellable, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
+  if G_UNLIKELY(glctx == NULL)
   {
-    g_propagate_error(error, tmp_err);
+    g_set_error
+    (error,
+     DS_APPLICATION_ERROR,
+     DS_APPLICATION_ERROR_GL_CONTEXT_INIT,
+     "SDL_GL_CreateContext(): failed!: %s\r\n",
+     SDL_GetError());
     goto_error();
   }
+
+  SDL_GL_GetDrawableSize
+  (window,
+   &(self->viewport_w),
+   &(self->viewport_h));
+
+  SDL_ShowCursor(1);
 
 /*
  * GLEW
@@ -435,6 +462,14 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     glew_init = 1;
   }
 
+  success =
+  _ds_renderer_init(self, gsettings, cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
 /*
  * Pipeline
  *
@@ -452,66 +487,9 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   luaD_pushobject(L, G_OBJECT(pipeline));
   lua_setglobal(L, "pipeline");
 
-/*
-  GFile *vertex_file, *fragment_file;
-
-  if G_UNLIKELY
-    (g_strcmp0
-     (g_getenv("DS_DEBUG"),
-      "true") == 0)
-  {
-    vertex_file =
-    g_file_new_build_filename
-    (ABSTOPBUILDDIR
-     "/gfx/",
-     "skybox_vs.glsl",
-     NULL);
-    fragment_file =
-    g_file_new_build_filename
-    (ABSTOPBUILDDIR
-     "/gfx/",
-     "skybox_fs.glsl",
-     NULL);
-  }
-  else
-  {
-    vertex_file =
-    g_file_new_build_filename
-    (GFXDIR,
-     "skybox_vs.glsl",
-     NULL);
-    fragment_file =
-    g_file_new_build_filename
-    (GFXDIR,
-     "skybox_fs.glsl",
-     NULL);
-  }
-
-  DsShader* shader = NULL;
-  shader =
-  ds_shader_new
-  (vertex_file,
-   NULL,
-   fragment_file,
-   NULL,
-   NULL,
-   NULL,
-   cancellable,
-   &tmp_err);
-
-  g_clear_object(&vertex_file);
-  g_clear_object(&fragment_file);
-
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    g_clear_object(&shader);
-    goto_error();
-  }
-
-  ds_pipeline_register_shader(pipeline, "skybox", shader);
-  g_clear_object(&shader);
-*/
+  /* set projection matrix */
+  _ds_application_update_projection(self, pipeline);
+  _ds_application_update_view(self, pipeline, 0.f, 0.f, 0.f, 0.f);
 
 /*
  * Execute setup script

@@ -75,6 +75,7 @@ noinst_LTLIBRARIES=libjit.la
 
 libjit_la_SOURCES=\
 	pipeline_${host_cpu}.c \
+	pipeline_helper.c \
 	$(VOID)
 
 libjit_la_CFLAGS=\

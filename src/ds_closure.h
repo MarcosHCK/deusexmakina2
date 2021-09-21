@@ -55,7 +55,27 @@ typedef enum {
  * DsClosureFlags:
  * @DS_CLOSURE_FLAGS_NONE: normal closure.
  * @DS_CLOSURE_CONSTRUCTOR: constructor closure (means you don't have
- * to pass an object instance as first argument).
+ * to pass an object instance as first argument). Still, glib-styled
+ * marshallers will pass a NULL-pointer value as first argument, so
+ * a proxy function may be need to call constructors
+ *
+ * |[<!-- language="C" -->
+ *
+ * GObject*
+ * some_object_new(gint some_int)
+ * {
+ *   return g_object_new(SOME_TYPE_OBJECT, "some-int", some_int, NULL);
+ * }
+ *
+ * ...
+ *
+ * GObject*
+ * _callable_proxy_some_object_new(gpointer null_, gint some_int)
+ * {
+ *   return some_object_new(some_int);
+ * }
+ *
+ * ]|
  *
  * Closure flags
  */

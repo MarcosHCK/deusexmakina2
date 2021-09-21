@@ -17,6 +17,7 @@
  */
 #ifndef __DS_JIT_INCLUDED__
 #define __DS_JIT_INCLUDED__
+#include <cglm/cglm.h>
 #include <src/ds_gl.h>
 
 #ifdef __INSIDE_DYNASM_FILE__
@@ -30,8 +31,15 @@
 # endif // G_OS_WINDOWS
 # define Dst        ((dasm_State**)&(ctx->pd))
 #else // __INSIDE_DYNASM_FILE__
-# define jitmain         ((GFunc)(ctx->labels[ctx->n_main]))
+# define jitmain         ((JitMain)(ctx->labels[ctx->n_main]))
 #endif // __INSIDE_DYNASM_FILE__
+
+typedef struct {
+  mat4 mvp;
+  mat4 projection;
+  mat4 view;
+  mat4 model;
+} JitMvps;
 
 typedef struct {
   gpointer pd;
@@ -40,11 +48,20 @@ typedef struct {
   guint n_main;
   gpointer block;
   gsize blocksz;
+  JitMvps mvps;
+  GLuint mvpl;
 } JitState;
+
+typedef void (*JitMain) (gpointer instance, JitMvps* mvps, GError** error);
 
 #if __cplusplus
 extern "C" {
 #endif // __cplusplus
+
+/*
+ * Public API
+ *
+ */
 
 G_GNUC_INTERNAL
 void
@@ -55,10 +72,38 @@ _ds_jit_compile_end(JitState* ctx);
 G_GNUC_INTERNAL
 void
 _ds_jit_compile_free(JitState* ctx);
+
 G_GNUC_INTERNAL
 void
-_ds_jit_compile_use_shader(JitState* ctx,
-                           GLuint shader);
+_ds_jit_compile_call_valist(JitState *ctx,
+                            GCallback callback,
+                            gboolean  protected_,
+                            guint     n_params,
+                            va_list   l);
+G_GNUC_INTERNAL
+void
+_ds_jit_compile_call(JitState  *ctx,
+                     GCallback  callback,
+                     gboolean  protected_,
+                     guint      n_params,
+                     ...);
+G_GNUC_INTERNAL
+void
+_ds_jit_compile_mvp_model(JitState *ctx,
+                          mat4      model);
+
+/*
+ * Internal API
+ *
+ */
+
+G_GNUC_INTERNAL
+void
+_ds_jit_helper_update_model(JitMvps* mvps,
+                            mat4 model);
+G_GNUC_INTERNAL
+void
+_ds_jit_helper_update_mvps(JitMvps* mvps);
 
 #if __cplusplus
 }
