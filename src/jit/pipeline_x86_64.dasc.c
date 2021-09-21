@@ -74,6 +74,7 @@
 |1:
 |.endmacro
 
+G_GNUC_INTERNAL
 void
 _ds_jit_compile_start(JitState* ctx)
 {
@@ -123,6 +124,7 @@ _ds_jit_compile_start(JitState* ctx)
   | mov rbx, arg1
 }
 
+G_GNUC_INTERNAL
 void
 _ds_jit_compile_end(JitState* ctx)
 {
@@ -174,6 +176,7 @@ _ds_jit_compile_end(JitState* ctx)
   dasm_free(Dst);
 }
 
+G_GNUC_INTERNAL
 void
 _ds_jit_compile_free(JitState* ctx)
 {
@@ -196,6 +199,7 @@ _ds_jit_compile_free(JitState* ctx)
   }
 }
 
+G_GNUC_INTERNAL
 void
 _ds_jit_compile_use_shader(JitState* ctx,
                            GLuint shader)

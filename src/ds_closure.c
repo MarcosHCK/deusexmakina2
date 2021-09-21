@@ -21,6 +21,9 @@
 #include <ds_luaclosure.h>
 #include <gio/gio.h>
 
+G_DEFINE_QUARK(ds-closure-error-quark,
+               ds_closure_error);
+
 #define _METATABLE "DsClosure"
 
 G_STATIC_ASSERT(G_STRUCT_OFFSET(GCClosure, callback) == G_STRUCT_OFFSET(DsClosure, callback));
@@ -38,7 +41,93 @@ _ds_tovalue(lua_State* L,
             GError** error);
 
 /*
- * Methods
+ * Methods (C API)
+ *
+ */
+
+gboolean
+ds_closure_check_values(DsClosure  *closure,
+                        GValue     *return_value,
+                        guint       n_params_,
+                        GValue     *params,
+                        GError    **error)
+{
+  g_return_val_if_fail(closure != NULL, FALSE);
+  g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+  guint i, n_params = closure->n_params;
+
+  if G_UNLIKELY(n_params != n_params_)
+  {
+    g_set_error
+    (error,
+     DS_CLOSURE_ERROR,
+     DS_CLOSURE_ERROR_INVALID_RETURN,
+     "invalid argument count (needed %i, got %i)\r\n",
+     n_params, n_params_);
+    return FALSE;
+  }
+
+  if G_UNLIKELY
+    (n_params > 0
+     && params == NULL)
+  {
+    g_set_error
+    (error,
+     DS_CLOSURE_ERROR,
+     DS_CLOSURE_ERROR_INVALID_RETURN,
+     "invalid argument count (needed %i, got nothing)\r\n",
+     n_params);
+    return FALSE;
+  }
+
+  GType rtype = closure->return_type & ~DS_INVOKE_STATIC_SCOPE;
+  if(rtype != G_TYPE_NONE)
+  {
+    if G_UNLIKELY
+      (return_value == NULL
+       || g_type_is_a
+       (G_VALUE_TYPE
+        (return_value),
+        rtype) == FALSE)
+    {
+      g_set_error_literal
+      (error,
+       DS_CLOSURE_ERROR,
+       DS_CLOSURE_ERROR_INVALID_RETURN,
+       "invalid return value\r\n");
+      return FALSE;
+    }
+  }
+
+  for(i = 0;
+      i < n_params;
+      i++)
+  {
+    GType ptype = closure->params[i] & ~DS_INVOKE_STATIC_SCOPE;
+    if G_UNLIKELY
+      (g_type_is_a
+       (G_VALUE_TYPE
+        (&(params[i])),
+        ptype) == FALSE)
+    {
+      g_set_error
+      (error,
+       DS_CLOSURE_ERROR,
+       DS_CLOSURE_ERROR_INVALID_RETURN,
+       "invalid argument #%i (expected %s, got %s)\r\n",
+       i,
+       g_type_name(ptype),
+       g_type_name
+       (G_VALUE_TYPE
+        (&(params[i]))));
+      return FALSE;
+    }
+  }
+return TRUE;
+}
+
+/*
+ * Methods (Lua API)
  *
  */
 

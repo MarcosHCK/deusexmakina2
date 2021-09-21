@@ -146,41 +146,6 @@ ds_callable_iface_set_field(DsCallableIface* iface,
   g_closure_sink((GClosure*) closure);
 }
 
-DsCallable*
-ds_callable_iface_contructv(DsCallableIface* iface,
-                            const gchar* name,
-                            GValue* params)
-{
-  g_return_val_if_fail(iface != NULL, NULL);
-  g_return_val_if_fail(name != NULL, NULL);
-
-  DsClosure* closure =
-  ds_callable_iface_get_field
-  (iface,
-   name);
-  g_return_val_if_fail(closure != NULL, NULL);
-  g_return_val_if_fail(closure->flags & DS_CLOSURE_CONSTRUCTOR, NULL);
-
-  if(closure->n_params > 0)
-    g_return_val_if_fail(params != NULL, NULL);
-
-  GValue return_ = G_VALUE_INIT;
-  g_value_init(&return_, DS_TYPE_CALLABLE);
-
-  g_closure_invoke
-  ((GClosure*)
-   closure,
-   &return_,
-   closure->n_params,
-   params,
-   NULL);
-
-  DsCallable* return__ =
-  g_value_get_object(&return_);
-  g_value_unset(&return_);
-return return__;
-}
-
 #define _g_free0(var) ((var == NULL) ? NULL : (var = (g_free (var), NULL)))
 
 static void

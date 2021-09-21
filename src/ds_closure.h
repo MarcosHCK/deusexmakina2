@@ -37,8 +37,9 @@
 /**
  * DsClosureError:
  * @DS_CLOSURE_ERROR_FAILED: generic error condition.
- * @DS_CLOSURE_ERROR_INVALID_ARGUMENT: invalid argument supplied to closure.
- * @DS_CLOSURE_ERROR_INVALID_RETURN: closure callback had return an invalid value.
+ * @DS_CLOSURE_ERROR_INVALID_ARGUMENT: invalid argument value supplied to closure or
+ * no matching argument number.
+ * @DS_CLOSURE_ERROR_INVALID_RETURN: invalid return value supplied to closure.
  *
  * Error code returned by DsClosure API.
  * Note that %DS_CLOSURE_ERROR_FAILED is here only for compatibility with
@@ -82,6 +83,13 @@ struct _DsClosure
   guint n_params;
   GType* params;
 };
+
+gboolean
+ds_closure_check_values(DsClosure  *closure,
+                        GValue     *return_value,
+                        guint       n_params_,
+                        GValue     *params,
+                        GError    **error);
 
 #if __cplusplus
 }

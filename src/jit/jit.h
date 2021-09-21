@@ -46,12 +46,16 @@ typedef struct {
 extern "C" {
 #endif // __cplusplus
 
+G_GNUC_INTERNAL
 void
 _ds_jit_compile_start(JitState* ctx);
+G_GNUC_INTERNAL
 void
 _ds_jit_compile_end(JitState* ctx);
+G_GNUC_INTERNAL
 void
 _ds_jit_compile_free(JitState* ctx);
+G_GNUC_INTERNAL
 void
 _ds_jit_compile_use_shader(JitState* ctx,
                            GLuint shader);
