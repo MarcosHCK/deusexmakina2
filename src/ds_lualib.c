@@ -32,174 +32,9 @@
  *
  */
 
-gboolean
-_ds_tovalue(lua_State* L,
-            gint idx,
-            GValue* value,
-            GType g_type,
-            GError** error);
-
-static gboolean
-_object_new(lua_State* L,
-            GType g_type,
-            guint n_properties,
-            GError** error)
-{
-  gboolean success = TRUE;
-  GError* tmp_err = NULL;
-
-  GValue* values = NULL;
-  const gchar** names = NULL;
-  const gchar* name = NULL;
-  GObjectClass* klass = NULL;
-  GObject* object = NULL;
-  GParamSpec* pspec = NULL;
-  GType type_ = G_TYPE_INVALID;
-  guint i, j;
-
-  /* allocate arrays */
-  values = (GValue*)
-  g_slice_alloc(sizeof(GValue) * n_properties);
-  names = (const gchar**)
-  g_slice_alloc(sizeof(gchar*) * n_properties);
-  memset(values, 0, sizeof(GValue) * n_properties);
-
-  /* take a reference to class */
-  klass = g_type_class_ref(g_type);
-
-  for(i = 0, j = 2;
-      i < n_properties;
-      i++)
-  {
-    name = lua_tostring(L, j++);
-    if G_UNLIKELY(name == NULL)
-    {
-      g_set_error
-      (error,
-       G_IO_ERROR,
-       G_IO_ERROR_FAILED,
-       "i don't known what happens, take a look at (%s:%s):%i\r\n",
-       __FILE__, G_STRFUNC, __LINE__);
-      goto_error();
-    }
-
-    pspec = g_object_class_find_property(klass, name);
-    if G_UNLIKELY(pspec == NULL)
-    {
-      g_set_error
-      (error,
-       G_IO_ERROR,
-       G_IO_ERROR_FAILED,
-       "unknown property %s::%s\r\n",
-       g_type_name(g_type), name);
-      goto_error();
-    }
-
-    type_ = G_PARAM_SPEC_VALUE_TYPE(pspec);
-    names[i] = name;
-
-    _ds_tovalue(L, j++, &(values[i]), type_, &tmp_err);
-    if G_UNLIKELY(tmp_err != NULL)
-    {
-      g_set_error
-      (error,
-       G_IO_ERROR,
-       G_IO_ERROR_FAILED,
-       "property %s::%s is of type %s\r\n",
-       g_type_name(g_type),
-       name,
-       g_type_name(type_));
-      goto_error();
-    }
-  }
-
-  object =
-  g_object_new_with_properties
-  (g_type,
-   n_properties,
-   names,
-   values);
-
-  if G_UNLIKELY(object == NULL)
-  {
-    g_set_error
-    (error,
-     G_IO_ERROR,
-     G_IO_ERROR_FAILED,
-     "i don't known what happens, take a look at (%s:%s):%i\r\n",
-     __FILE__, G_STRFUNC, __LINE__);
-    goto_error();
-  }
-
-  luaD_pushobject(L, object);
-
-_error_:
-  g_clear_pointer
-  (&object,
-   g_object_unref);
-  g_clear_pointer
-  (&klass,
-   g_type_class_unref);
-  if G_LIKELY(names != NULL)
-    g_slice_free1
-    (sizeof(gchar*)
-     * n_properties,
-     names);
-  if G_LIKELY(values != NULL)
-  {
-    for(i = 0;
-        i < n_properties;
-        i++)
-    {
-      g_value_unset(&(values[i]));
-    }
-
-    g_slice_free1
-    (sizeof(GValue)
-     * n_properties,
-     values);
-  }
-return success;
-}
-
-static int
-object_new(lua_State* L)
-{
-  GError* tmp_err = NULL;
-  GType g_type = G_TYPE_INVALID;
-  int top, n_properties;
-  const gchar* typename_ =
-  luaL_checkstring(L, 1);
-
-  g_type = g_type_from_name(typename_);
-  if G_UNLIKELY(g_type == G_TYPE_INVALID)
-  {
-    lua_pushfstring
-    (L,
-     "unknown class %s\r\n",
-     typename_);
-    lua_error(L);
-    return 0;
-  }
-
-  top = lua_gettop(L) - 1;
-  n_properties = top >> 1;
-
-  _object_new(L, g_type, n_properties, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    lua_pushstring(L, tmp_err->message);
-    g_error_free(tmp_err);
-    lua_error(L);
-    return 0;
-  }
-return 1;
-}
-
 static const
 luaL_Reg lualib[] =
 {
-  {"object_new", object_new},
   {NULL, NULL},
 };
 
@@ -207,6 +42,15 @@ luaL_Reg lualib[] =
  * Type table metaindexes
  *
  */
+
+#define cachetype(L,t) \
+  G_STMT_START { \
+    /*  1 -> ds.type      */ \
+    /* -1 -> class value  */ \
+    lua_pushstring((L), (t)); \
+    lua_pushvalue((L), -2); \
+    lua_settable((L), 1); \
+  } G_STMT_END
 
 static int
 __index(lua_State* L)
@@ -225,14 +69,16 @@ __index(lua_State* L)
     g_type_from_name(typename_);
     if(g_type != G_TYPE_INVALID)
     {
-      if(G_TYPE_IS_CLASSED(g_type))
-      {
-        luaD_pushclass(L, g_type);
-        return 1;
-      } else
       if(G_TYPE_IS_ENUM(g_type))
       {
         luaD_pushenum(L, g_type);
+        cachetype(L, typename_);
+        return 1;
+      } else
+      if(G_TYPE_IS_CLASSED(g_type))
+      {
+        luaD_pushclass(L, g_type);
+        cachetype(L, typename_);
         return 1;
       } else
       {

@@ -151,7 +151,7 @@ typedef enum
   DS_GL_DEBUG_SEVERITY_MEDIUM = GL_DEBUG_SEVERITY_MEDIUM,             /*<nick=GL_DEBUG_SEVERITY_MEDIUM>*/
   DS_GL_DEBUG_SEVERITY_HIGH = GL_DEBUG_SEVERITY_HIGH,                 /*<nick=GL_DEBUG_SEVERITY_HIGH>*/
   DS_GL_DEBUG_SEVERITY_NOTIFICATION = GL_DEBUG_SEVERITY_NOTIFICATION, /*<nick=GL_DEBUG_SEVERITY_NOTIFICATION>*/
-} DsGLDebugSeverityType;
+} DsGLDebugSeverity;
 
 #if __cplusplus
 extern "C" {
@@ -165,8 +165,6 @@ GType
 ds_gl_object_type_get_type();
 GType
 ds_gl_texture_type_get_type();
-GType
-ds_gl_debug_type_get_type();
 GType
 ds_gl_debug_source_get_type();
 GType

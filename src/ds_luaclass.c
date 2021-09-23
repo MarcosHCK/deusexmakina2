@@ -19,6 +19,7 @@
 #include <ds_callable.h>
 #include <ds_luaclass.h>
 #include <ds_luaclosure.h>
+#include <ds_macros.h>
 
 #define _METATABLE "GObjectClass"
 
@@ -168,6 +169,36 @@ return 0;
 }
 
 static int
+__call(lua_State* L)
+{
+  GObjectClass* klass =
+  luaD_checkclass(L, 1);
+  GType g_type =
+  G_TYPE_FROM_CLASS(klass);
+  GError* tmp_err = NULL;
+  GObject* object = NULL;
+  int top, n_properties;
+
+  top = lua_gettop(L) - 1;
+  n_properties = top >> 1;
+
+  object =
+  _ds_lua_object_new(L, g_type, n_properties, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    lua_pushstring(L, tmp_err->message);
+    _g_object_unref0(object);
+    g_error_free(tmp_err);
+    lua_error(L);
+    return 0;
+  }
+
+  luaD_pushobject(L, object);
+  g_object_unref(object);
+return 1;
+}
+
+static int
 __gc(lua_State* L)
 {
   luaD_checkclass(L, 1);
@@ -183,6 +214,7 @@ luaL_Reg instance_mt[] =
 {
   {"__tostring", __tostring},
   {"__index", __index},
+  {"__call", __call},
   {"__gc", __gc},
   {NULL, NULL},
 };

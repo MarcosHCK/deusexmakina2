@@ -72,10 +72,3 @@ do
 
   pipeline:append_object('skybox', skybox);
 end
-
-do
-  local klass = ds.type.DsGLError;
-  print(klass);
-  local value = klass.DS_GL_ERROR_NO_ERROR;
-  print(value);
-end

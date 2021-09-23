@@ -56,9 +56,9 @@ _SDL_DestroyWindow0(SDL_Window* var)
 }
 
 static void
-_SDL_fini0(guint var)
+_TTF_fini0(guint var)
 {
-  (var == 0) ? 0 : (var = (SDL_Quit (), 0));
+  (var == 0) ? 0 : (var = (TTF_Quit (), 0));
 }
 
 static void
@@ -67,10 +67,11 @@ _IMG_fini0(guint var)
   (var == 0) ? 0 : (var = (IMG_Quit (), 0));
 }
 
+
 static void
-_TTF_fini0(guint var)
+_SDL_fini0(guint var)
 {
-  (var == 0) ? 0 : (var = (TTF_Quit (), 0));
+  (var == 0) ? 0 : (var = (SDL_Quit (), 0));
 }
 
 static void
@@ -129,6 +130,13 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   g_type_ensure(DS_TYPE_SETTINGS);
   g_type_ensure(DS_TYPE_SHADER);
   g_type_ensure(DS_TYPE_SKYBOX);
+
+  g_type_ensure(ds_gl_error_get_type());
+  g_type_ensure(ds_gl_object_type_get_type());
+  g_type_ensure(ds_gl_texture_type_get_type());
+  g_type_ensure(ds_gl_debug_source_get_type());
+  g_type_ensure(ds_gl_debug_message_type_get_type());
+  g_type_ensure(ds_gl_debug_severity_get_type());
 
 /*
  * Settings

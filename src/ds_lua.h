@@ -17,7 +17,7 @@
  */
 #ifndef __DS_LUA_INCLUDED__
 #define __DS_LUA_INCLUDED__ 1
-#include <glib.h>
+#include <glib-object.h>
 
 /**
  * DS_LUA_ERROR:
@@ -98,6 +98,12 @@ int
 _ds_lua_typeerror(lua_State  *L,
                   int         arg,
                   const char *tname);
+G_GNUC_INTERNAL
+GObject*
+_ds_lua_object_new(lua_State *L,
+                   GType      gtype,
+                   guint      n_properties,
+                   GError   **error);
 
 /*
  * API

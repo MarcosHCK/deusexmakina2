@@ -46,6 +46,138 @@ _ds_lua_typeerror(lua_State  *L,
   for(;;);
 }
 
+gboolean
+_ds_tovalue(lua_State* L,
+            gint idx,
+            GValue* value,
+            GType g_type,
+            GError** error);
+
+G_GNUC_INTERNAL
+GObject*
+_ds_lua_object_new(lua_State *L,
+                   GType      g_type,
+                   guint      n_properties,
+                   GError   **error)
+{
+  gboolean success = TRUE;
+  GError* tmp_err = NULL;
+
+  GValue* values = NULL;
+  const gchar** names = NULL;
+  const gchar* name = NULL;
+  GObjectClass* klass = NULL;
+  GObject* object = NULL;
+  GObject* return_ = NULL;
+  GParamSpec* pspec = NULL;
+  GType type_ = G_TYPE_INVALID;
+  guint i, j;
+
+  /* allocate arrays */
+  values = (GValue*)
+  g_slice_alloc(sizeof(GValue) * n_properties);
+  names = (const gchar**)
+  g_slice_alloc(sizeof(gchar*) * n_properties);
+  memset(values, 0, sizeof(GValue) * n_properties);
+
+  /* take a reference to class */
+  klass = g_type_class_ref(g_type);
+
+  for(i = 0, j = 2;
+      i < n_properties;
+      i++)
+  {
+    name = lua_tostring(L, j++);
+    if G_UNLIKELY(name == NULL)
+    {
+      g_set_error
+      (error,
+       DS_LUA_ERROR,
+       DS_LUA_ERROR_FAILED,
+       "i don't known what happens, take a look at (%s:%s):%i\r\n",
+       __FILE__, G_STRFUNC, __LINE__);
+      goto_error();
+    }
+
+    pspec = g_object_class_find_property(klass, name);
+    if G_UNLIKELY(pspec == NULL)
+    {
+      g_set_error
+      (error,
+       DS_LUA_ERROR,
+       DS_LUA_ERROR_RUNTIME,
+       "unknown property %s::%s\r\n",
+       g_type_name(g_type), name);
+      goto_error();
+    }
+
+    type_ = G_PARAM_SPEC_VALUE_TYPE(pspec);
+    names[i] = name;
+
+    _ds_tovalue(L, j++, &(values[i]), type_, &tmp_err);
+    if G_UNLIKELY(tmp_err != NULL)
+    {
+      g_set_error
+      (error,
+       DS_LUA_ERROR,
+       DS_LUA_ERROR_RUNTIME,
+       "property %s::%s is of type %s\r\n",
+       g_type_name(g_type),
+       name,
+       g_type_name(type_));
+      goto_error();
+    }
+  }
+
+  object =
+  g_object_new_with_properties
+  (g_type,
+   n_properties,
+   names,
+   values);
+
+  if G_UNLIKELY(object == NULL)
+  {
+    g_set_error
+    (error,
+     DS_LUA_ERROR,
+     DS_LUA_ERROR_FAILED,
+     "i don't known what happens, take a look at (%s:%s):%i\r\n",
+     __FILE__, G_STRFUNC, __LINE__);
+    goto_error();
+  }
+
+  return_ = g_steal_pointer(&object);
+
+_error_:
+  g_clear_pointer
+  (&object,
+   g_object_unref);
+  g_clear_pointer
+  (&klass,
+   g_type_class_unref);
+  if G_LIKELY(names != NULL)
+    g_slice_free1
+    (sizeof(gchar*)
+     * n_properties,
+     names);
+  if G_LIKELY(values != NULL)
+  {
+    for(i = 0;
+        i < n_properties;
+        i++)
+    {
+      g_value_unset(&(values[i]));
+    }
+
+    g_slice_free1
+    (sizeof(GValue)
+     * n_properties,
+     values);
+  }
+return return_;
+}
+
 static int
 reporter(lua_State* L)
 {

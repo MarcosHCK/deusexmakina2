@@ -18,7 +18,15 @@
 #include <config.h>
 #include <ds_luaenum.h>
 
+struct _DsEnum
+{
+  GEnumClass* klass;
+  guint hashes[1];
+};
+
 #define _METATABLE "GEnumClass"
+
+typedef struct _DsEnum DsEnum;
 
 /*
  * Methods
@@ -29,20 +37,38 @@ void
 luaD_pushenum(lua_State  *L,
               GType       g_type)
 {
-  GEnumClass** ptr = (GEnumClass**)
-  lua_newuserdata(L, sizeof(GEnumClass*));
+  GEnumClass* klass =
+  g_type_class_ref(g_type);
+  gsize allocsz =
+    sizeof(DsEnum)
+  + sizeof(guint)
+  * klass->n_values;
+
+  DsEnum* enum_ = (DsEnum*)
+  lua_newuserdata(L, allocsz);
   luaL_setmetatable(L, _METATABLE);
-  (*ptr) = g_type_class_ref(g_type);
+  enum_->klass = klass;
+
+  guint* hashes =
+  &(enum_->hashes[0]);
+  guint i;
+
+  for(i = 0;
+      i < klass->n_values;
+      i++)
+  {
+    hashes[i] = g_str_hash(klass->values[i].value_name);
+  }
 }
 
 gboolean
 luaD_isenum(lua_State  *L,
             int         idx)
 {
-  GEnumClass **ptr =
+  DsEnum* enum_ =
   lua_touserdata(L, idx);
 
-  if G_LIKELY(ptr != NULL)
+  if G_LIKELY(enum_ != NULL)
   {
     if G_LIKELY
       (lua_getmetatable
@@ -71,10 +97,10 @@ GEnumClass*
 luaD_toenum(lua_State  *L,
             int         idx)
 {
-  GEnumClass **ptr =
+  DsEnum* enum_ =
   lua_touserdata(L, idx);
 
-  if G_LIKELY(ptr != NULL)
+  if G_LIKELY(enum_ != NULL)
   {
     if G_LIKELY
       (lua_getmetatable
@@ -86,7 +112,7 @@ luaD_toenum(lua_State  *L,
          (L, -1, -2) == TRUE)
       {
         lua_pop(L, 2);
-        return (*ptr);
+        return enum_->klass;
       }
       else
       {
@@ -134,15 +160,37 @@ return 1;
 static int
 __index(lua_State* L)
 {
-  GEnumClass* klass =
   luaD_checkenum(L, 1);
+  DsEnum* enum_ = lua_touserdata(L, 1);
+  GEnumClass* klass = enum_->klass;
+  GEnumValue* values = klass->values;
+  guint* hashes = &(enum_->hashes[0]);
+
   const gchar* t;
+  guint i;
 
   if G_LIKELY
     (lua_isstring(L, 2)
      && (t = lua_tostring(L, 2)) != NULL)
   {
+    guint hash =
+    g_str_hash(t);
 
+    for(i = 0;
+        i < klass->n_values;
+        i++)
+    {
+      if(hash == hashes[i])
+      {
+        gboolean matches =
+        g_str_equal(values[i].value_name, t);
+        if(matches == TRUE)
+        {
+          lua_pushnumber(L, (lua_Number) values[i].value);
+          return 1;
+        }
+      }
+    }
   }
 return 0;
 }
@@ -152,9 +200,9 @@ __gc(lua_State* L)
 {
   luaD_checkenum(L, 1);
 
-  GEnumClass** ptr =
+  DsEnum* enum_ =
   lua_touserdata(L, 1);
-  g_type_class_unref(*ptr);
+  g_type_class_unref(enum_->klass);
 return 0;
 }
 
