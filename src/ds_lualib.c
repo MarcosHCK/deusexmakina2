@@ -19,6 +19,7 @@
 #include <ds_luaboxed.h>
 #include <ds_luaclass.h>
 #include <ds_luaclosure.h>
+#include <ds_luaenum.h>
 #include <ds_luaobj.h>
 #include <ds_macros.h>
 #include <gio/gio.h>
@@ -279,6 +280,14 @@ _ds_lualib_init(lua_State  *L,
   }
 
   success =
+  _ds_luaenum_init(L, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+  success =
   _ds_luaobj_init(L, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
@@ -343,6 +352,7 @@ void
 _ds_lualib_fini(lua_State* L)
 {
   _ds_luaobj_fini(L);
+  _ds_luaenum_fini(L);
   _ds_luaclosure_fini(L);
   _ds_luaclass_fini(L);
   _ds_luaboxed_fini(L);

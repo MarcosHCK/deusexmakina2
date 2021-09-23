@@ -95,6 +95,7 @@ EXTRA_DIST+=\
 	ds_luaboxed.h \
 	ds_luaclass.h \
 	ds_luaclosure.h \
+	ds_luaenum.h \
 	ds_luaobj.h \
 	ds_luavala.h \
 	ds_macros.h \
@@ -127,6 +128,7 @@ deusexmakina2_SOURCES=\
 	ds_lua.c \
 	ds_luaboxed.c \
 	ds_luaclass.c \
+	ds_luaenum.c \
 	ds_lualib.c \
 	ds_luaobj.c \
 	ds_marshals.c \
