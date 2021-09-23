@@ -24,9 +24,11 @@
 extern "C" {
 #endif // __cplusplus
 
+G_GNUC_INTERNAL
 gboolean
 _ds_luaboxed_init(lua_State  *L,
                   GError    **error);
+G_GNUC_INTERNAL
 void
 _ds_luaboxed_fini(lua_State* L);
 

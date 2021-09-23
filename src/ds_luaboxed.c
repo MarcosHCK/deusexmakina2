@@ -46,21 +46,6 @@ luaD_pushboxed(lua_State *L,
   boxed->ptr = g_boxed_copy(g_type, ptr);
 }
 
-/* Taken as-in from LuaJIT code */
-static int
-_typeerror(lua_State *L, int arg, const char *tname) {
-  const char *msg;
-  const char *typearg;  /* name for the type of the actual argument */
-  if (luaL_getmetafield(L, arg, "__name") == LUA_TSTRING)
-    typearg = lua_tostring(L, -1);  /* use the given type name */
-  else if (lua_type(L, arg) == LUA_TLIGHTUSERDATA)
-    typearg = "light userdata";  /* special name for messages */
-  else
-    typearg = luaL_typename(L, arg);  /* standard name */
-  msg = lua_pushfstring(L, "%s expected, got %s", tname, typearg);
-  return luaL_argerror(L, arg, msg);
-}
-
 gboolean
 luaD_isboxed(lua_State  *L,
              int         idx)
@@ -137,7 +122,7 @@ luaD_checkboxed(lua_State *L,
   luaD_isboxed(L, arg);
   if G_UNLIKELY(is == FALSE)
   {
-    _typeerror(L, arg, _METATABLE);
+    _ds_lua_typeerror(L, arg, _METATABLE);
   }
 return luaD_toboxed(L, arg, g_type);
 }
@@ -203,6 +188,7 @@ luaL_Reg instance_mt[] =
   {NULL, NULL},
 };
 
+G_GNUC_INTERNAL
 gboolean
 _ds_luaboxed_init(lua_State  *L,
                 GError    **error)
@@ -221,6 +207,7 @@ _error_:
 return success;
 }
 
+G_GNUC_INTERNAL
 void
 _ds_luaboxed_fini(lua_State* L)
 {

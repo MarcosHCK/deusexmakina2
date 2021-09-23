@@ -61,22 +61,48 @@ ds_lua_error_quark();
 #include <lualib.h>
 #include <lauxlib.h>
 
-struct _DsLualib
-{
-  const gchar* name;
-  lua_CFunction func;
-};
+/*
+ * Lua state initialization
+ *
+ */
 
+G_GNUC_INTERNAL
 gboolean
 _ds_lua_init(lua_State  *L,
              GError    **error);
+G_GNUC_INTERNAL
 void
 _ds_lua_fini(lua_State  *L);
+
+/*
+ * Custom Lua API library
+ *
+ */
+
+G_GNUC_INTERNAL
 gboolean
 _ds_lualib_init(lua_State  *L,
                 GError    **error);
+G_GNUC_INTERNAL
 void
 _ds_lualib_fini(lua_State  *L);
+
+/*
+ * Internals
+ *
+ */
+
+G_GNUC_INTERNAL
+G_GNUC_NORETURN
+int
+_ds_lua_typeerror(lua_State  *L,
+                  int         arg,
+                  const char *tname);
+
+/*
+ * API
+ *
+ */
 
 gboolean
 ds_xpcall(lua_State  *L,

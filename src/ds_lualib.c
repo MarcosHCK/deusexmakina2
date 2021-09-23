@@ -229,8 +229,12 @@ __index(lua_State* L)
       {
         luaD_pushclass(L, g_type);
         return 1;
-      }
-      else
+      } else
+      if(G_TYPE_IS_ENUM(g_type))
+      {
+        luaD_pushenum(L, g_type);
+        return 1;
+      } else
       {
         lua_pushfstring
         (L,
@@ -248,6 +252,7 @@ return 0;
  *
  */
 
+G_GNUC_INTERNAL
 gboolean
 _ds_lualib_init(lua_State  *L,
                 GError    **error)
@@ -348,6 +353,7 @@ _error_:
 return success;
 }
 
+G_GNUC_INTERNAL
 void
 _ds_lualib_fini(lua_State* L)
 {

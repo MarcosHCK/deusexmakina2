@@ -22,6 +22,30 @@
 G_DEFINE_QUARK(ds-lua-error-quark,
                ds_lua_error);
 
+G_GNUC_INTERNAL
+G_GNUC_NORETURN
+int
+_ds_lua_typeerror(lua_State  *L,
+                  int         arg,
+                  const char *tname)
+{
+  /* Taken as-in from LuaJIT code */
+  const char *msg;
+  const char *typearg;
+
+  if(luaL_getmetafield(L, arg, "__name") == LUA_TSTRING)
+    typearg = lua_tostring(L, -1);
+  else
+  if(lua_type(L, arg) == LUA_TLIGHTUSERDATA)
+    typearg = "light userdata";
+  else
+    typearg = luaL_typename(L, arg);
+
+  msg = lua_pushfstring(L, "%s expected, got %s", tname, typearg);
+  luaL_argerror(L, arg, msg);
+  for(;;);
+}
+
 static int
 reporter(lua_State* L)
 {
@@ -110,6 +134,7 @@ ds_xpcall(lua_State  *L,
  *
  */
 
+G_GNUC_INTERNAL
 gboolean
 _ds_lua_init(lua_State  *L,
              GError    **error)
@@ -132,6 +157,7 @@ _error_:
 return success;
 }
 
+G_GNUC_INTERNAL
 void
 _ds_lua_fini(lua_State  *L)
 {
