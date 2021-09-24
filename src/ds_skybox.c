@@ -222,12 +222,6 @@ vec3 cube_vertices[] =
    1.0f, -1.0f,  1.0f,
 };
 
-static const
-GLuint cube_indices[G_N_ELEMENTS(cube_vertices)] =
-{
-
-};
-
 static GLuint
 cubmap_faces[] =
 {
@@ -259,81 +253,6 @@ struct
 G_STATIC_ASSERT
 (   G_N_ELEMENTS(cubmap_faces)
  == G_N_ELEMENTS(sides));
-
-#if 0
-static gboolean
-load_skybox_face(DsSkybox       *self,
-                 GFile          *file,
-                 GLuint          gltype,
-                 GCancellable   *cancellable,
-                 GError        **error)
-{
-  gboolean success = TRUE;
-  GError* tmp_err = NULL;
-
-/*
- * Load image data
- *
- */
-
-  SDL_Surface* surface1 = IMG_Load(g_file_peek_path(file));
-  if G_UNLIKELY(surface1 == NULL)
-  {
-    gchar* uri =
-    g_file_get_uri(file);
-
-    g_set_error
-    (error,
-     DS_SKYBOX_ERROR,
-     DS_SKYBOX_ERROR_TEXTURE_LOAD,
-     "error loading texture from '%s'\r\n",
-     uri);
-    _g_free0(uri);
-    goto_error();
-  }
-  else
-  {
-    g_print("face %s\r\n", g_file_peek_path(file));
-  }
-
-/*
- * Preprocess
- *
- */
-
-  SDL_Surface* surface2 = SDL_ConvertSurfaceFormat(surface1, SDL_PIXELFORMAT_RGBA32, 0);
-  SDL_FreeSurface(surface1);
-
-  if G_UNLIKELY(surface2 == NULL)
-  {
-    g_set_error_literal
-    (error,
-     DS_SKYBOX_ERROR,
-     DS_SKYBOX_ERROR_TEXTURE_LOAD,
-     "error processing texture data\r\n");
-    goto_error();
-  }
-
-/*
- * Pass texture to GL
- *
- */
-
-  __gl_try(
-    glTexImage2D(gltype, 0, GL_RGBA, surface2->w, surface2->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, surface2->pixels);
-  );
-  __gl_catch(
-    SDL_FreeSurface(surface2);
-    g_propagate_error(error, glerror);
-    goto_error();
-  ,
-    SDL_FreeSurface(surface2);
-  );
-
-_error_:
-return success;
-}
-#endif // 0
 
 static gboolean
 on_name_replace(const GMatchInfo *info,
@@ -466,15 +385,6 @@ ds_skybox_g_initable_iface_init_sync(GInitable      *pself,
   __gl_try_catch(
     glBindBuffer(GL_ARRAY_BUFFER, self->vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vertices), cube_vertices, GL_STATIC_DRAW);
-  ,
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  );
-
-  /* indices */
-  __gl_try_catch(
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self->ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_indices), cube_indices, GL_STATIC_DRAW);
   ,
     g_propagate_error(error, tmp_err);
     goto_error();
@@ -719,14 +629,6 @@ ds_skybox_ds_renderable_iface_compile(DsRenderable   *pself,
    (guintptr) self->vao);
 
   /* draw */
-  /*ds_render_state_pcall
-  (state,
-   G_CALLBACK(glDrawElements),
-   4,
-   (guintptr) GL_TRIANGLES,
-   (guintptr) G_N_ELEMENTS(cube_vertices),
-   (guintptr) GL_UNSIGNED_INT,
-   (guintptr) 0);*/
   ds_render_state_pcall
   (state,
    G_CALLBACK(glDrawArrays),
