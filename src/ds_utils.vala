@@ -342,8 +342,7 @@ namespace _Ds
       if(luaD.isobject(L, idx) == true)
       {
         var obj = luaD.toobject(L, idx);
-        var otype = GLib.Type.from_instance(obj);
-        value = GLib.Value(otype);
+        value = GLib.Value(GLib.Type.OBJECT);
         value.set_object(obj);
       } else
       if(luaD.isboxed(L, idx) == true)

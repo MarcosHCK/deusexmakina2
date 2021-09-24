@@ -21,6 +21,9 @@ schemasdir=${pkgdatadir}/schemas/
 # Keep sync with gfx/Makefile.am
 gfxdir=${pkgdatadir}/gfx/
 
+# Where assets goes (data comes in a different package)
+assetsdir=${pkgdatadir}/assets/
+
 #
 # Some variables
 #
@@ -90,6 +93,7 @@ EXTRA_DIST+=\
 	ds_dds.h \
 	ds_error.h \
 	ds_events.h \
+	ds_font.h \
 	ds_gl.h \
 	ds_lua.h \
 	ds_luaboxed.h \
@@ -117,14 +121,16 @@ EXTRA_DIST+=\
 bin_PROGRAMS=deusexmakina2
 deusexmakina2_SOURCES=\
 	ds_application.c \
-	ds_application_intr.c \
 	ds_callable.c \
 	ds_closure.c \
 	ds_dds.c \
 	ds_enums.c \
 	ds_error.c \
 	ds_events.c \
+	ds_font.c \
+	ds_font_cache.c \
 	ds_gl.c \
+	ds_icu.cpp \
 	ds_lua.c \
 	ds_luaboxed.c \
 	ds_luaclass.c \
@@ -136,6 +142,7 @@ deusexmakina2_SOURCES=\
 	ds_pipeline.c \
 	ds_renderable.c \
 	ds_renderer.c \
+	ds_renderer_data.c \
 	ds_saves.vala \
 	ds_settings.vala \
 	ds_shader.c \
@@ -144,21 +151,23 @@ deusexmakina2_SOURCES=\
 	$(VOID)
 
 deusexmakina2_CFLAGS=\
+	$(ASSIMP_CFLAGS) \
+	$(CGLM_CFLAGS) \
+	$(FREETYPE_CFLAGS) \
 	$(GIO_CFLAGS) \
-	$(GOBJECT_CFLAGS) \
+	$(GLEW_CFLAGS) \
 	$(GLIB_CFLAGS) \
-	$(LIBSOUP_CFLAGS) \
+	$(GOBJECT_CFLAGS) \
 	$(LIBAKASHIC_CFLAGS) \
+	$(LIBICU_CFLAGS) \
+	$(LIBSOUP_CFLAGS) \
+	$(LIBWEBP_CFLAGS) \
+	$(LUA_CFLAGS) \
 	$(OPENGL_CFLAGS) \
 	$(SDL2_CFLAGS) \
-	$(SDL2_IMG_CFLAGS) \
-	$(SDL2_TTF_CFLAGS) \
-	$(GLEW_CFLAGS) \
-	$(CGLM_CFLAGS) \
-	$(LUA_CFLAGS) \
-	$(ASSIMP_CFLAGS) \
-	-DSCHEMASDIR=\"${schemasdir}\" \
+	-DASSETSDIR=\"${assetsdir}\" \
 	-DGFXDIR=\"${gfxdir}\" \
+	-DSCHEMASDIR=\"${schemasdir}\" \
 	-DPKGDATADIR=\"${pkgdatadir}\" \
 	-DPKGLIBEXECDIR=\"${pkglibexecdir}\" \
 	-DABSTOPBUILDDIR=\"${abs_top_builddir}\" \
@@ -167,23 +176,30 @@ deusexmakina2_CFLAGS=\
 	-funwind-tables \
 	-Winline \
 	-Wpacked \
+	$(STB_CFLAGS) \
+	$(VOID)
+
+deusexmakina2_CXXFLAGS= \
+	$(deusexmakina2_CFLAGS) \
 	$(VOID)
 
 deusexmakina2_LDADD=\
+	$(ASSIMP_LIBS) \
+	$(CGLM_LIBS) \
+	$(FREETYPE_LIBS) \
 	$(GIO_LIBS) \
-	$(GOBJECT_LIBS) \
+	$(GLEW_LIBS) \
 	$(GLIB_LIBS) \
-	$(LIBSOUP_LIBS) \
+	$(GOBJECT_LIBS) \
 	$(LIBAKASHIC_LIBS) \
+	$(LIBICU_LIBS) \
+	$(LIBSOUP_LIBS) \
+	$(LIBWEBP_LIBS) \
+	$(LUA_LIBS) \
 	$(OPENGL_LIBS) \
 	$(SDL2_LIBS) \
-	$(SDL2_IMG_LIBS) \
-	$(SDL2_TTF_LIBS) \
-	$(GLEW_LIBS) \
-	$(CGLM_LIBS) \
-	$(LUA_LIBS) \
-	$(ASSIMP_LIBS) \
 	jit/libjit.la \
+	$(STB_LIBS) \
 	$(VOID)
 
 #

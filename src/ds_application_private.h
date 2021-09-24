@@ -26,7 +26,7 @@
 
 #define DS_EVENTS_PUSH "__DS_EVENTS_PUSH"
 
-typedef struct _MvpBuilderData MvpBuilderData;
+typedef struct _RendererData RendererData;
 
 #if __cplusplus
 extern "C" {
@@ -34,8 +34,6 @@ extern "C" {
 
 /* SDL2 */
 #include <SDL.h>
-#include <SDL_image.h>
-#include <SDL_ttf.h>
 #include <GL/glew.h>
 
 /* CGLM */
@@ -53,23 +51,23 @@ _ds_base_data_dir_child(const gchar   *name,
                         GCancellable  *cancellable,
                         GError       **error);
 
-/* defined in ds_application_intr.c */
+/* defined in ds_renderer_data.c */
 G_GNUC_INTERNAL
 void
-_ds_application_init_mvp_builder(DsApplication  *self,
-                                 GSettings      *gsettings);
+_ds_renderer_data_init(DsApplication  *self,
+                       GSettings      *gsettings);
 G_GNUC_INTERNAL
 void
-_ds_application_update_projection(DsApplication  *self,
-                                  DsPipeline     *pipeline);
+_ds_renderer_data_set_projection(DsApplication *self,
+                                 DsPipeline    *pipeline);
 G_GNUC_INTERNAL
 void
-_ds_application_update_view(DsApplication  *self,
-                            DsPipeline     *pipeline,
-                            gfloat          x,
-                            gfloat          y,
-                            gfloat          xrel,
-                            gfloat          yrel);
+_ds_renderer_data_set_view(DsApplication *self,
+                           DsPipeline    *pipeline,
+                           gfloat         x,
+                           gfloat         y,
+                           gfloat         xrel,
+                           gfloat         yrel);
 
 #if __cplusplus
 }
@@ -84,31 +82,31 @@ struct _DsApplication
   GSettings* gsettings;
   GFile* basedatadir;
   GFile* savesdir;
+  GFile* glcachedir;
   lua_State* L;
   guint sdl_init;
-  guint img_init;
-  guint ttf_init;
   SDL_Window* window;
   SDL_GLContext* glctx;
   guint glew_init;
-  gint width;
-  gint height;
-  gint viewport_w;
-  gint viewport_h;
-  gboolean framelimit;
   DsPipeline* pipeline;
 
   /*<private>*/
-  struct _MvpBuilderData
+  struct _RendererData
   {
     gfloat fov;
+    gint width;
+    gint height;
+    gint viewport_w;
+    gint viewport_h;
+    gboolean framelimit;
+
     vec3 position;
     vec3 worldup;
     vec3 front_;
     gfloat yaw;
     gfloat pitch;
     gfloat sensitivity;
-  } mvp_builder;
+  } renderer_data;
 };
 
 #endif // __DS_APPLICATION_PRIVATE_INCLUDED__

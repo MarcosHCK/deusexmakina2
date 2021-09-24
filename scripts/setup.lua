@@ -14,61 +14,96 @@
 --
 -- You should have received a copy of the GNU General Public License
 -- along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
-]]
+--]]
 local ds = require('ds');
 local cancellable = ...;
 
+-- Check debug flag
+local debug_ = _ENV["DS_DEBUG"] == 'true';
+
 -- Load skybox shader
 do
-  local shader = nil;
-  local klass = ds.type.DsShader;
-  local error = ds.type.DsError.new();
+  local shader, skybox, font;
+  local error = ds.type.DsError();
 
-  if(_ENV["DS_DEBUG"] == 'true') then
-    shader =
-    klass.new_simple(
-      ds.ABSTOPBUILDDIR .. '/gfx/' .. 'skybox_vs.glsl',
-      ds.ABSTOPBUILDDIR .. '/gfx/' .. 'skybox_fs.glsl',
-      nil,
-      cancellable,
-      error:ref());
-    error:check();
-  else
-    shader =
-    klass.new_simple(
-      ds.GFXDIR .. 'skybox_vs.glsl',
-      ds.GFXDIR .. 'skybox_fs.glsl',
-      nil,
-      cancellable,
-      error:ref());
-    error:check();
-  end
+--[[
+--
+-- Model shaders
+--
+--]]
 
-  pipeline:register_shader('skybox', shader);
-end
+  shader =
+  ds.type.DsShader.new_simple(
+    ds.GFXDIR .. '/model_vs.glsl',
+    ds.GFXDIR .. '/model_fs.glsl',
+    nil,
+    cancellable,
+    error:ref());
+  error:check();
 
-do
-  local skybox = nil;
-  local klass = ds.type.DsSkybox;
-  local error = ds.type.DsError.new();
+  pipeline:register_shader('model', 0, shader);
 
-  if(_ENV["DS_DEBUG"] == 'true') then
-    skybox =
-    klass.new_simple(
-      ds.ABSTOPBUILDDIR .. '/assets/',
-      "skybox/%s.dds",
-      cancellable,
-      error:ref());
-    error:check();
-  else
-    skybox =
-    klass.new_simple(
-      ds.ASSETSDIR,
-      "skybox/%s.dds",
-      cancellable,
-      error:ref());
-    error:check();
-  end
+--[[
+--
+-- Skybox shaders
+--
+--]]
 
-  pipeline:append_object('skybox', skybox);
+  shader =
+  ds.type.DsShader.new_simple(
+    ds.GFXDIR .. '/skybox_vs.glsl',
+    ds.GFXDIR .. '/skybox_fs.glsl',
+    nil,
+    cancellable,
+    error:ref());
+  error:check();
+
+  pipeline:register_shader('skybox', -200, shader);
+
+--[[
+--
+-- Text shaders
+--
+--]]
+
+  shader =
+  ds.type.DsShader.new_simple(
+    ds.GFXDIR .. '/text_vs.glsl',
+    ds.GFXDIR .. '/text_fs.glsl',
+    nil,
+    cancellable,
+    error:ref());
+  error:check();
+
+  pipeline:register_shader('text', -100, shader);
+
+--[[
+--
+-- Skybox
+--
+--]]
+
+  skybox = ds.type.DsSkybox.new_simple(
+    ds.ASSETSDIR .. '/skybox/',
+    '%s.dds',
+    cancellable,
+    error:ref());
+  error:check();
+
+  pipeline:append_object('skybox', -100, skybox);
+
+--[[
+--
+-- Font
+--
+--]]
+
+  font = ds.type.DsFont.new_simple(
+    ds.ASSETSDIR .. '/WickedGrit.ttf',
+    12,
+    cancellable,
+    error:ref());
+  error:check();
+
+  print(font);
 end

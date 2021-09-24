@@ -121,11 +121,12 @@ void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
    "register_shader",
    DS_CLOSURE_FLAGS_NONE,
    G_CALLBACK(ds_pipeline_register_shader),
-   ds_cclosure_marshal_VOID__STRING_OBJECT,
-   ds_cclosure_marshal_VOID__STRING_OBJECTv,
+   ds_cclosure_marshal_VOID__STRING_INT_OBJECT,
+   ds_cclosure_marshal_VOID__STRING_INT_OBJECTv,
    G_TYPE_NONE,
-   2,
+   3,
    G_TYPE_STRING,
+   G_TYPE_INT,
    DS_TYPE_SHADER);
 
   ds_callable_iface_add_method
@@ -144,11 +145,12 @@ void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
    "append_object",
    DS_CLOSURE_FLAGS_NONE,
    G_CALLBACK(ds_pipeline_append_object),
-   ds_cclosure_marshal_VOID__STRING_OBJECT,
-   ds_cclosure_marshal_VOID__STRING_OBJECTv,
+   ds_cclosure_marshal_VOID__STRING_INT_OBJECT,
+   ds_cclosure_marshal_VOID__STRING_INT_OBJECTv,
    G_TYPE_NONE,
-   2,
+   3,
    G_TYPE_STRING,
+   G_TYPE_INT,
    DS_TYPE_RENDERABLE);
 
   ds_callable_iface_add_method
@@ -257,6 +259,7 @@ ds_pipeline_new(GCancellable   *cancellable,
 void
 ds_pipeline_register_shader(DsPipeline   *pipeline,
                             const gchar  *shader_name,
+                            int           priority,
                             DsShader     *shader)
 {
   g_return_if_fail(DS_IS_PIPELINE(pipeline));
@@ -319,6 +322,7 @@ ds_pipeline_unregister_shader(DsPipeline   *pipeline,
 void
 ds_pipeline_append_object(DsPipeline   *pipeline,
                           const gchar  *shader_name,
+                          int           priority,
                           DsRenderable *object)
 {
   g_return_if_fail(DS_IS_PIPELINE(pipeline));

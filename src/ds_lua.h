@@ -111,7 +111,7 @@ _ds_lua_object_new(lua_State *L,
  */
 
 gboolean
-ds_xpcall(lua_State  *L,
+luaD_xpcall(lua_State  *L,
           int         argc,
           int         retn,
           GError    **error);

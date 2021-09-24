@@ -192,20 +192,25 @@ fi
 
 #
 # Check for libraries using pkg-config
+# Note: keep sorted alphabetically 
 #
+PKG_CHECK_MODULES([ASSIMP], [assimp])
+PKG_CHECK_MODULES([CGLM], [cglm])
+PKG_CHECK_MODULES([FREETYPE], [freetype2])
 PKG_CHECK_MODULES([GIO], [gio-2.0])
-PKG_CHECK_MODULES([GOBJECT], [gobject-2.0])
+PKG_CHECK_MODULES([GLEW], [glew])
 PKG_CHECK_MODULES([GLIB], [glib-2.0])
-PKG_CHECK_MODULES([LIBSOUP], [libsoup-2.4])
+PKG_CHECK_MODULES([GOBJECT], [gobject-2.0])
 PKG_CHECK_MODULES([LIBAKASHIC], [libakashic])
+PKG_CHECK_MODULES([LIBICU], [icu-i18n])
+PKG_CHECK_MODULES([LIBSOUP], [libsoup-2.4])
+PKG_CHECK_MODULES([LIBWEBP], [libwebp])
+PKG_CHECK_MODULES([LUA], [luajit lua5.1 lua51])
 PKG_CHECK_MODULES([OPENGL], [opengl])
 PKG_CHECK_MODULES([SDL2], [sdl2])
-PKG_CHECK_MODULES([SDL2_IMG], [SDL2_image])
-PKG_CHECK_MODULES([SDL2_TTF], [SDL2_ttf])
-PKG_CHECK_MODULES([GLEW], [glew])
-PKG_CHECK_MODULES([CGLM], [cglm])
-PKG_CHECK_MODULES([LUA], [luajit lua5.1 lua51])
-PKG_CHECK_MODULES([ASSIMP], [assimp])
+
+# Just for development
+PKG_CHECK_MODULES([STB], [stb])
 
 #
 # Check for libraries

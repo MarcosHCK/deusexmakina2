@@ -265,7 +265,7 @@ on_name_replace(const GMatchInfo *info,
   guint i = *pi;
 
   g_match_info_fetch_pos(info, 0, &start, &end_);
-  g_assert(start > 0 && name[start] == '%');
+  g_assert(start >= 0 && name[start] == '%');
 
   switch(name[start + 1])
   {
@@ -428,14 +428,6 @@ ds_skybox_g_initable_iface_init_sync(GInitable      *pself,
     g_propagate_error(error, tmp_err);
     goto_error();
   );
-
-  __gl_try(
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-  );
-  __gl_catch(
-    g_propagate_error(error, glerror);
-    goto_error();
-  ,);
 
   success =
   load_skybox_faces(self, cancellable, &tmp_err);

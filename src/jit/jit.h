@@ -35,6 +35,13 @@
 #endif // __INSIDE_DYNASM_FILE__
 
 typedef struct {
+/*
+ * IMPORTANT
+ * keep 'mvp' on top since
+ * compiled code uses structure
+ * pointer as 'mvp' address
+ *
+ */
   mat4 mvp;
   mat4 projection;
   mat4 view;

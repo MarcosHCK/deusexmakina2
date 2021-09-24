@@ -170,18 +170,28 @@ _ds_lualib_init(lua_State  *L,
   lua_settable(L, -3);
 
   /* Set compile-time strings */
-#define set_macro(MacroName) \
+#define set_macro(MacroName, __debug__) \
   G_STMT_START { \
     lua_pushliteral(L, #MacroName ); \
-    lua_pushliteral(L,  MacroName ); \
+    if G_UNLIKELY(debug == TRUE) \
+      lua_pushliteral(L,  __debug__ ); \
+    else \
+      lua_pushliteral(L,  MacroName ); \
     lua_settable(L, -3); \
   } G_STMT_END
 
-  set_macro(SCHEMASDIR);
-  set_macro(GFXDIR);
-  set_macro(PKGDATADIR);
-  set_macro(PKGLIBEXECDIR);
-  set_macro(ABSTOPBUILDDIR);
+  gboolean debug = FALSE;
+  if G_UNLIKELY
+    (g_strcmp0
+     (g_getenv("DS_DEBUG"),
+      "true") == 0)
+  {
+    debug = TRUE;
+  }
+
+  set_macro(    ASSETSDIR, ABSTOPBUILDDIR "/assets");
+  set_macro(       GFXDIR, ABSTOPBUILDDIR "/gfx");
+  set_macro(   SCHEMASDIR, ABSTOPBUILDDIR "/settings");
 
 #undef set_macro
 

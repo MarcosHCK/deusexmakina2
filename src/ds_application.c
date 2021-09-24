@@ -19,10 +19,12 @@
 #include <ds_application_private.h>
 #include <ds_error.h>
 #include <ds_events.h>
+#include <ds_font.h>
 #include <ds_luaobj.h>
 #include <ds_model.h>
 #include <ds_renderer.h>
 #include <ds_skybox.h>
+#include <glib/gi18n.h>
 #undef main
 
 G_DEFINE_QUARK(ds-application-error-quark,
@@ -56,19 +58,6 @@ _SDL_DestroyWindow0(SDL_Window* var)
 }
 
 static void
-_TTF_fini0(guint var)
-{
-  (var == 0) ? 0 : (var = (TTF_Quit (), 0));
-}
-
-static void
-_IMG_fini0(guint var)
-{
-  (var == 0) ? 0 : (var = (IMG_Quit (), 0));
-}
-
-
-static void
 _SDL_fini0(guint var)
 {
   (var == 0) ? 0 : (var = (SDL_Quit (), 0));
@@ -84,6 +73,27 @@ _lua_close0(lua_State* var)
  * Object definition
  *
  */
+
+enum {
+  prop_0,
+  prop_dssettings,
+  prop_gsettings,
+  prop_basedatadir,
+  prop_savesdir,
+  prop_lua_state,
+  prop_sdl_window,
+  prop_gl_context,
+  prop_width,
+  prop_height,
+  prop_viewport_width,
+  prop_viewport_height,
+  prop_framelimit,
+  prop_pipeline,
+  prop_number,
+};
+
+static
+GParamSpec* properties[prop_number] = {0};
 
 G_DEFINE_TYPE_WITH_CODE
 (DsApplication,
@@ -102,16 +112,16 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   GError* tmp_err = NULL;
   DsApplication* self =
   DS_APPLICATION(pself);
+  gboolean debug = FALSE;
   gint return_ = 0;
 
   DsSettings* dssettings = NULL;
   GSettings* gsettings = NULL;
   GFile* basedatadir = NULL;
   GFile* savesdir = NULL;
+  GFile* glcachedir = NULL;
   lua_State* L = NULL;
   guint sdl_init = 0;
-  guint img_init = 0;
-  guint ttf_init = 0;
   SDL_Window* window = NULL;
   SDL_GLContext* glctx = NULL;
   guint glew_init = 0;
@@ -124,6 +134,7 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
 
   g_type_ensure(DS_TYPE_APPLICATION);
   g_type_ensure(DS_TYPE_ERROR);
+  g_type_ensure(DS_TYPE_FONT);
   g_type_ensure(DS_TYPE_MODEL);
   g_type_ensure(DS_TYPE_PIPELINE);
   g_type_ensure(DS_TYPE_SAVE);
@@ -139,7 +150,7 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   g_type_ensure(ds_gl_debug_severity_get_type());
 
 /*
- * Settings
+ * Debug flag
  *
  */
 
@@ -147,18 +158,21 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     (g_strcmp0
      (g_getenv("DS_DEBUG"),
       "true") == 0)
+  {
+    debug = TRUE;
+  }
+
+/*
+ * Settings
+ *
+ */
+
+  if G_UNLIKELY(debug == TRUE)
     dssettings =
-    ds_settings_new
-    (ABSTOPBUILDDIR
-     "/settings/",
-     cancellable,
-     &tmp_err);
+    ds_settings_new(ABSTOPBUILDDIR "/settings/", cancellable, &tmp_err);
   else
     dssettings =
-    ds_settings_new
-    (SCHEMASDIR,
-     cancellable,
-     &tmp_err);
+    ds_settings_new(SCHEMASDIR, cancellable, &tmp_err);
 
   if G_UNLIKELY(tmp_err != NULL)
   {
@@ -169,10 +183,7 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   const gchar* schema_id = GAPPNAME;
 
   gsettings =
-  ds_settings_get_settings
-  (dssettings,
-   schema_id);
-
+  ds_settings_get_settings(dssettings, schema_id);
   if G_UNLIKELY(gsettings == NULL)
   {
     g_set_error
@@ -205,6 +216,15 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
+  glcachedir =
+  _ds_base_data_dir_child("gl_cache", basedatadir, cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+
 /*
  * Lua
  *
@@ -229,32 +249,17 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
-  if G_UNLIKELY
-    (g_strcmp0
-     (g_getenv("DS_DEBUG"),
-      "true") == 0)
+  if G_UNLIKELY(debug == TRUE)
   {
     return_ =
-    luaL_loadfile
-    (L,
-     ABSTOPBUILDDIR
-     "/scripts/"
-     "patches.lua");
-    lua_pushstring
-    (L,
-     ABSTOPBUILDDIR
-     "/scripts/");
+    luaL_loadfile(L, ABSTOPBUILDDIR "/scripts/patches.lua");
+    lua_pushstring(L, ABSTOPBUILDDIR "/scripts/");
   }
   else
   {
     return_ =
-    luaL_loadfile
-    (L,
-     PKGLIBEXECDIR
-     "/patches.lua");
-    lua_pushstring
-    (L,
-     PKGLIBEXECDIR);
+    luaL_loadfile(L, PKGLIBEXECDIR "/patches.lua");
+    lua_pushstring(L, PKGLIBEXECDIR);
   }
 
   if G_UNLIKELY
@@ -273,7 +278,7 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   }
 
   success =
-  ds_xpcall(L, 1, 0, &tmp_err);
+  luaD_xpcall(L, 1, 0, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -303,6 +308,7 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   {
     const gchar* err =
     SDL_GetError();
+
     g_set_error
     (error,
      DS_APPLICATION_ERROR,
@@ -316,44 +322,6 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     sdl_init = 1;
   }
 
-  return_ =
-  IMG_Init(IMG_INIT_WEBP);
-  if G_UNLIKELY(0 > return_)
-  {
-    const gchar* err =
-    SDL_GetError();
-    g_set_error
-    (error,
-     DS_APPLICATION_ERROR,
-     DS_APPLICATION_ERROR_SDL2_INIT,
-     "IMG_Init(): failed!: %i: %s\r\n",
-     return_, err ? err : "(null)");
-    goto_error();
-  }
-  else
-  {
-    img_init = 1;
-  }
-
-  return_ =
-  TTF_Init();
-  if G_UNLIKELY(0 > return_)
-  {
-    const gchar* err =
-    SDL_GetError();
-    g_set_error
-    (error,
-     DS_APPLICATION_ERROR,
-     DS_APPLICATION_ERROR_SDL2_INIT,
-     "TTF_Init(): failed!: %i: %s\r\n",
-     return_, err ? err : "(null)");
-    goto_error();
-  }
-  else
-  {
-    ttf_init = 1;
-  }
-
 /*
  * Main window
  *
@@ -362,32 +330,17 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   Uint32 flags = SDL_WINDOW_OPENGL;
   gboolean  fullscreen = FALSE,
             borderless = FALSE;
+
   gint  width = 0,
         height = 0;
 
-  g_settings_get
-  (gsettings,
-   "fullscreen",
-   "b", &fullscreen);
-  g_settings_get
-  (gsettings,
-   "borderless",
-   "b", &borderless);
+  g_settings_get(gsettings, "fullscreen", "b", &fullscreen);
+  g_settings_get(gsettings, "borderless", "b", &borderless);
+  g_settings_get(gsettings, "width", "i", &width);
+  g_settings_get(gsettings, "height", "i", &height);
 
-  if(fullscreen == TRUE)
-    flags |= SDL_WINDOW_FULLSCREEN;
-  else
-  if(borderless == TRUE)
-    flags |= SDL_WINDOW_BORDERLESS;
-
-  g_settings_get
-  (gsettings,
-   "width",
-   "i", &width);
-  g_settings_get
-  (gsettings,
-   "height",
-   "i", &height);
+  flags |= fullscreen ? SDL_WINDOW_FULLSCREEN : 0;
+  flags |= borderless ? SDL_WINDOW_BORDERLESS : 0;
 
   if G_UNLIKELY
     (g_strcmp0
@@ -419,14 +372,8 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
-  self->width = width;
-  self->height = height;
-
-  g_settings_get
-  (gsettings,
-   "framelimit",
-   "b",
-   &(self->framelimit));
+  self->renderer_data.width = width;
+  self->renderer_data.height = height;
 
   glctx =
   SDL_GL_CreateContext(window);
@@ -443,8 +390,8 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
 
   SDL_GL_GetDrawableSize
   (window,
-   &(self->viewport_w),
-   &(self->viewport_h));
+   &(self->renderer_data.viewport_w),
+   &(self->renderer_data.viewport_h));
 
   SDL_ShowCursor(1);
 
@@ -453,8 +400,7 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
  *
  */
 
-  return_ =
-  glewInit();
+  return_ = glewInit();
   if G_UNLIKELY(return_ != GLEW_OK)
   {
     g_set_error
@@ -495,35 +441,21 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   luaD_pushobject(L, G_OBJECT(pipeline));
   lua_setglobal(L, "pipeline");
 
-  /* set projection matrix */
-  _ds_application_update_projection(self, pipeline);
-  _ds_application_update_view(self, pipeline, 0.f, 0.f, 0.f, 0.f);
+  /* setup mvp matrix components */
+  _ds_renderer_data_set_projection(self, pipeline);
+  _ds_renderer_data_set_view(self, pipeline, 0.f, 0.f, 0.f, 0.f);
 
 /*
  * Execute setup script
  *
  */
 
-  if G_UNLIKELY
-    (g_strcmp0
-     (g_getenv("DS_DEBUG"),
-      "true") == 0)
-  {
+  if G_UNLIKELY(debug == TRUE)
     return_ =
-    luaL_loadfile
-    (L,
-     ABSTOPBUILDDIR
-     "/scripts/"
-     "setup.lua");
-  }
+    luaL_loadfile(L, ABSTOPBUILDDIR "/scripts/setup.lua");
   else
-  {
     return_ =
-    luaL_loadfile
-    (L,
-     PKGLIBEXECDIR
-     "/setup.lua");
-  }
+    luaL_loadfile(L, PKGLIBEXECDIR "/setup.lua");
 
   if G_UNLIKELY
     (lua_isfunction(L, -1) == FALSE)
@@ -540,13 +472,10 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
-  if(cancellable != NULL)
-    luaD_pushobject(L, G_OBJECT(cancellable));
-  else
-    lua_pushnil(L);
+  luaD_pushobject(L, (GObject*) cancellable);
 
   success =
-  ds_xpcall(L, 1, 0, &tmp_err);
+  luaD_xpcall(L, 1, 0, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -575,10 +504,9 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   self->gsettings = g_steal_pointer(&gsettings);
   self->basedatadir = g_steal_pointer(&basedatadir);
   self->savesdir = g_steal_pointer(&savesdir);
+  self->glcachedir = g_steal_pointer(&glcachedir);
   self->L = g_steal_pointer(&L);
   self->sdl_init = ds_steal_handle_id(&sdl_init);
-  self->img_init = ds_steal_handle_id(&img_init);
-  self->ttf_init = ds_steal_handle_id(&ttf_init);
   self->window = g_steal_pointer(&window);
   self->glctx = g_steal_pointer(&glctx);
   self->glew_init = ds_steal_handle_id(&glew_init);
@@ -594,13 +522,10 @@ _error_:
   g_clear_pointer
   (&window, _SDL_DestroyWindow0);
   g_clear_handle_id
-  (&ttf_init, _TTF_fini0);
-  g_clear_handle_id
-  (&img_init, _IMG_fini0);
-  g_clear_handle_id
   (&sdl_init, _SDL_fini0);
   g_clear_pointer
   (&L, _lua_close0);
+  g_clear_object(&glcachedir);
   g_clear_object(&savesdir);
   g_clear_object(&basedatadir);
   g_clear_object(&gsettings);
@@ -616,45 +541,74 @@ void ds_application_g_initiable_iface_init(GInitableIface* iface) {
 static
 void ds_application_class_finalize(GObject* pself) {
   DsApplication* self = DS_APPLICATION(pself);
-
-/*
- * Finalize
- *
- */
   _glew_fini0(self->glew_init);
   _SDL_GL_DeleteContext0(self->glctx);
   _SDL_DestroyWindow0(self->window);
-  _TTF_fini0(self->ttf_init);
-  _IMG_fini0(self->img_init);
   _SDL_fini0(self->sdl_init);
   _lua_close0(self->L);
-
-/*
- * Chain-up
- *
- */
-  G_OBJECT_CLASS(ds_application_parent_class)->finalize(pself);
+G_OBJECT_CLASS(ds_application_parent_class)->finalize(pself);
 }
 
 static
 void ds_application_class_dispose(GObject* pself) {
   DsApplication* self = DS_APPLICATION(pself);
-
-/*
- * Dispose
- *
- */
   g_clear_object(&(self->pipeline));
+  g_clear_object(&(self->glcachedir));
   g_clear_object(&(self->savesdir));
   g_clear_object(&(self->basedatadir));
   g_clear_object(&(self->gsettings));
   g_clear_object(&(self->dssettings));
+G_OBJECT_CLASS(ds_application_parent_class)->dispose(pself);
+}
 
-/*
- * Chain-up
- *
- */
-  G_OBJECT_CLASS(ds_application_parent_class)->dispose(pself);
+static
+void ds_application_class_get_property(GObject* pself, guint prop_id, GValue* value, GParamSpec* pspec) {
+  DsApplication* self = DS_APPLICATION(pself);
+  switch(prop_id)
+  {
+  case prop_dssettings:
+    g_value_set_object(value, self->dssettings);
+    break;
+  case prop_gsettings:
+    g_value_set_object(value, self->gsettings);
+    break;
+  case prop_basedatadir:
+    g_value_set_object(value, self->basedatadir);
+    break;
+  case prop_savesdir:
+    g_value_set_object(value, self->savesdir);
+    break;
+  case prop_lua_state:
+    g_value_set_pointer(value, self->savesdir);
+    break;
+  case prop_sdl_window:
+    g_value_set_pointer(value, self->window);
+    break;
+  case prop_gl_context:
+    g_value_set_pointer(value, self->glctx);
+    break;
+  case prop_width:
+    g_value_set_int(value, self->renderer_data.width);
+    break;
+  case prop_height:
+    g_value_set_int(value, self->renderer_data.height);
+    break;
+  case prop_viewport_width:
+    g_value_set_int(value, self->renderer_data.viewport_w);
+    break;
+  case prop_viewport_height:
+    g_value_set_int(value, self->renderer_data.viewport_h);
+    break;
+  case prop_framelimit:
+    g_value_set_boolean(value, self->renderer_data.framelimit);
+    break;
+  case prop_pipeline:
+    g_value_set_object(value, self->pipeline);
+    break;
+  default:
+    G_OBJECT_WARN_INVALID_PROPERTY_ID(pself, prop_id, pspec);
+    break;
+  }
 }
 
 static
@@ -665,8 +619,112 @@ void ds_application_class_init(DsApplicationClass* klass) {
  * vtable
  *
  */
+
+  oclass->get_property = ds_application_class_get_property;
   oclass->finalize = ds_application_class_finalize;
   oclass->dispose = ds_application_class_dispose;
+
+/*
+ * properties
+ *
+ */
+
+  properties[prop_dssettings] =
+    g_param_spec_object
+    (_TRIPLET("dssettings"),
+     DS_TYPE_SETTINGS,
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_gsettings] =
+    g_param_spec_object
+    (_TRIPLET("gsettings"),
+     G_TYPE_SETTINGS,
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_basedatadir] =
+    g_param_spec_object
+    (_TRIPLET("basedatadir"),
+     G_TYPE_FILE,
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_savesdir] =
+    g_param_spec_object
+    (_TRIPLET("savesdir"),
+     G_TYPE_FILE,
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_lua_state] =
+    g_param_spec_pointer
+    (_TRIPLET("lua-state"),
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_sdl_window] =
+    g_param_spec_pointer
+    (_TRIPLET("sdl-window"),
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_gl_context] =
+    g_param_spec_pointer
+    (_TRIPLET("gl-context"),
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_width] =
+    g_param_spec_int
+    (_TRIPLET("window-width"),
+     0, G_MAXINT,
+     0,
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_height] =
+    g_param_spec_int
+    (_TRIPLET("window-height"),
+     0, G_MAXINT,
+     0,
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_viewport_width] =
+    g_param_spec_int
+    (_TRIPLET("viewport-width"),
+     0, G_MAXINT,
+     0,
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_viewport_height] =
+    g_param_spec_int
+    (_TRIPLET("viewport-height"),
+     0, G_MAXINT,
+     0,
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_framelimit] =
+    g_param_spec_boolean
+    (_TRIPLET("framelimit"),
+     FALSE,
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_pipeline] =
+    g_param_spec_object
+    (_TRIPLET("pipeline"),
+     DS_TYPE_PIPELINE,
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
+
+  g_object_class_install_properties
+  (oclass,
+   prop_number,
+   properties);
 }
 
 static
@@ -741,9 +799,11 @@ int
 main(int    argc,
      char  *argv[])
 {
+  setlocale(LC_ALL, "");
+
   GError* tmp_err = NULL;
-  GApplication* app =
-  (GApplication*)
+  GApplication* app = (GApplication*)
+
   g_initable_new
   (DS_TYPE_APPLICATION,
    NULL,
@@ -763,12 +823,11 @@ main(int    argc,
     g_assert_not_reached();
   }
 
-  g_signal_connect_data
+  g_signal_connect
   (app,
    "activate",
    G_CALLBACK(on_activate),
-   NULL, NULL,
-   0);
+   NULL);
 
   int status =
   g_application_run(app, argc, argv);

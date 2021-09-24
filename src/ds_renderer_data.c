@@ -20,11 +20,11 @@
 
 G_GNUC_INTERNAL
 void
-_ds_application_init_mvp_builder(DsApplication  *self,
-                                 GSettings      *gsettings)
+_ds_renderer_data_init(DsApplication  *self,
+                       GSettings      *gsettings)
 {
-  MvpBuilderData* d =
-  &(self->mvp_builder);
+  RendererData* d =
+  &(self->renderer_data);
 
   glm_vec3_fill(d->position, 0.f);
   glm_vec3_fill(d->worldup, 0.f);
@@ -35,28 +35,28 @@ _ds_application_init_mvp_builder(DsApplication  *self,
   d->yaw = -90.f;
   d->pitch = 0.f;
 
-  gdouble fov;
-  g_settings_get
-  (gsettings,
-   "fov", "d",
-   &fov);
+  gdouble fov, sensitivity;
+  g_settings_get(gsettings, "fov", "d", &fov);
+  g_settings_get(gsettings, "sensitivity", "d", &sensitivity);
+  g_settings_get(gsettings, "framelimit", "b", &(d->framelimit));
 
   d->fov = (gfloat) fov;
+  d->sensitivity = (gfloat) sensitivity;
 }
 
 G_GNUC_INTERNAL
 void
-_ds_application_update_projection(DsApplication  *self,
-                                  DsPipeline     *pipeline)
+_ds_renderer_data_set_projection(DsApplication *self,
+                                 DsPipeline    *pipeline)
 {
-  MvpBuilderData* d =
-  &(self->mvp_builder);
+  RendererData* d =
+  &(self->renderer_data);
 
   mat4 projection;
   glm_perspective
   (d->fov,
-     ((gfloat) self->width)
-   / ((gfloat) self->height),
+     ((gfloat) d->width)
+   / ((gfloat) d->height),
    0.1f,
    100.0f,
    projection);
@@ -73,15 +73,15 @@ _ds_application_update_projection(DsApplication  *self,
 
 G_GNUC_INTERNAL
 void
-_ds_application_update_view(DsApplication  *self,
-                            DsPipeline     *pipeline,
-                            gfloat          x,
-                            gfloat          y,
-                            gfloat          xrel,
-                            gfloat          yrel)
+_ds_renderer_data_set_view(DsApplication *self,
+                           DsPipeline    *pipeline,
+                           gfloat         x,
+                           gfloat         y,
+                           gfloat         xrel,
+                           gfloat         yrel)
 {
-  MvpBuilderData* d =
-  &(self->mvp_builder);
+  RendererData* d =
+  &(self->renderer_data);
 
   yaw = yaw + (xrel * sensitivity);
   pitch = pitch - (yrel * sensitivity);

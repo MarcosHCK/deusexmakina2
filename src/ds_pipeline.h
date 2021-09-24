@@ -51,6 +51,7 @@ ds_pipeline_new(GCancellable   *cancellable,
 void
 ds_pipeline_register_shader(DsPipeline   *pipeline,
                             const gchar  *shader_name,
+                            int           priority,
                             DsShader     *shader);
 void
 ds_pipeline_unregister_shader(DsPipeline   *pipeline,
@@ -58,6 +59,7 @@ ds_pipeline_unregister_shader(DsPipeline   *pipeline,
 void
 ds_pipeline_append_object(DsPipeline   *pipeline,
                           const gchar  *shader_name,
+                          int           priority,
                           DsRenderable *object);
 void
 ds_pipeline_remove_object(DsPipeline   *pipeline,

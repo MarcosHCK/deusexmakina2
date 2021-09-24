@@ -25,6 +25,7 @@
 #include <assimp/vector3.h>
 #include <cglm/cglm.h>
 #include <ds_callable.h>
+#include <ds_dds.h>
 #include <ds_macros.h>
 #include <ds_model.h>
 #include <ds_renderable.h>
@@ -282,119 +283,6 @@ return NULL;
 }
 
 static gboolean
-load_texture(DsModel       *self,
-             const gchar   *name,
-             Texture       *texture,
-             GCancellable  *cancellable,
-             GError       **error)
-{
-  gboolean success = TRUE;
-  GError* tmp_err = NULL;
-
-/*
- * Prepare texture
- *
- */
-
-  __gl_try(
-    glBindTexture(GL_TEXTURE_2D, texture->tio);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-  );
-  __gl_catch(
-    g_propagate_error(error, glerror);
-    goto_error();
-  ,);
-
-/*
- * Load data
- *
- */
-
-  GFile* file = g_file_get_child(self->source, name);
-  SDL_Surface* surface1 = IMG_Load(g_file_peek_path(file));
-
-  if G_UNLIKELY(surface1 == NULL)
-  {
-    gchar* uri =
-    g_file_get_uri(file);
-
-    g_set_error
-    (error,
-     DS_MODEL_ERROR,
-     DS_MODEL_ERROR_TEXTURE_LOAD,
-     "error loading texture from '%s'\r\n",
-     uri);
-    g_object_unref(file);
-    g_free(uri);
-    goto_error();
-  }
-  else
-  {
-    g_object_unref(file);
-  }
-
-/*
- * Preprocess
- *
- */
-
-  SDL_Surface* surface2 = SDL_ConvertSurfaceFormat(surface1, SDL_PIXELFORMAT_RGBA32, 0);
-  SDL_FreeSurface(surface1);
-
-  if G_UNLIKELY(surface2 == NULL)
-  {
-    g_set_error_literal
-    (error,
-     DS_MODEL_ERROR,
-     DS_MODEL_ERROR_TEXTURE_LOAD,
-     "error processing texture data\r\n");
-    goto_error();
-  }
-
-/*
- * Pass texture to GL
- *
- */
-
-  __gl_try(
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surface2->w, surface2->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, surface2->pixels);
-  );
-  __gl_catch(
-    SDL_FreeSurface(surface2);
-    g_propagate_error(error, glerror);
-    goto_error();
-  ,
-    SDL_FreeSurface(surface2);
-  );
-
-  __gl_try(
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glGenerateMipmap(GL_TEXTURE_2D);
-  );
-  __gl_catch(
-    g_propagate_error(error, glerror);
-    goto_error();
-  ,);
-
-_error_:
-  __gl_try(
-    glBindTexture(GL_TEXTURE_2D, 0);
-  );
-  __gl_catch(
-    g_warning
-    ("(%s:%i): %s: %i: %s\r\n",
-     G_STRFUNC,
-     __LINE__,
-     g_quark_to_string(glerror->domain),
-     glerror->code,
-     glerror->message);
-    g_error_free(glerror);
-  ,);
-return success;
-}
-
-static gboolean
 scene_import_texture(DsModel                   *self,
                      MeshEntry                 *entry,
                      const C_STRUCT aiScene    *scene,
@@ -410,6 +298,7 @@ scene_import_texture(DsModel                   *self,
   guint i, count = aiGetMaterialTextureCount(material, aitype);
   TextureArray* textures = entry->textures;
   Texture* texture = NULL;
+  GFile* file = NULL;
 
   for(i = 0;
       i < count;
@@ -444,30 +333,58 @@ scene_import_texture(DsModel                   *self,
       texture =
       texture_new();
 
+      /* Bind texture object */
+      __gl_try_catch(
+        glBindTexture(GL_TEXTURE_2D, texture->tio);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+      ,
+        g_propagate_error(error, glerror);
+        goto_error();
+      );
+
+      /* create file */
+      _g_object_unref0(file);
+      file = g_file_get_child(self->source, name.data);
+
       success =
-      load_texture(self, name.data, texture, cancellable, &tmp_err);
+      ds_dds_load_image(file, GL_TEXTURE_2D, cancellable, &tmp_err);
       if G_UNLIKELY(tmp_err != NULL)
       {
         g_propagate_error(error, tmp_err);
         goto_error();
       }
-      else
-      {
-        g_hash_table_insert
-        (self->textures,
-         g_strdup(name.data),
-         texture);
 
-        g_ptr_array_add
-        (&(textures->array_),
-         texture_ref(texture));
-        texture = NULL;
-      }
+      __gl_try_catch(
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glBindTexture(GL_TEXTURE_2D, 0);
+      ,
+        g_propagate_error(error, glerror);
+        goto_error()
+      );
+
+      g_hash_table_insert(self->textures, g_strdup(name.data), texture);
+      g_ptr_array_add(&(textures->array_), texture_ref(texture));
+      texture = NULL;
     }
   }
 
 _error_:
   _texture_unref0(texture);
+  _g_object_unref0(file);
+
+  __gl_try_catch(
+    glBindTexture(GL_TEXTURE_2D, 0);
+  ,
+    g_warning
+    ("(%s:%i): %s: %i: %s\r\n",
+     G_STRFUNC,
+     __LINE__,
+     g_quark_to_string(glerror->domain),
+     glerror->code,
+     glerror->message);
+    g_error_free(glerror);
+  );
 return success;
 }
 

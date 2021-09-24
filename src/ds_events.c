@@ -41,7 +41,7 @@ _ds_events_poll(DsApplication* self)
     lua_pushnumber(L, event.motion.xrel);
     lua_pushnumber(L, event.motion.yrel);
 
-    _ds_application_update_view
+    _ds_renderer_data_set_view
     (self,
      self->pipeline,
      (gfloat) event.motion.x,
@@ -136,7 +136,7 @@ _ds_events_init(lua_State      *L,
   lua_pushstring(L, "event");
 
   success =
-  ds_xpcall(L, 1, 1, &tmp_err);
+  luaD_xpcall(L, 1, 1, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -179,5 +179,5 @@ ds_events_push(lua_State  *L,
   lua_getfield(L, LUA_REGISTRYINDEX, EVENT_PUSH);
   lua_insert(L, func);
 
-return ds_xpcall(L, argc, 0, error);
+return luaD_xpcall(L, argc, 0, error);
 }

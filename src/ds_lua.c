@@ -195,7 +195,7 @@ return 1;
 }
 
 gboolean
-ds_xpcall(lua_State  *L,
+luaD_xpcall(lua_State  *L,
           int         argc,
           int         retn,
           GError    **error)
