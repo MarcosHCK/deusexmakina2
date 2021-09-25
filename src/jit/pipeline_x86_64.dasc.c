@@ -301,14 +301,17 @@ void
 _ds_jit_compile_mvp_model(JitState *ctx,
                           mat4      model)
 {
-  | mov arg1, mvps
-  | mov64 arg2, ((guintptr) model)
-  | invoke _ds_jit_helper_update_model
-  | mov arg1, mvps
-  | invoke _ds_jit_helper_update_mvps
-  | mov64 arg1, ((guintptr) ctx->mvpl)
-  | mov arg2, 1
-  | mov arg3, GL_FALSE
-  | mov arg4, mvps
-  | invoke glUniformMatrix4fv
+  if G_LIKELY(ctx->mvpl != (-1))
+  {
+    | mov arg1, mvps
+    | mov64 arg2, ((guintptr) model)
+    | invoke _ds_jit_helper_update_model
+    | mov arg1, mvps
+    | invoke _ds_jit_helper_update_mvps
+    | mov64 arg1, ((guintptr) ctx->mvpl)
+    | mov arg2, 1
+    | mov arg3, GL_FALSE
+    | mov arg4, mvps
+    | invoke glUniformMatrix4fv
+  }
 }

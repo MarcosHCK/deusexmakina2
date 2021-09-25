@@ -86,10 +86,10 @@ on_gl_debug_message(GLenum          source,
     log_level = G_LOG_LEVEL_WARNING;
     break;
   case GL_DEBUG_SEVERITY_MEDIUM:
-    log_level = G_LOG_LEVEL_CRITICAL;
+    log_level = G_LOG_LEVEL_WARNING;
     break;
   case GL_DEBUG_SEVERITY_HIGH:
-    log_level = G_LOG_LEVEL_ERROR;
+    log_level = G_LOG_LEVEL_CRITICAL;
     break;
   case GL_DEBUG_SEVERITY_NOTIFICATION:
     log_level = G_LOG_LEVEL_MESSAGE;
@@ -280,7 +280,15 @@ _ds_renderer_init(DsApplication  *self,
   __gl_try_catch(
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+  __gl_try_catch(
     glDepthFunc(GL_LESS);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   ,
     g_propagate_error(error, glerror);
     goto_error();

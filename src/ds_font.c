@@ -19,11 +19,16 @@
 #include <cglm/cglm.h>
 #include <ds_callable.h>
 #include <ds_font.h>
+#include <ds_gl.h>
 #include <ds_macros.h>
 #include <ds_marshals.h>
+#include <SDL.h>
 
 G_DEFINE_QUARK(ds-font-error-quark,
                ds_font_error);
+
+static const gfloat x_norm = 800.f;
+static const gfloat y_norm = 600.f;
 
 /*
  * FreeType2
@@ -73,6 +78,14 @@ G_DEFINE_QUARK(ds-font-error-quark,
 struct _DsGlyph
 {
   gunichar glyph;
+  gfloat width;
+  vec2 uv;
+  vec2 uv2;
+};
+
+struct _DsTextVertex
+{
+  vec2 xy;
   vec2 uv;
 };
 
@@ -98,6 +111,7 @@ gpointer ds_font_parent_class = NULL;
 
 typedef struct _DsGlyph       DsGlyph;
 typedef struct _DsWriterData  DsWriterData;
+typedef struct _DsTextVertex  DsTextVertex;
 
 #define _g_bytes_unref0(var) ((var == NULL) ? NULL : (var = (g_bytes_unref (var), NULL)))
 #define _FT_Done_Face0(var) ((var == NULL) ? NULL : (var = (FT_Done_Face (var), NULL)))
@@ -117,8 +131,9 @@ struct _DsFont
   gint font_size;
   DsGlyph* glyphs;
   guint n_glyphs;
-  guchar* charmap;
-  guint64 charmapsz;
+  gfloat height;
+  gfloat width;
+  GLuint tio;
 };
 
 struct _DsFontClass
@@ -129,6 +144,8 @@ struct _DsFontClass
   struct FT_MemoryRec_ ft_memory;
   FT_Library ft_library;
   gchar* charset;
+  gfloat hdpi;
+  gfloat vdpi;
 };
 
 enum {
@@ -136,8 +153,11 @@ enum {
   prop_font_file,
   prop_face_index,
   prop_font_size,
+  prop_texture_id,
   prop_number,
 };
+
+G_STATIC_ASSERT(sizeof(GLuint) == sizeof(guint));
 
 static
 GParamSpec* properties[prop_number] = {0};
@@ -295,6 +315,28 @@ ds_font_class_base_init_(DsFontClass   *klass,
     goto_error();
   }
 
+/*
+ * Calculate dpi
+ *
+ */
+
+  int n_display = 0;
+  int return_;
+  float ddpi;
+
+  return_ =
+  SDL_GetDisplayDPI(n_display, &ddpi, &(klass->hdpi), &(klass->vdpi));
+  if G_UNLIKELY(0 != return_)
+  {
+    g_set_error
+    (error,
+     DS_FONT_ERROR,
+     DS_FONT_ERROR_SDL,
+     "SDL_GetDisplayDPI(): failed!: %s\r\n",
+     SDL_GetError());
+    goto_error();
+  }
+
 _error_:
 return success;
 }
@@ -345,8 +387,8 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
   DsGlyph* glyphs;
   gsize n_glyphs;
 
-  guchar* image_px = NULL;
-  guint64 image_sz = 0;
+  GLuint tio = 0;
+
   guint64 image_w = 0;
   guint64 image_h = 0;
   guint64 max_asc = 0;
@@ -354,6 +396,8 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
   guint64 x_off = 0;
   guint64 y_off = 0;
   guint64 x, y;
+
+  const guint64 spacing = 2;
 
 /*
  * Load font file bytes
@@ -391,7 +435,7 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
  */
 
   ft_error =
-  FT_Set_Char_Size(face, 0, self->font_size * 64, 300, 300);
+  FT_Set_Char_Size(face, 0, self->font_size * 64, (FT_UInt) klass->hdpi, (FT_UInt) klass->vdpi);
   if G_UNLIKELY(_FT_OK(ft_error) == FALSE)
   {
     g_propagate_error(error, ft_get_error(ft_error));
@@ -420,11 +464,8 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
       goto_error();
     }
 
-    glyphs[i].uv[0] = (gfloat) image_w;
-    image_w += glyph->bitmap.width;
+    image_w += glyph->bitmap.width + spacing;
 
-    if(glyph->bitmap.rows > (gint64) image_h)
-      image_h = (guint64) ( glyph->bitmap.rows );
     if(glyph->bitmap_top > (gint64) max_asc)
       max_asc = (guint64) ( glyph->bitmap_top );
     if((glyph->metrics.height >> 6) - glyph->bitmap_top > (gint64) max_dec)
@@ -432,10 +473,41 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
   }
 
   image_h = max_asc + max_dec;
-  image_sz = image_w * image_h * sizeof(*image_px);
-  image_px = (gpointer) g_malloc0(image_sz);
 
-  for(i = 0;
+/*
+ * Create GL texture
+ *
+ */
+
+  __gl_try_catch(
+    glGenTextures(1, &tio);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+  __gl_try_catch(
+    glBindTexture(GL_TEXTURE_2D, tio);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+  __gl_try_catch(
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+  __gl_try_catch(
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, image_w, image_h, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+    for(i = 0;
       i < n_glyphs;
       i++)
   {
@@ -453,27 +525,49 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
 
     y_off = max_asc - glyph->bitmap_top;
 
-    for(x = 0;x < glyph->bitmap.width;x++)
-    for(y = 0;y < glyph->bitmap.rows;y++)
-    {
-      guint64 image_idx = (x + x_off) + (y + y_off) * image_w;
-      guint64 bitmap_idx = x + y * glyph->bitmap.width;
-      image_px[image_idx] = glyph->bitmap.buffer[bitmap_idx];
-    }
+    glyphs[i].uv[0] = (gfloat) x_off;
+    glyphs[i].uv[1] = (gfloat) y_off;
+    glyphs[i].uv2[0] = glyphs[i].uv[0] + (gfloat) glyph->bitmap.width;
+    glyphs[i].uv2[1] = glyphs[i].uv[1] + (gfloat) glyph->bitmap.rows;
+    glyphs[i].width = (gfloat) glyph->bitmap.width;
 
-    x_off += glyph->bitmap.width;
+    __gl_try_catch(
+      glTexSubImage2D(GL_TEXTURE_2D, 0, x_off, y_off, glyph->bitmap.width, glyph->bitmap.rows, GL_RED, GL_UNSIGNED_BYTE, glyph->bitmap.buffer);
+    ,
+      g_propagate_error(error, glerror);
+      goto_error();
+    );
+
+    x_off += glyph->bitmap.width + spacing;
   }
+
+  __gl_try_catch(
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+/*
+ * Complete
+ *
+ */
 
   self->glyphs = g_steal_pointer(&glyphs);
   self->n_glyphs = n_glyphs;
-  self->charmap = g_steal_pointer(&image_px);
-  self->charmapsz = image_sz;
+  self->height = (gfloat) image_h;
+  self->width = (gfloat) image_w;
+  self->tio = tio;
+  tio = 0;
 
 _error_:
   g_clear_object(&(self->font_file));
+  glDeleteTextures(1, &tio);
   _g_bytes_unref0(bytes);
   _FT_Done_Face0(face);
-  _g_free0(image_px);
   _g_free0(glyphs);
 return success;
 }
@@ -550,6 +644,20 @@ void ds_font_ds_callable_iface_init(DsCallableIface* iface) {
 }
 
 static
+void ds_font_class_get_property(GObject* pself, guint prop_id, GValue* value, GParamSpec* pspec) {
+  DsFont* self = DS_FONT(pself);
+  switch(prop_id)
+  {
+  case prop_texture_id:
+    g_value_set_uint(value, self->tio);
+    break;
+  default:
+    G_OBJECT_WARN_INVALID_PROPERTY_ID(pself, prop_id, pspec);
+    break;
+  }
+}
+
+static
 void ds_font_class_set_property(GObject* pself, guint prop_id, const GValue* value, GParamSpec* pspec) {
   DsFont* self = DS_FONT(pself);
   switch(prop_id)
@@ -572,8 +680,8 @@ void ds_font_class_set_property(GObject* pself, guint prop_id, const GValue* val
 static
 void ds_font_class_finalize(GObject* pself) {
   DsFont* self = DS_FONT(pself);
+  glDeleteTextures(1, &(self->tio));
   _g_free0(self->glyphs);
-  _g_free0(self->charmap);
 G_OBJECT_CLASS(ds_font_parent_class)->finalize(pself);
 }
 
@@ -594,6 +702,7 @@ void ds_font_class_init(DsFontClass* klass) {
  *
  */
 
+  oclass->get_property = ds_font_class_get_property;
   oclass->set_property = ds_font_class_set_property;
   oclass->finalize = ds_font_class_finalize;
   oclass->dispose = ds_font_class_dispose;
@@ -627,6 +736,13 @@ void ds_font_class_init(DsFontClass* klass) {
      | G_PARAM_CONSTRUCT_ONLY
      | G_PARAM_STATIC_STRINGS);
 
+  properties[prop_texture_id] =
+    g_param_spec_uint
+    (_TRIPLET("texture-id"),
+     0, G_MAXUINT, 0,
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
+
   g_object_class_install_properties
   (oclass,
    prop_number,
@@ -656,4 +772,205 @@ ds_font_new(GFile          *font_file,
    "font-file", font_file,
    "font-size", font_size,
    NULL);
+}
+
+static inline DsGlyph*
+search_glyph(DsGlyph* glyphs, guint n_glyphs, gunichar char_)
+{
+  guint i;
+  for(i = 0;
+      i < n_glyphs;
+      i++)
+  {
+    if G_UNLIKELY(glyphs[i].glyph == char_)
+    {
+      return &(glyphs[i]);
+    }
+  }
+return NULL;
+}
+
+#define n_vbox 6
+typedef DsTextVertex vbox[n_vbox];
+
+G_GNUC_INTERNAL
+gboolean
+_ds_font_generate_vao(DsFont         *font,
+                      const gchar    *text,
+                      vec2            xy,
+                      GLuint         *pvao,
+                      GLuint         *pvbo,
+                      gsize          *pnvt,
+                      GCancellable   *cancellable,
+                      GError        **error)
+{
+  gboolean success = TRUE;
+  GError* tmp_err = NULL;
+  GLuint vao = 0;
+  GLuint vbo = 0;
+
+  const gchar* letter = NULL;
+  DsGlyph* glyphs = font->glyphs;
+  guint n_glyphs = font->n_glyphs;
+  DsGlyph* glyph = NULL;
+  guint i, j;
+
+  gsize length = g_utf8_strlen(text, -1);
+  gsize n_vertices = length * 6;
+  gsize b_vertices = sizeof(DsTextVertex) * n_vertices;
+  vbox* boxes = NULL;
+
+  gfloat height = font->height;
+  gfloat width = 0.f;
+
+  const gfloat x_norm_ = x_norm / 2.f;
+  const gfloat y_norm_ = y_norm / 2.f;
+
+/*
+ * Generate vertex array
+ *
+ */
+
+  __gl_try_catch(
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+  __gl_try_catch(
+    glBindVertexArray(vao);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+/*
+ * Create and map vertex buffer
+ *
+ */
+
+  __gl_try_catch(
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, b_vertices, NULL, GL_STATIC_DRAW);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+  __gl_try_catch(
+    boxes = (vbox*)
+    glMapBuffer(GL_ARRAY_BUFFER, GL_READ_WRITE);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+  /*
+ * Fill vertices
+ *
+ */
+
+  gfloat x_off = xy[0];
+  gfloat y_off = xy[1];
+
+  for(letter = text, i = 0;
+      letter != NULL && letter[0] != '\0';
+      letter = g_utf8_next_char(letter), i++)
+  {
+    glyph =
+    search_glyph(glyphs, n_glyphs, g_utf8_get_char(letter));
+    if G_UNLIKELY(glyph == NULL)
+    {
+      g_set_error
+      (error,
+       DS_FONT_ERROR,
+       DS_FONT_ERROR_UNKNOWN_GLYPH,
+       "Unknown glyph '%.*s'\r\n",
+       1, letter);
+      goto_error();
+    }
+    else
+    {
+      width = glyph->width;
+    }
+
+  /*
+   * Prepare square on
+   * simple coordinates from
+   * first character
+   *
+   */
+
+    boxes[i][0].xy[0] = ((x_off         ) - x_norm_) / x_norm_;
+    boxes[i][0].xy[1] = ((y_off + height) - y_norm_) / y_norm_;
+    boxes[i][0].uv[0] = (glyph->uv[0] / font->width);
+    boxes[i][0].uv[1] = 0.f;
+
+    boxes[i][1].xy[0] = ((x_off         ) - x_norm_) / x_norm_;
+    boxes[i][1].xy[1] = ((y_off         ) - y_norm_) / y_norm_;
+    boxes[i][1].uv[0] = (glyph->uv[0] / font->width);
+    boxes[i][1].uv[1] = 1.f;
+
+    boxes[i][2].xy[0] = ((x_off +  width) - x_norm_) / x_norm_;
+    boxes[i][2].xy[1] = ((y_off         ) - y_norm_) / y_norm_;
+    boxes[i][2].uv[0] = (glyph->uv2[0] / font->width);
+    boxes[i][2].uv[1] = 1.f;
+
+    boxes[i][3].xy[0] = ((x_off         ) - x_norm_) / x_norm_;
+    boxes[i][3].xy[1] = ((y_off + height) - y_norm_) / y_norm_;
+    boxes[i][3].uv[0] = (glyph->uv[0] / font->width);
+    boxes[i][3].uv[1] = 0.f;
+
+    boxes[i][4].xy[0] = ((x_off +  width) - x_norm_) / x_norm_;
+    boxes[i][4].xy[1] = ((y_off         ) - y_norm_) / y_norm_;
+    boxes[i][4].uv[0] = (glyph->uv2[0] / font->width);
+    boxes[i][4].uv[1] = 1.f;
+
+    boxes[i][5].xy[0] = ((x_off +  width) - x_norm_) / x_norm_;
+    boxes[i][5].xy[1] = ((y_off + height) - y_norm_) / y_norm_;
+    boxes[i][5].uv[0] = (glyph->uv2[0] / font->width);
+    boxes[i][5].uv[1] = 0.f;
+
+    x_off += width + 10.f;
+  }
+
+  __gl_try_catch(
+    glUnmapBuffer(GL_ARRAY_BUFFER);
+  ,
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  );
+
+  __gl_try_catch(
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(DsTextVertex), (gconstpointer) G_STRUCT_OFFSET(DsTextVertex, xy));
+  ,
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  );
+
+  __gl_try_catch(
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(DsTextVertex), (gconstpointer) G_STRUCT_OFFSET(DsTextVertex, uv));
+  ,
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  );
+
+_error_:
+  glBindVertexArray(0);
+  if G_UNLIKELY(success == FALSE)
+  {
+    glDeleteVertexArrays(1, &vao);
+    glDeleteBuffers(1, &vbo);
+  }
+  else
+  {
+    *pvao = vao;
+    *pvbo = vbo;
+    *pnvt = n_vertices;
+  }
+return success;
 }

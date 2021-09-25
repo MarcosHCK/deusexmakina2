@@ -80,6 +80,26 @@ _ds_events_poll(DsApplication* self)
     lua_pushnumber(L, event.key.keysym.sym);
     lua_pushnumber(L, event.key.repeat);
     lua_pushboolean(L, event.key.state);
+
+    {
+      RendererData* d =
+      &(self->renderer_data);
+
+      vec3 front;
+      glm_vec3_scale(d->front_, 0.2f, front);
+
+      switch(event.key.keysym.sym)
+      {
+      case SDLK_w:
+        glm_vec3_add(d->position, front, d->position);
+        _ds_renderer_data_set_view(self, self->pipeline, 0, 0, 0, 0);
+        break;
+      case SDLK_s:
+        glm_vec3_sub(d->position, front, d->position);
+        _ds_renderer_data_set_view(self, self->pipeline, 0, 0, 0, 0);
+        break;
+      }
+    }
     break;
   }
 

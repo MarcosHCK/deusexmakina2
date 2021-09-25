@@ -29,14 +29,14 @@ namespace luaD
 {
   public void pushboxed(Lua.LuaVM L, GLib.Type g_type, void* instance);
   public bool isboxed(Lua.LuaVM L, int idx);
-  public void* toboxed(Lua.LuaVM L, int idx, out GLib.Type g_type);
-  public void* checkboxed(Lua.LuaVM L, int idx, out GLib.Type g_type);
+  public unowned void* toboxed(Lua.LuaVM L, int idx, out GLib.Type g_type);
+  public unowned void* checkboxed(Lua.LuaVM L, int idx, out GLib.Type g_type);
   public void pushclosure(Lua.LuaVM L, Ds.Closure closure);
   public bool isclosure(Lua.LuaVM L, int idx);
-  public Ds.Closure toclosure(Lua.LuaVM L, int idx);
-  public Ds.Closure checkclosure(Lua.LuaVM L, int idx);
+  public unowned Ds.Closure toclosure(Lua.LuaVM L, int idx);
+  public unowned Ds.Closure checkclosure(Lua.LuaVM L, int idx);
   public void pushobject(Lua.LuaVM L, GLib.Object object);
   public bool isobject(Lua.LuaVM L, int idx);
-  public GLib.Object toobject(Lua.LuaVM L, int idx);
-  public GLib.Object checkobject(Lua.LuaVM L, int idx);
+  public unowned GLib.Object toobject(Lua.LuaVM L, int idx);
+  public unowned GLib.Object checkobject(Lua.LuaVM L, int idx);
 }

@@ -94,6 +94,47 @@ return 0;
 }
 
 /*
+ * priority.* funcs
+ *
+ */
+
+static int
+priority_higher(lua_State* L)
+{
+  lua_getfield(L, LUA_REGISTRYINDEX, "__ds_priority_higher");
+  if G_UNLIKELY(lua_isnumber(L, -1) == FALSE)
+  {
+    lua_pushnumber(L, G_PRIORITY_HIGH);
+  }
+
+  int higher = (int) lua_tonumber(L, -1);
+      higher -= 100;
+
+  lua_pushnumber(L, higher);
+  lua_pushvalue(L, -1);
+  lua_setfield(L, LUA_REGISTRYINDEX, "__ds_priority_higher");
+return 1;
+}
+
+static int
+priority_lower(lua_State* L)
+{
+  lua_getfield(L, LUA_REGISTRYINDEX, "__ds_priority_lower");
+  if G_UNLIKELY(lua_isnumber(L, -1) == FALSE)
+  {
+    lua_pushnumber(L, G_PRIORITY_HIGH);
+  }
+
+  int lower = (int) lua_tonumber(L, -1);
+      lower += 100;
+
+  lua_pushnumber(L, lower);
+  lua_pushvalue(L, -1);
+  lua_setfield(L, LUA_REGISTRYINDEX, "__ds_priority_lower");
+return 1;
+}
+
+/*
  * luaopen_*
  *
  */
@@ -194,6 +235,27 @@ _ds_lualib_init(lua_State  *L,
   set_macro(   SCHEMASDIR, ABSTOPBUILDDIR "/settings");
 
 #undef set_macro
+
+  /* set priority table */
+  lua_pushliteral(L, "priority");
+  lua_createtable(L, 5, 0);
+
+  lua_pushnumber(L, G_MININT);
+  lua_setfield(L, -2, "higher");
+
+  lua_pushnumber(L, G_PRIORITY_HIGH);
+  lua_setfield(L, -2, "high");
+
+  lua_pushnumber(L, G_PRIORITY_DEFAULT);
+  lua_setfield(L, -2, "default");
+
+  lua_pushnumber(L, G_PRIORITY_LOW);
+  lua_setfield(L, -2, "low");
+
+  lua_pushnumber(L, G_MAXINT);
+  lua_setfield(L, -2, "lower");
+
+  lua_settable(L, -3);
 
   /* inject module onto package.loaded */
   lua_getglobal(L, "package");

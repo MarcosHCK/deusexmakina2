@@ -26,14 +26,17 @@
 
 G_DEFINE_QUARK(ds-pipeline-error-quark,
                ds_pipeline_error);
+G_DEFINE_QUARK(ds-pipeline-priority-quark,
+               ds_pipeline_priority);
 
 static
 void ds_pipeline_g_initable_iface_init(GInitableIface* iface);
 static
 void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface);
 
-typedef struct _DsPipelineEntry       DsPipelineEntry;
-typedef union  _DsPipelineObjectList  DsPipelineObjectList;
+typedef union  _ShaderList  ShaderList;
+typedef struct _ShaderEntry ShaderEntry;
+typedef union  _ObjectList  ObjectList;
 
 GLuint
 _ds_shader_get_pid(DsShader *shader);
@@ -48,23 +51,40 @@ struct _DsPipeline
   GObject parent_instance;
 
   /*<private>*/
-  GHashTable* shaders;
   guint modified : 1;
   JitState ctx;
   JitMain main;
+
+  /*<private>*/
+  union _ShaderList
+  {
+    GList list_;
+    struct
+    {
+      ShaderEntry* e;
+      ShaderList* next;
+      ShaderList* prev;
+    };
+  } *shaders;
 };
 
-struct _DsPipelineEntry
+struct _ShaderEntry
 {
   DsShader* shader;
-  union _DsPipelineObjectList
+  guint n_objects;
+  int priority;
+
+  gchar* name;
+  guint hash;
+
+  union _ObjectList
   {
     GList list_;
     struct
     {
       DsRenderable* object;
-      DsPipelineObjectList* next;
-      DsPipelineObjectList* prev;
+      ObjectList* next;
+      ObjectList* prev;
     };
   } *objects;
 };
@@ -181,15 +201,52 @@ void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
 static
 void ds_pipeline_class_finalize(GObject* pself) {
   DsPipeline* self = DS_PIPELINE(pself);
-  g_hash_table_unref(self->shaders);
+  g_list_free(&(self->shaders->list_));
   _ds_jit_compile_free(&(self->ctx));
 G_OBJECT_CLASS(ds_pipeline_parent_class)->finalize(pself);
+}
+
+static void
+(_g_object_unref0)(gpointer var)
+{
+  (var == NULL) ? NULL : (var = (g_object_unref (var), NULL));
+}
+
+static void
+shader_entry_free(ShaderEntry* entry)
+{
+  g_clear_object(&(entry->shader));
+  g_clear_pointer(&(entry->name), g_free);
+
+  g_list_free_full
+  (&(entry->objects->list_),
+   (GDestroyNotify)
+   _g_object_unref0);
+  entry->objects = NULL;
+
+  g_slice_free(ShaderEntry, entry);
+}
+
+static void
+_shader_entry_free0(gpointer var)
+{
+  (var == NULL) ? NULL : (var = (shader_entry_free (var), NULL));
 }
 
 static
 void ds_pipeline_class_dispose(GObject* pself) {
   DsPipeline* self = DS_PIPELINE(pself);
-  g_hash_table_remove_all(self->shaders);
+
+  ShaderList* list;
+  for(list = self->shaders;
+      list != NULL;
+      list = list->next)
+  {
+    g_clear_pointer
+    (&(list->e),
+     _shader_entry_free0);
+  }
+
 G_OBJECT_CLASS(ds_pipeline_parent_class)->dispose(pself);
 }
 
@@ -205,38 +262,8 @@ void ds_pipeline_class_init(DsPipelineClass* klass) {
   oclass->dispose = ds_pipeline_class_dispose;
 }
 
-static void
-(_g_object_unref0)(gpointer var)
-{
-  (var == NULL) ? NULL : (var = (g_object_unref (var), NULL));
-}
-
-static void
-ds_entry_free(DsPipelineEntry* entry) {
-  g_clear_object(&(entry->shader));
-  g_list_free_full
-  (&(entry->objects->list_),
-   (GDestroyNotify)
-   _g_object_unref0);
-  entry->objects = NULL;
-  g_slice_free
-  (DsPipelineEntry,
-   entry);
-}
-
-static void
-_ds_entry_free0(gpointer var)
-{
-  (var == NULL) ? NULL : (var = (ds_entry_free (var), NULL));
-}
-
 static
 void ds_pipeline_init(DsPipeline* self) {
-  self->shaders = g_hash_table_new_full
-  ((GHashFunc) g_str_hash,
-   (GEqualFunc) g_str_equal,
-   (GDestroyNotify) g_free,
-   (GDestroyNotify) _ds_entry_free0);
 }
 
 /*
@@ -256,6 +283,38 @@ ds_pipeline_new(GCancellable   *cancellable,
    NULL);
 }
 
+static ShaderEntry*
+shader_list_has(ShaderList* shaders, const gchar* name)
+{
+  guint hash = g_str_hash(name);
+  ShaderList* list;
+
+  for(list = shaders;
+      list != NULL;
+      list = list->next)
+  {
+    if(hash == list->e->hash)
+    {
+      gboolean matches =
+      g_str_equal(list->e->name, name);
+      if(matches == TRUE)
+      {
+        return list->e;
+      }
+    }
+  }
+return NULL;
+}
+
+static gint
+insert_sorted_shader(ShaderEntry *shader1,
+                     ShaderEntry *shader2)
+{
+  int pr1 = shader1->priority;
+  int pr2 = shader2->priority;
+return (pr1 > pr2) ? 1 : -1;
+}
+
 void
 ds_pipeline_register_shader(DsPipeline   *pipeline,
                             const gchar  *shader_name,
@@ -267,26 +326,29 @@ ds_pipeline_register_shader(DsPipeline   *pipeline,
   g_return_if_fail(DS_IS_SHADER(shader));
 
   gboolean has =
-  g_hash_table_lookup_extended
-  (pipeline->shaders,
-   shader_name,
-   NULL, NULL);
-
+  shader_list_has(pipeline->shaders, shader_name) != NULL;
   if G_UNLIKELY(has == TRUE)
   {
     g_warning("Attempt to register a shader twice\r\n");
     return;
   }
 
-  DsPipelineEntry* entry =
-  g_slice_new(DsPipelineEntry);
+  ShaderEntry* entry =
+  g_slice_new(ShaderEntry);
   entry->shader = g_object_ref(shader);
+  entry->n_objects = 0;
+  entry->priority = priority;
   entry->objects = NULL;
+  entry->name = g_strdup(shader_name);
+  entry->hash = g_str_hash(shader_name);
 
-  g_hash_table_insert
-  (pipeline->shaders,
-   g_strdup(shader_name),
-   entry);
+  pipeline->shaders =
+  (ShaderList*)
+  g_list_insert_sorted
+  (&(pipeline->shaders->list_),
+   entry,
+   (GCompareFunc)
+   insert_sorted_shader);
 
   pipeline->modified = TRUE;
 }
@@ -298,25 +360,43 @@ ds_pipeline_unregister_shader(DsPipeline   *pipeline,
   g_return_if_fail(DS_IS_PIPELINE(pipeline));
   g_return_if_fail(shader_name != NULL);
 
-  gboolean has =
-  g_hash_table_lookup_extended
-  (pipeline->shaders,
-   shader_name,
-   NULL, NULL);
-
-  if G_UNLIKELY(has != TRUE)
+  gpointer data =
+  shader_list_has(pipeline->shaders, shader_name);
+  if G_UNLIKELY(data == NULL)
   {
     g_warning("Attempt to remove an inexistent shader from pipeline\r\n");
     return;
   }
   else
   {
-    g_hash_table_remove
-    (pipeline->shaders,
-     shader_name);
+    pipeline->shaders =
+    (ShaderList*)
+    g_list_remove
+    ((GList*)
+     pipeline->shaders,
+     data);
+    _shader_entry_free0(data);
   }
 
   pipeline->modified = TRUE;
+}
+
+static gint
+insert_sorted_object(DsRenderable  *object1,
+                     DsRenderable  *object2)
+{
+  gpointer pp1 =
+  g_object_get_qdata
+  (G_OBJECT(object1),
+   ds_pipeline_priority_quark());
+  gpointer pp2 =
+  g_object_get_qdata
+  (G_OBJECT(object2),
+   ds_pipeline_priority_quark());
+
+  int pr1 = GPOINTER_TO_INT(pp1);
+  int pr2 = GPOINTER_TO_INT(pp2);
+return (pr1 > pr2) ? 1 : -1;
 }
 
 void
@@ -328,28 +408,30 @@ ds_pipeline_append_object(DsPipeline   *pipeline,
   g_return_if_fail(DS_IS_PIPELINE(pipeline));
   g_return_if_fail(shader_name != NULL);
   g_return_if_fail(DS_IS_RENDERABLE(object));
-  DsPipelineEntry* entry = NULL;
+  ShaderEntry* entry = NULL;
 
-  gboolean has =
-  g_hash_table_lookup_extended
-  (pipeline->shaders,
-   shader_name,
-   NULL,
-   (gpointer*)
-   &entry);
-
-  if G_UNLIKELY(has != TRUE)
+  entry =
+  shader_list_has(pipeline->shaders, shader_name);
+  if G_UNLIKELY(entry == NULL)
   {
-    g_warning("Attempt to append an object onto an inexistent shader\r\n");
+    g_warning("Attempt to append an object to an inexistent shader\r\n");
     return;
   }
 
+  g_object_set_qdata
+  (G_OBJECT(object),
+   ds_pipeline_priority_quark(),
+   GINT_TO_POINTER(priority));
+
   entry->objects =
-  (DsPipelineObjectList*)
-  g_list_append
+  (ObjectList*)
+  g_list_insert_sorted
   (&(entry->objects->list_),
-   g_object_ref(object));
+   g_object_ref(object),
+   (GCompareFunc)
+   insert_sorted_object);
   pipeline->modified = TRUE;
+  entry->n_objects++;
 }
 
 void
@@ -360,28 +442,23 @@ ds_pipeline_remove_object(DsPipeline   *pipeline,
   g_return_if_fail(DS_IS_PIPELINE(pipeline));
   g_return_if_fail(shader_name != NULL);
   g_return_if_fail(DS_IS_RENDERABLE(object));
-  DsPipelineEntry* entry = NULL;
+  ShaderEntry* entry = NULL;
 
-  gboolean has =
-  g_hash_table_lookup_extended
-  (pipeline->shaders,
-   shader_name,
-   NULL,
-   (gpointer*)
-   &entry);
-
-  if G_UNLIKELY(has != TRUE)
+  entry =
+  shader_list_has(pipeline->shaders, shader_name);
+  if G_UNLIKELY(entry == NULL)
   {
-    g_warning("Attempt to remove an object onto an inexistent shader\r\n");
+    g_warning("Attempt to remove an object from an inexistent shader\r\n");
     return;
   }
 
   entry->objects =
-  (DsPipelineObjectList*)
+  (ObjectList*)
   g_list_remove
   (&(entry->objects->list_),
    g_object_ref(object));
   pipeline->modified = TRUE;
+  entry->n_objects--;
 }
 
 gboolean
@@ -400,14 +477,19 @@ ds_pipeline_update(DsPipeline    *pipeline,
   _ds_jit_compile_start(ctx);
 
   /* cycle through programs */
-  GHashTableIter iter;
-  DsPipelineEntry* entry;
-  DsPipelineObjectList* list;
+  ShaderList* slist;
+  ShaderEntry* entry;
+  ObjectList* olist;
   GLuint program = 0;
 
-  g_hash_table_iter_init(&iter, pipeline->shaders);
-  while(g_hash_table_iter_next(&iter, NULL, (gpointer*) &entry))
+  for(slist = pipeline->shaders;
+      slist != NULL;
+      slist = slist->next)
   {
+    entry = slist->e;
+    if(entry->n_objects < 1)
+      continue;
+
     program =
     _ds_shader_get_pid(entry->shader);
 
@@ -444,13 +526,13 @@ ds_pipeline_update(DsPipeline    *pipeline,
      (guintptr) program);
 
     /* propagate compile */
-    for(list = entry->objects;
-        list != NULL;
-        list = list->next)
+    for(olist = entry->objects;
+        olist != NULL;
+        olist = olist->next)
     {
       success =
       ds_renderable_compile
-      (list->object,
+      (olist->object,
        (DsRenderState*)
        ctx,
        program,

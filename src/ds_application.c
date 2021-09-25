@@ -24,6 +24,7 @@
 #include <ds_model.h>
 #include <ds_renderer.h>
 #include <ds_skybox.h>
+#include <ds_text.h>
 #include <glib/gi18n.h>
 #undef main
 
@@ -141,6 +142,7 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   g_type_ensure(DS_TYPE_SETTINGS);
   g_type_ensure(DS_TYPE_SHADER);
   g_type_ensure(DS_TYPE_SKYBOX);
+  g_type_ensure(DS_TYPE_TEXT);
 
   g_type_ensure(ds_gl_error_get_type());
   g_type_ensure(ds_gl_object_type_get_type());

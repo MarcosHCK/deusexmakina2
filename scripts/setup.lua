@@ -23,7 +23,7 @@ local debug_ = _ENV["DS_DEBUG"] == 'true';
 
 -- Load skybox shader
 do
-  local shader, skybox, font;
+  local shader, skybox, font, text;
   local error = ds.type.DsError();
 
 --[[
@@ -41,7 +41,7 @@ do
     error:ref());
   error:check();
 
-  pipeline:register_shader('model', 0, shader);
+  pipeline:register_shader('model', ds.priority.default, shader);
 
 --[[
 --
@@ -58,7 +58,7 @@ do
     error:ref());
   error:check();
 
-  pipeline:register_shader('skybox', -200, shader);
+  pipeline:register_shader('skybox', ds.priority.higher, shader);
 
 --[[
 --
@@ -75,7 +75,7 @@ do
     error:ref());
   error:check();
 
-  pipeline:register_shader('text', -100, shader);
+  pipeline:register_shader('text', ds.priority.lower, shader);
 
 --[[
 --
@@ -90,7 +90,7 @@ do
     error:ref());
   error:check();
 
-  pipeline:append_object('skybox', -100, skybox);
+  pipeline:append_object('skybox', ds.priority.default, skybox);
 
 --[[
 --
@@ -105,5 +105,21 @@ do
     error:ref());
   error:check();
 
-  print(font);
+--[[
+--
+-- Text renderer
+--
+--]]
+
+  text = ds.type.DsText.new(font);
+  pipeline:append_object('text', ds.priority.default, text);
+
+--[[
+--
+-- Text renderer
+--
+--]]
+
+  text:print("Hello World!", 2, 2, cancellable, error:ref());
+  error:check();
 end

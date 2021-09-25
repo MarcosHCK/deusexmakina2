@@ -15,6 +15,7 @@
 -- You should have received a copy of the GNU General Public License
 -- along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
 --]]
+local ds = require('ds');
 local scriptsdir = ...;
 
 do
@@ -76,4 +77,28 @@ do
   table.concat({package.path, newpath}, ';');
   package.cpath =
   table.concat({package.cpath, newcpath}, ';');
+end
+
+do
+  local higher = ds.priority.higher;
+  local lower = ds.priority.lower;
+
+  ds.priority.higher = nil;
+  ds.priority.lower = nil;
+
+  setmetatable(ds.priority,
+  {
+    __index = function(t, k)
+      if(k == 'higher') then
+        higher = higher + 1;
+      return higher;
+      elseif(k == 'lower') then
+        lower = lower - 1;
+      return lower;
+      end
+    end,
+    __newindex = function()
+      error('protected table');
+    end,
+  });
 end

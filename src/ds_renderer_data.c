@@ -54,7 +54,7 @@ _ds_renderer_data_set_projection(DsApplication *self,
 
   mat4 projection;
   glm_perspective
-  (d->fov,
+  (glm_rad(d->fov),
      ((gfloat) d->width)
    / ((gfloat) d->height),
    0.1f,

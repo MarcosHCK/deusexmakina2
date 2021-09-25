@@ -112,6 +112,7 @@ EXTRA_DIST+=\
 	ds_settings.h \
 	ds_shader.h \
 	ds_skybox.h \
+	ds_text.h \
 	$(VOID)
 
 #
@@ -147,6 +148,7 @@ deusexmakina2_SOURCES=\
 	ds_settings.vala \
 	ds_shader.c \
 	ds_skybox.c \
+	ds_text.c \
 	ds_utils.vala \
 	$(VOID)
 

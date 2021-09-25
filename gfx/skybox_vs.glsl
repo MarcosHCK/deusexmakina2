@@ -1,13 +1,13 @@
 #version 330 core
 out vec3 TexCoords;
 
-layout (location = 0) in vec3 aPos;
+layout (location = 0) in vec3 a_Pos;
 
 uniform mat4 a_mvp;
 
 void main()
 {
-    TexCoords = aPos;
-    vec4 pos = a_mvp * vec4(aPos, 1.0);
-    gl_Position = pos.xyww;
+  TexCoords = a_Pos;
+  vec4 pos = a_mvp * vec4(a_Pos, 1.0);
+  gl_Position = pos.xyww;
 }

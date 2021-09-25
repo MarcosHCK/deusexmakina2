@@ -557,7 +557,7 @@ ds_skybox_ds_renderable_iface_compile(DsRenderable   *pself,
 
   /* get uniform */
   __gl_try_catch(
-    uloc = glGetUniformLocation(program, "skybox");
+    uloc = glGetUniformLocation(program, "a_skybox");
   ,
     g_propagate_error(error, glerror);
     goto_error();
