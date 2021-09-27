@@ -68,10 +68,14 @@ DsText*
 ds_text_new(DsFont* provider);
 DsTextHandle
 ds_text_print(DsText         *text,
+              DsTextHandle    instance,
               const gchar    *text_,
               vec2            position,
               GCancellable   *cancellable,
               GError        **error);
+void
+ds_text_unprint(DsText         *text,
+                DsTextHandle    handle);
 
 #if __cplusplus
 }
