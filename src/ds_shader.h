@@ -31,6 +31,8 @@
 /**
  * DsApplicationError:
  * @DS_SHADER_ERROR_FAILED: generic error condition.
+ * @DS_SHADER_ERROR_INVALID_BINARY: used internally to
+ * implement shader caching.
  * @DS_SHADER_ERROR_COMPILE: error compiling shader.
  * @DS_SHADER_ERROR_LINK: error linking program.
  *
@@ -40,6 +42,9 @@
  */
 typedef enum {
   DS_SHADER_ERROR_FAILED,
+  DS_SHADER_ERROR_INVALID_BINARY,
+  DS_SHADER_ERROR_INVALID_SHADER,
+  DS_SHADER_ERROR_INVALID_PROGRAM,
   DS_SHADER_ERROR_COMPILE,
   DS_SHADER_ERROR_LINK,
 } DsShaderError;

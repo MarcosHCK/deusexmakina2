@@ -374,7 +374,6 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
                                    GCancellable  *cancellable,
                                    GError       **error)
 {
-  DsFont* self = DS_FONT(pself);
   gboolean  success = TRUE;
   GError* tmp_err = NULL;
   GBytes* bytes = NULL;
@@ -383,7 +382,8 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
   guchar ucode;
   guint i;
 
-  DsFontClass* klass = DS_FONT_GET_CLASS(self);
+  DsFont* self = DS_FONT(pself);
+  DsFontClass* klass = DS_FONT_GET_CLASS(pself);
   DsGlyph* glyphs;
   gsize n_glyphs;
 
@@ -861,7 +861,7 @@ _ds_font_generate_vao(DsFont         *font,
 
   __gl_try_catch(
     boxes = (vbox*)
-    glMapBuffer(GL_ARRAY_BUFFER, GL_READ_WRITE);
+    glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
   ,
     g_propagate_error(error, glerror);
     goto_error();

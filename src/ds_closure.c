@@ -363,15 +363,12 @@ _ds_closure__call(lua_State* L,
 
 _error_:
   g_value_unset(&return_);
+  g_value_unset(params_);
   for(i = 0;
       i < n_params;
       i++)
   {
     g_value_unset(&(params[i]));
-  }
-  if(closure->flags & DS_CLOSURE_CONSTRUCTOR)
-  {
-    g_value_unset(params - 1);
   }
 return (int) success;
 }

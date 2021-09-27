@@ -25,6 +25,7 @@
 
 deusexmakina2
 
+ds_basedirs.c
 ds_enums.c
 ds_marshals.c
 ds_marshals.h

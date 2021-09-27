@@ -16,6 +16,7 @@
  *
  */
 #include <config.h>
+#include <ds_application_private.h>
 #include <ds_font.h>
 #include <ds_macros.h>
 #include <webp/encode.h>
@@ -62,16 +63,89 @@ _error_:
 return success;
 }
 
+static GFile*
+get_charmap_cache_file(guint charset_hash, GCancellable* cancellable, GError** error)
+{
+  gboolean success = TRUE;
+  GError* tmp_err = NULL;
+  DsApplication* app = NULL;
+  GFile* return_ = NULL;
+  GFile* basedir = NULL;
+  GFile* shader = NULL;
+
+/*
+ * Generate name
+ *
+ */
+
+  app = (DsApplication*)
+  g_application_get_default();
+  g_assert(DS_IS_APPLICATION(app));
+
+  gchar buf[64];
+  g_snprintf(buf, sizeof(buf), "%x.shader", charset_hash);
+
+  basedir =
+  _ds_base_dirs_child("shaders", app->glcachedir, cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+  shader =
+  g_file_get_child(basedir, buf);
+
+/*
+ * Finalize
+ *
+ */
+
+  return_ = g_steal_pointer(&shader);
+
+_error_:
+  g_clear_object(&basedir);
+  g_clear_object(&shader);
+return return_;
+}
+
 G_GNUC_INTERNAL
 gboolean
-_ds_font_save_charmap_image(GFile* output_, GBytes* bytes, gint w, gint h, GCancellable* cancellable, GError** error)
+_ds_font_cache_try_load(guint charset_hash, GBytes** pbytes, gint* pw, gint* ph, GCancellable* cancellable, GError** error)
+{
+  g_set_error_literal
+  (error,
+   DS_FONT_ERROR,
+   DS_FONT_ERROR_INVALID_CACHE,
+   "Invalid cache\r\n");
+return FALSE;
+}
+
+
+G_GNUC_INTERNAL
+gboolean
+_ds_font_cache_try_save(guint charset_hash, GBytes* bytes, gint w, gint h, GCancellable* cancellable, GError** error)
 {
   gboolean success = TRUE;
   GError* tmp_err = NULL;
   GOutputStream* output = NULL;
+  GFile* outfile = NULL;
   WebPConfig config = {0};
   WebPPicture pic = {0};
   gint return_ = 0;
+
+/*
+ * Get cache file
+ *
+ */
+
+  outfile =
+  get_charmap_cache_file(charset_hash, cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
 
 /*
  * Open file
@@ -79,7 +153,7 @@ _ds_font_save_charmap_image(GFile* output_, GBytes* bytes, gint w, gint h, GCanc
  */
 
   output = (GOutputStream*)
-  g_file_replace(output_, NULL, TRUE, G_FILE_CREATE_PRIVATE, cancellable, &tmp_err);
+  g_file_replace(outfile, NULL, TRUE, G_FILE_CREATE_PRIVATE, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -191,13 +265,7 @@ _ds_font_save_charmap_image(GFile* output_, GBytes* bytes, gint w, gint h, GCanc
 
 _error_:
   _g_object_unref0(output);
+  _g_object_unref0(outfile);
   WebPPictureFree(&pic);
 return success;
-}
-
-G_GNUC_INTERNAL
-GBytes*
-_ds_font_load_charmap_image(GFile* output_, gint w, gint h, GCancellable* cancellable, GError** error)
-{
-  g_assert_not_reached();
 }

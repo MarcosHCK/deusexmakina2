@@ -122,6 +122,7 @@ EXTRA_DIST+=\
 bin_PROGRAMS=deusexmakina2
 deusexmakina2_SOURCES=\
 	ds_application.c \
+	ds_basedirs.vala \
 	ds_callable.c \
 	ds_closure.c \
 	ds_dds.c \
@@ -147,6 +148,7 @@ deusexmakina2_SOURCES=\
 	ds_saves.vala \
 	ds_settings.vala \
 	ds_shader.c \
+	ds_shader_cache.c \
 	ds_skybox.c \
 	ds_text.c \
 	ds_utils.vala \

@@ -62,21 +62,6 @@ luaD_pushobject(lua_State  *L,
   (*ptr) = _g_object_ref0(obj);
 }
 
-/* Taken as-in from LuaJIT code */
-static int
-_typeerror(lua_State *L, int arg, const char *tname) {
-  const char *msg;
-  const char *typearg;  /* name for the type of the actual argument */
-  if (luaL_getmetafield(L, arg, "__name") == LUA_TSTRING)
-    typearg = lua_tostring(L, -1);  /* use the given type name */
-  else if (lua_type(L, arg) == LUA_TLIGHTUSERDATA)
-    typearg = "light userdata";  /* special name for messages */
-  else
-    typearg = luaL_typename(L, arg);  /* standard name */
-  msg = lua_pushfstring(L, "%s expected, got %s", tname, typearg);
-  return luaL_argerror(L, arg, msg);
-}
-
 gboolean
 luaD_isobject(lua_State  *L,
               int         idx)
@@ -149,7 +134,7 @@ luaD_checkobject(lua_State  *L,
   luaD_isobject(L, arg);
   if G_UNLIKELY(is == FALSE)
   {
-    _typeerror(L, arg, _METATABLE);
+    _ds_lua_typeerror(L, arg, _METATABLE);
   }
 return luaD_toobject(L, arg);
 }

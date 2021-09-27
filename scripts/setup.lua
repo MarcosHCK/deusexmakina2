@@ -120,6 +120,7 @@ do
 --
 --]]
 
-  text:print("Hello World!", 2, 2, cancellable, error:ref());
+  text:print(nil, "Hello World!", 2, 2, cancellable, error:ref());
   error:check();
 end
+collectgarbage();

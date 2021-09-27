@@ -29,6 +29,27 @@ void ds_shader_g_initable_iface_init(GInitableIface* iface);
 static
 void ds_shader_ds_callable_iface_init(DsCallableIface* iface);
 
+typedef struct _Shaders Shaders;
+
+/*
+ * Structs
+ *
+ */
+
+struct _Shaders
+{
+  GLuint sid;
+  GBytes* source;
+};
+
+static const GLenum
+shader_types[] =
+{
+  GL_VERTEX_SHADER,
+  GL_FRAGMENT_SHADER,
+  GL_GEOMETRY_SHADER,
+};
+
 /*
  * Object definition
  *
@@ -64,13 +85,6 @@ struct _DsShader
       GInputStream* geometry_stream;
     };
   };
-};
-
-const GLenum
-shader_types[] = {
-  GL_VERTEX_SHADER,
-  GL_FRAGMENT_SHADER,
-  GL_GEOMETRY_SHADER,
 };
 
 G_STATIC_ASSERT(G_N_ELEMENTS(shader_types) == n_shaders);
@@ -130,48 +144,15 @@ return success;
 }
 
 static gboolean
-ds_shader_g_initable_iface_init_sync(GInitable     *pself,
-                                     GCancellable  *cancellable,
-                                     GError       **error)
+load_shader_sources(DsShader* self, Shaders* shaders, GCancellable* cancellable, GError** error)
 {
   gboolean success = TRUE;
   GError* tmp_err = NULL;
-  DsShader* self = DS_SHADER(pself);
   GMemoryOutputStream* mem = NULL;
-  GBytes* bytes = NULL;
-  GLuint pid, sid;
-  GLint return_ = FALSE;
-  GLint infolen = 0;
   guint i;
 
-  pid = glCreateProgram();
-  if G_UNLIKELY(pid == 0)
-  {
-    g_propagate_error(error, ds_gl_get_error());
-    goto_error();
-  }
-
-  __gl_try(
-    pid = glCreateProgram();
-  );
-  __gl_catch(
-    g_propagate_error(error, glerror);
-    goto_error();
-  ,
-    g_assert(pid != 0);
-  );
-
-  GLuint* sids = g_newa(GLuint, n_shaders);
-#ifdef HAVE_MEMSET
-  memset(sids, 0, sizeof(GLuint) * n_shaders);
-#else
-  for(i = 0;i < n_shaders;i++)
-    sids[i] = 0;
-#endif
-
   for(i = 0;i < n_shaders;i++)
   {
-
   /*
    * Get stream
    *
@@ -223,147 +204,431 @@ ds_shader_g_initable_iface_init_sync(GInitable     *pself,
    *
    */
 
-    g_clear_pointer
-    (&bytes, g_bytes_unref);
-    bytes =
+    shaders[i].source =
     g_memory_output_stream_steal_as_bytes(mem);
 
-    const GLchar* sources[] = {g_bytes_get_data(bytes, NULL), NULL};
-    const GLint lengths[] = {g_bytes_get_size(bytes), 0};
-
+  /*
+   * Clean up
+   *
+   */
     g_clear_object(&(self->streams[i]));
     g_clear_object(&(self->files[i]));
+  }
+
+_error_:
+  g_clear_object(&mem);
+return success;
+}
+
+static guint
+hash_sources(Shaders* shaders)
+{
+  guint hash = 0;
+  guint i;
+
+  for(i = 0;i < n_shaders;i++)
+  if(shaders[i].source != NULL)
+  {
+    hash ^= g_bytes_hash(shaders[i].source);
+  }
+return hash;
+}
+
+static gboolean
+compile_from_source(GLuint pid, Shaders* shaders, GCancellable* cancellable, GError** error)
+{
+  gboolean success = TRUE;
+  GError* tmp_err = NULL;
+  GLint return_ = FALSE;
+  GLint infolen = 0;
+  GLuint sid;
+  guint i;
+
+/*
+ * Compile shader and
+ * attach them to program
+ *
+ */
+
+  for(i = 0;i < n_shaders;i++)
+  {
+    if(shaders[i].source == NULL)
+      continue;
 
   /*
-   * Compile shader
+   * Create shaders
    *
    */
 
-    sid =
-    glCreateShader(shader_types[i]);
+    __gl_try_catch(
+      sid = glCreateShader(shader_types[i]);
+    ,
+      g_propagate_error(error, glerror);
+      goto_error();
+    );
+
     if G_UNLIKELY(sid == 0)
     {
-      g_propagate_error(error, ds_gl_get_error());
+      g_set_error_literal
+      (error,
+       DS_SHADER_ERROR,
+       DS_SHADER_ERROR_FAILED,
+       "Invalid shader object\r\n");
       goto_error();
     }
 
-    __gl_try(
-      glShaderSource(sid, 1, sources, lengths);
-      glCompileShader(sid);
-    );
-    __gl_catch(
-      g_propagate_error(error, glerror);
-      goto_error();
-    ,);
+    const GLchar* sources[] = {g_bytes_get_data(shaders[i].source, NULL), NULL};
+    const GLint lengths[] = {g_bytes_get_size(shaders[i].source), 0};
 
   /*
-   * Check compilation status
+   * Load source
    *
    */
 
-    glGetShaderiv(sid, GL_COMPILE_STATUS, &return_);
-    glGetShaderiv(sid, GL_INFO_LOG_LENGTH, &infolen);
+    __gl_try_catch(
+      glShaderSource(sid, 1, sources, lengths);
+    ,
+      g_propagate_error(error, glerror);
+      goto_error();
+    );
 
-    if G_UNLIKELY(return_ == GL_FALSE)
+  /*
+   * Compile
+   *
+   */
+
+    __gl_try_catch(
+      glCompileShader(sid);
+    ,
+      g_propagate_error(error, glerror);
+      goto_error();
+    );
+
+    __gl_try_catch(
+      glGetShaderiv(sid, GL_COMPILE_STATUS, &return_);
+      glGetShaderiv(sid, GL_INFO_LOG_LENGTH, &infolen);
+    ,
+      g_propagate_error(error, glerror);
+      goto_error();
+    );
+
+    if G_UNLIKELY(return_ == FALSE)
     {
-      g_assert(infolen > 0);
+      g_assert(infolen != 0);
       gchar* msg = g_malloc(infolen + 1);
-      glGetShaderInfoLog(sid, infolen, NULL, msg);
+
+      __gl_try_catch(
+        glGetShaderInfoLog(sid, infolen, NULL, msg);
+      ,
+        g_propagate_error(error, glerror);
+        _g_free0(msg);
+        goto_error();
+      );
 
       g_set_error_literal
       (error,
        DS_SHADER_ERROR,
-       DS_SHADER_ERROR_COMPILE,
+       DS_SHADER_ERROR_INVALID_SHADER,
        msg);
+      _g_free0(msg);
       goto_error();
     }
 
   /*
-   * Attach shader to program
+   * Attach shader
    *
    */
 
-    __gl_try(
+    __gl_try_catch(
       glAttachShader(pid, sid);
-    );
-    __gl_catch(
+    ,
       g_propagate_error(error, glerror);
       goto_error();
-    ,
-      sids[i] = sid;
-      sid = 0;
     );
+
+  /*
+   * Finalize shader
+   *
+   */
+
+    shaders[i].sid = sid;
+    sid = 0;
   }
 
-  /*
-   * Link program
-   *
-   */
+/*
+ * Link program
+ *
+ */
 
-  __gl_try(
+  __gl_try_catch(
     glLinkProgram(pid);
-  );
-  __gl_catch(
+  ,
     g_propagate_error(error, glerror);
     goto_error();
-  ,);
+  );
 
-  /*
-   * Check link status
-   *
-   */
+  __gl_try_catch(
+    glGetProgramiv(pid, GL_LINK_STATUS, &return_);
+    glGetProgramiv(pid, GL_INFO_LOG_LENGTH, &infolen);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
 
-  glGetProgramiv(pid, GL_LINK_STATUS, &return_);
-  glGetProgramiv(pid, GL_INFO_LOG_LENGTH, &infolen);
-
-  if G_UNLIKELY(return_ == GL_FALSE)
+  if G_UNLIKELY(return_ == FALSE)
   {
-    g_assert(infolen > 0);
+    g_assert(infolen != 0);
     gchar* msg = g_malloc(infolen + 1);
-    glGetProgramInfoLog(pid, infolen, NULL, msg);
+
+    __gl_try_catch(
+      glGetProgramInfoLog(pid, infolen, NULL, msg);
+    ,
+      g_propagate_error(error, glerror);
+      _g_free0(msg);
+      goto_error();
+    );
 
     g_set_error_literal
     (error,
      DS_SHADER_ERROR,
-     DS_SHADER_ERROR_LINK,
+     DS_SHADER_ERROR_INVALID_PROGRAM,
      msg);
+    _g_free0(msg);
     goto_error();
   }
 
-  /*
-   * Detach shaders
-   *
-   */
+/*
+ * Detach shaders
+ *
+ */
+
   for(i = 0;i < n_shaders;i++)
   {
-    if(sids[i] == 0)
+    if(shaders[i].sid == 0)
       continue;
 
-    __gl_try(
-      glDetachShader(pid, sids[i]);
-    );
-    __gl_catch(
+    __gl_try_catch(
+      glDetachShader(pid, shaders[i].sid);
+      shaders[i].sid = 0;
+    ,
       g_propagate_error(error, glerror);
       goto_error();
-    ,);
+    );
   }
 
-  /*
-   * Finish program
-   *
-   */
-  self->pid = pid; pid = 0;
+_error_:
+  if G_UNLIKELY(sid != 0)
+    glDeleteShader(sid);
+return success;
+}
+
+G_GNUC_INTERNAL
+gboolean
+_ds_shader_cache_try_load(GLuint          program,
+                          guint           source_hash,
+                          GCancellable   *cancellable,
+                          GError        **error);
+G_GNUC_INTERNAL
+gboolean
+_ds_shader_cache_try_save(GLuint          program,
+                          guint           source_hash,
+                          GCancellable   *cancellable,
+                          GError        **error);
+G_GNUC_INTERNAL
+gboolean
+_ds_shader_cache_cleanup(guint          source_hash,
+                         GCancellable  *cancellable,
+                         GError       **error);
+
+static gboolean
+ds_shader_g_initable_iface_init_sync(GInitable     *pself,
+                                     GCancellable  *cancellable,
+                                     GError       **error)
+{
+  gboolean success = TRUE;
+  GError* tmp_err = NULL;
+  DsShader* self = DS_SHADER(pself);
+  GLint return_ = FALSE;
+  GLint infolen = 0;
+  GLuint pid;
+  guint i;
+
+  Shaders shaders[n_shaders] = {0};
+  guint source_hash;
+
+/*
+ * Load sources
+ *
+ */
+
+  success =
+  load_shader_sources(self, shaders, cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+  else
+  {
+    source_hash = hash_sources(shaders);
+    g_assert(source_hash != 0);
+  }
+
+/*
+ * Clean-up shaders
+ *
+ */
+#if 0
+  success =
+  _ds_shader_cache_cleanup(source_hash, cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+#endif // 0
+/*
+ * Create program
+ *
+ */
+
+  __gl_try_catch(
+    pid = glCreateProgram();
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+  if G_UNLIKELY(pid == 0)
+  {
+    g_set_error_literal
+    (error,
+     DS_SHADER_ERROR,
+     DS_SHADER_ERROR_FAILED,
+     "Invalid program object\r\n");
+    goto_error();
+  }
+
+/*
+ * Load program
+ *
+ */
+
+  /* try load from cache */
+  success =
+  _ds_shader_cache_try_load(pid, source_hash, cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    if(g_error_matches(tmp_err, DS_SHADER_ERROR, DS_SHADER_ERROR_INVALID_BINARY))
+      g_clear_error(&tmp_err);
+    else
+    {
+      g_propagate_error(error, tmp_err);
+      goto_error();
+    }
+  }
+
+  /* extra check */
+  if G_UNLIKELY(success == TRUE)
+  {
+    __gl_try_catch(
+      glGetProgramiv(pid, GL_LINK_STATUS, &return_);
+      success = (return_ == TRUE);
+    ,
+      g_propagate_error(error, glerror);
+      goto_error();
+    );
+  }
+
+  /* load from source and cache it */
+  if G_UNLIKELY(success == FALSE)
+  {
+    success =
+    compile_from_source(pid, shaders, cancellable, &tmp_err);
+    if G_UNLIKELY(tmp_err != NULL)
+    {
+      g_propagate_error(error, tmp_err);
+      goto_error();
+    }
+
+    success =
+    _ds_shader_cache_try_save(pid, source_hash, cancellable, &tmp_err);
+    if G_UNLIKELY(tmp_err != NULL)
+    {
+      g_propagate_error(error, tmp_err);
+      goto_error();
+    }
+  }
+
+/*
+ * Validate program
+ *
+ */
+
+  __gl_try_catch(
+    glValidateProgram(pid);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+  __gl_try_catch(
+    glGetProgramiv(pid, GL_VALIDATE_STATUS, &return_);
+    glGetProgramiv(pid, GL_INFO_LOG_LENGTH, &infolen);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+  if G_UNLIKELY(return_ == FALSE)
+  {
+    if(infolen > 0)
+    {
+      gchar* msg = g_malloc(infolen + 1);
+
+      __gl_try_catch(
+        glGetProgramInfoLog(pid, infolen, NULL, msg);
+      ,
+        g_propagate_error(error, glerror);
+        _g_free0(msg);
+        goto_error();
+      );
+
+      g_set_error_literal
+      (error,
+       DS_SHADER_ERROR,
+       DS_SHADER_ERROR_INVALID_PROGRAM,
+       msg);
+      _g_free0(msg);
+      goto_error();
+    }
+    else
+    {
+      g_set_error_literal
+      (error,
+       DS_SHADER_ERROR,
+       DS_SHADER_ERROR_INVALID_PROGRAM,
+       "Unknown error validating programr\r\n");
+      goto_error();
+    }
+  }
+
+/*
+ * Finish program
+ *
+ */
+
+  self->pid = pid;
+  pid = 0;
 
 _error_:
   if G_UNLIKELY(pid != 0)
     glDeleteProgram(pid);
-  if G_UNLIKELY(sid != 0)
-    glDeleteShader(sid);
   for(i = 0;i < n_shaders;i++)
-    glDeleteShader(sids[i]);
-  g_clear_pointer
-  (&bytes, g_bytes_unref);
-  g_clear_object(&mem);
+  {
+    glDeleteShader(shaders[i].sid);
+    g_bytes_unref(shaders[i].source);
+  }
 return success;
 }
 

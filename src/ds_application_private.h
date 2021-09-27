@@ -46,10 +46,14 @@ _ds_base_data_dir_pick(GCancellable  *cancellable,
                        GError       **error);
 G_GNUC_INTERNAL
 GFile*
-_ds_base_data_dir_child(const gchar   *name,
-                        GFile         *basedatadir,
-                        GCancellable  *cancellable,
+_ds_base_cache_dir_pick(GCancellable  *cancellable,
                         GError       **error);
+G_GNUC_INTERNAL
+GFile*
+_ds_base_dirs_child(const gchar   *name,
+                    GFile         *basedatadir,
+                    GCancellable  *cancellable,
+                    GError       **error);
 
 /* defined in ds_renderer_data.c */
 G_GNUC_INTERNAL
@@ -81,6 +85,7 @@ struct _DsApplication
   DsSettings* dssettings;
   GSettings* gsettings;
   GFile* basedatadir;
+  GFile* basecachedir;
   GFile* savesdir;
   GFile* glcachedir;
   lua_State* L;

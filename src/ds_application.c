@@ -80,7 +80,9 @@ enum {
   prop_dssettings,
   prop_gsettings,
   prop_basedatadir,
+  prop_basecachedir,
   prop_savesdir,
+  prop_glcachedir,
   prop_lua_state,
   prop_sdl_window,
   prop_gl_context,
@@ -104,6 +106,19 @@ G_DEFINE_TYPE_WITH_CODE
  (G_TYPE_INITABLE,
   ds_application_g_initiable_iface_init));
 
+#define dssettings self->dssettings
+#define gsettings self->gsettings
+#define basedatadir self->basedatadir
+#define basecachedir self->basecachedir
+#define savesdir self->savesdir
+#define glcachedir self->glcachedir
+#define L self->L
+#define sdl_init self->sdl_init
+#define window self->window
+#define glctx self->glctx
+#define glew_init self->glew_init
+#define pipeline self->pipeline
+
 static gboolean
 ds_application_g_initiable_iface_init_sync(GInitable     *pself,
                                            GCancellable  *cancellable,
@@ -115,18 +130,6 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   DS_APPLICATION(pself);
   gboolean debug = FALSE;
   gint return_ = 0;
-
-  DsSettings* dssettings = NULL;
-  GSettings* gsettings = NULL;
-  GFile* basedatadir = NULL;
-  GFile* savesdir = NULL;
-  GFile* glcachedir = NULL;
-  lua_State* L = NULL;
-  guint sdl_init = 0;
-  SDL_Window* window = NULL;
-  SDL_GLContext* glctx = NULL;
-  guint glew_init = 0;
-  DsPipeline* pipeline = NULL;
 
 /*
  * Ensure class initialization
@@ -210,8 +213,16 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
+  basecachedir =
+  _ds_base_cache_dir_pick(cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
   savesdir =
-  _ds_base_data_dir_child("saves", basedatadir, cancellable, &tmp_err);
+  _ds_base_dirs_child("saves", basedatadir, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -219,13 +230,12 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   }
 
   glcachedir =
-  _ds_base_data_dir_child("gl_cache", basedatadir, cancellable, &tmp_err);
+  _ds_base_dirs_child("glcache", basecachedir, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
     goto_error();
   }
-
 
 /*
  * Lua
@@ -498,42 +508,48 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   }
 
 /*
- * All goes fine
+ * Get Lua stack ready
  *
  */
 
-  self->dssettings = g_steal_pointer(&dssettings);
-  self->gsettings = g_steal_pointer(&gsettings);
-  self->basedatadir = g_steal_pointer(&basedatadir);
-  self->savesdir = g_steal_pointer(&savesdir);
-  self->glcachedir = g_steal_pointer(&glcachedir);
-  self->L = g_steal_pointer(&L);
-  self->sdl_init = ds_steal_handle_id(&sdl_init);
-  self->window = g_steal_pointer(&window);
-  self->glctx = g_steal_pointer(&glctx);
-  self->glew_init = ds_steal_handle_id(&glew_init);
-  self->pipeline = g_steal_pointer(&pipeline);
-  lua_settop(self->L, 0);
+  lua_settop(L, 0);
 
 _error_:
-  g_clear_object(&pipeline);
-  g_clear_handle_id
-  (&glew_init, _glew_fini0);
-  g_clear_pointer
-  (&glctx, _SDL_GL_DeleteContext0);
-  g_clear_pointer
-  (&window, _SDL_DestroyWindow0);
-  g_clear_handle_id
-  (&sdl_init, _SDL_fini0);
-  g_clear_pointer
-  (&L, _lua_close0);
-  g_clear_object(&glcachedir);
-  g_clear_object(&savesdir);
-  g_clear_object(&basedatadir);
-  g_clear_object(&gsettings);
-  g_clear_object(&dssettings);
+  if G_UNLIKELY(success == FALSE)
+  {
+    g_clear_object(&pipeline);
+    g_clear_handle_id
+    (&glew_init, _glew_fini0);
+    g_clear_pointer
+    (&glctx, _SDL_GL_DeleteContext0);
+    g_clear_pointer
+    (&window, _SDL_DestroyWindow0);
+    g_clear_handle_id
+    (&sdl_init, _SDL_fini0);
+    g_clear_pointer
+    (&L, _lua_close0);
+    g_clear_object(&glcachedir);
+    g_clear_object(&savesdir);
+    g_clear_object(&basecachedir);
+    g_clear_object(&basedatadir);
+    g_clear_object(&gsettings);
+    g_clear_object(&dssettings);
+  }
 return success;
 }
+
+#undef dssettings
+#undef gsettings
+#undef basedatadir
+#undef basecachedir
+#undef savesdir
+#undef glcachedir
+#undef L
+#undef sdl_init
+#undef window
+#undef glctx
+#undef glew_init
+#undef pipeline
 
 static
 void ds_application_g_initiable_iface_init(GInitableIface* iface) {
@@ -557,6 +573,7 @@ void ds_application_class_dispose(GObject* pself) {
   g_clear_object(&(self->pipeline));
   g_clear_object(&(self->glcachedir));
   g_clear_object(&(self->savesdir));
+  g_clear_object(&(self->basecachedir));
   g_clear_object(&(self->basedatadir));
   g_clear_object(&(self->gsettings));
   g_clear_object(&(self->dssettings));
@@ -577,11 +594,17 @@ void ds_application_class_get_property(GObject* pself, guint prop_id, GValue* va
   case prop_basedatadir:
     g_value_set_object(value, self->basedatadir);
     break;
+  case prop_basecachedir:
+    g_value_set_object(value, self->basecachedir);
+    break;
   case prop_savesdir:
     g_value_set_object(value, self->savesdir);
     break;
+  case prop_glcachedir:
+    g_value_set_object(value, self->glcachedir);
+    break;
   case prop_lua_state:
-    g_value_set_pointer(value, self->savesdir);
+    g_value_set_pointer(value, self->L);
     break;
   case prop_sdl_window:
     g_value_set_pointer(value, self->window);
@@ -652,9 +675,23 @@ void ds_application_class_init(DsApplicationClass* klass) {
      G_PARAM_READABLE
      | G_PARAM_STATIC_STRINGS);
 
+  properties[prop_basecachedir] =
+    g_param_spec_object
+    (_TRIPLET("basecachedir"),
+     G_TYPE_FILE,
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
+
   properties[prop_savesdir] =
     g_param_spec_object
     (_TRIPLET("savesdir"),
+     G_TYPE_FILE,
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_glcachedir] =
+    g_param_spec_object
+    (_TRIPLET("glcachedir"),
      G_TYPE_FILE,
      G_PARAM_READABLE
      | G_PARAM_STATIC_STRINGS);
