@@ -19,7 +19,6 @@
 #include <ds_application_private.h>
 #include <ds_error.h>
 #include <ds_events.h>
-#include <ds_font.h>
 #include <ds_luaobj.h>
 #include <ds_model.h>
 #include <ds_renderer.h>
@@ -77,6 +76,13 @@ _lua_close0(lua_State* var)
 
 enum {
   prop_0,
+
+/*
+ * Initialization-time variables,
+ * therefore they are READ-ONLY.
+ *
+ */
+
   prop_dssettings,
   prop_gsettings,
   prop_basedatadir,
@@ -92,6 +98,25 @@ enum {
   prop_viewport_height,
   prop_framelimit,
   prop_pipeline,
+
+/*
+ * Setup-time variables,
+ * fill by setup script and
+ * therefore they are READ-WRITE,
+ * but as they are pretty global,
+ * the best is to not overwrite
+ * them
+ *
+ */
+
+  prop_font,
+
+/*
+ * Property number, a convenience way
+ * to automatically get how many properties
+ * this object has.
+ *
+ */
   prop_number,
 };
 
@@ -354,10 +379,7 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   flags |= fullscreen ? SDL_WINDOW_FULLSCREEN : 0;
   flags |= borderless ? SDL_WINDOW_BORDERLESS : 0;
 
-  if G_UNLIKELY
-    (g_strcmp0
-     (g_getenv("DS_DEBUG"),
-      "true") == 0)
+  if G_UNLIKELY(debug == TRUE)
   {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_DEBUG_FLAG, TRUE);
   }
@@ -449,10 +471,6 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
-  /* push object */
-  luaD_pushobject(L, G_OBJECT(pipeline));
-  lua_setglobal(L, "pipeline");
-
   /* setup mvp matrix components */
   _ds_renderer_data_set_projection(self, pipeline);
   _ds_renderer_data_set_view(self, pipeline, 0.f, 0.f, 0.f, 0.f);
@@ -484,15 +502,18 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
+  luaD_pushobject(L, (GObject*) self);
   luaD_pushobject(L, (GObject*) cancellable);
 
   success =
-  luaD_xpcall(L, 1, 0, &tmp_err);
+  luaD_xpcall(L, 2, 0, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
     goto_error();
   }
+
+  lua_gc(L, LUA_GCCOLLECT, 1);
 
 /*
  * Update pipeline
@@ -557,31 +578,8 @@ void ds_application_g_initiable_iface_init(GInitableIface* iface) {
 }
 
 static
-void ds_application_class_finalize(GObject* pself) {
-  DsApplication* self = DS_APPLICATION(pself);
-  _glew_fini0(self->glew_init);
-  _SDL_GL_DeleteContext0(self->glctx);
-  _SDL_DestroyWindow0(self->window);
-  _SDL_fini0(self->sdl_init);
-  _lua_close0(self->L);
-G_OBJECT_CLASS(ds_application_parent_class)->finalize(pself);
-}
-
-static
-void ds_application_class_dispose(GObject* pself) {
-  DsApplication* self = DS_APPLICATION(pself);
-  g_clear_object(&(self->pipeline));
-  g_clear_object(&(self->glcachedir));
-  g_clear_object(&(self->savesdir));
-  g_clear_object(&(self->basecachedir));
-  g_clear_object(&(self->basedatadir));
-  g_clear_object(&(self->gsettings));
-  g_clear_object(&(self->dssettings));
-G_OBJECT_CLASS(ds_application_parent_class)->dispose(pself);
-}
-
-static
-void ds_application_class_get_property(GObject* pself, guint prop_id, GValue* value, GParamSpec* pspec) {
+void ds_application_class_get_property(GObject* pself, guint prop_id, GValue* value, GParamSpec* pspec)
+{
   DsApplication* self = DS_APPLICATION(pself);
   switch(prop_id)
   {
@@ -630,10 +628,53 @@ void ds_application_class_get_property(GObject* pself, guint prop_id, GValue* va
   case prop_pipeline:
     g_value_set_object(value, self->pipeline);
     break;
+  case prop_font:
+    g_value_set_object(value, self->font);
+    break;
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID(pself, prop_id, pspec);
     break;
   }
+}
+
+static
+void ds_application_class_set_property(GObject* pself, guint prop_id, const GValue* value, GParamSpec* pspec)
+{
+  DsApplication* self = DS_APPLICATION(pself);
+  switch(prop_id)
+  {
+  case prop_font:
+    g_set_object(&(self->font), g_value_get_object(value));
+    break;
+  default:
+    G_OBJECT_WARN_INVALID_PROPERTY_ID(pself, prop_id, pspec);
+    break;
+  }
+}
+
+static
+void ds_application_class_finalize(GObject* pself) {
+  DsApplication* self = DS_APPLICATION(pself);
+  _glew_fini0(self->glew_init);
+  _SDL_GL_DeleteContext0(self->glctx);
+  _SDL_DestroyWindow0(self->window);
+  _SDL_fini0(self->sdl_init);
+  _lua_close0(self->L);
+G_OBJECT_CLASS(ds_application_parent_class)->finalize(pself);
+}
+
+static
+void ds_application_class_dispose(GObject* pself) {
+  DsApplication* self = DS_APPLICATION(pself);
+  g_clear_object(&(self->font));
+  g_clear_object(&(self->pipeline));
+  g_clear_object(&(self->glcachedir));
+  g_clear_object(&(self->savesdir));
+  g_clear_object(&(self->basecachedir));
+  g_clear_object(&(self->basedatadir));
+  g_clear_object(&(self->gsettings));
+  g_clear_object(&(self->dssettings));
+G_OBJECT_CLASS(ds_application_parent_class)->dispose(pself);
 }
 
 static
@@ -646,6 +687,7 @@ void ds_application_class_init(DsApplicationClass* klass) {
  */
 
   oclass->get_property = ds_application_class_get_property;
+  oclass->set_property = ds_application_class_set_property;
   oclass->finalize = ds_application_class_finalize;
   oclass->dispose = ds_application_class_dispose;
 
@@ -653,6 +695,11 @@ void ds_application_class_init(DsApplicationClass* klass) {
  * properties
  *
  */
+
+  /*
+   * Initialization
+   *
+   */
 
   properties[prop_dssettings] =
     g_param_spec_object
@@ -760,6 +807,23 @@ void ds_application_class_init(DsApplicationClass* klass) {
      G_PARAM_READABLE
      | G_PARAM_STATIC_STRINGS);
 
+  /*
+   * Setup
+   *
+   */
+
+  properties[prop_font] =
+    g_param_spec_object
+    (_TRIPLET("font"),
+     DS_TYPE_FONT,
+     G_PARAM_READWRITE
+     | G_PARAM_STATIC_STRINGS);
+
+  /*
+   * Finish
+   *
+   */
+
   g_object_class_install_properties
   (oclass,
    prop_number,
@@ -840,6 +904,11 @@ main(int    argc,
 {
   setlocale(LC_ALL, "");
 
+/*
+ * Create application
+ *
+ */
+
   GError* tmp_err = NULL;
   GApplication* app = (GApplication*)
 
@@ -862,15 +931,33 @@ main(int    argc,
     g_assert_not_reached();
   }
 
+/*
+ * Subscribe to 'activate'
+ * signal
+ *
+ */
+
   g_signal_connect
   (app,
    "activate",
    G_CALLBACK(on_activate),
    NULL);
 
+/*
+ * Run main loop
+ *
+ */
+
   int status =
   g_application_run(app, argc, argv);
-  while(G_IS_OBJECT(app))
-    g_object_unref(app);
+
+/*
+ * Finalize application object
+ *
+ */
+
+  while(g_source_remove_by_user_data(app));
+  lua_gc(DS_APPLICATION(app)->L, LUA_GCCOLLECT, 1);
+  g_object_unref(app);
 return status;
 }

@@ -16,13 +16,14 @@
 -- along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
 --]]
 local ds = require('ds');
-local cancellable = ...;
+local application, cancellable = ...;
 
 -- Check debug flag
 local debug_ = _ENV["DS_DEBUG"] == 'true';
 
 -- Load skybox shader
 do
+  local pipeline = application.pipeline;
   local shader, skybox, font, text;
   local error = ds.type.DsError();
 
@@ -120,7 +121,6 @@ do
 --
 --]]
 
-  text:print(nil, "Hello World!", 2, 600 - 12 - 2, cancellable, error:ref());
+  text:print(nil, "Hello World!", 2, 600 - 24 - 2, cancellable, error:ref());
   error:check();
 end
-collectgarbage();

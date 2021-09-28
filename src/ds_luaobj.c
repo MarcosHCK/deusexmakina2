@@ -30,6 +30,10 @@ _ds_tovalue(lua_State* L,
             GValue* value,
             GType g_type,
             GError** error);
+gboolean
+_ds_pushvalue(lua_State* L,
+              GValue* value,
+              GError** error);
 
 /*
  * Methods
@@ -159,6 +163,64 @@ return 1;
 }
 
 static int
+__newindex(lua_State* L)
+{
+  const gchar* t;
+  GObject* obj =
+  luaD_checkobject(L, 1);
+
+  if G_LIKELY
+    (lua_isstring(L, 2)
+     && (t = lua_tostring(L, 2)) != NULL)
+  {
+    GObjectClass* klass =
+    G_OBJECT_GET_CLASS(obj);
+
+    GParamSpec* pspec =
+    g_object_class_find_property(klass, t);
+    if G_UNLIKELY(pspec != NULL)
+    {
+      GValue value = G_VALUE_INIT;
+      GError* tmp_err = NULL;
+
+      _ds_tovalue(L, 3, &value, G_PARAM_SPEC_VALUE_TYPE(pspec), &tmp_err);
+      if G_UNLIKELY(tmp_err != NULL)
+      {
+        g_value_unset(&value);
+
+        lua_pushfstring
+        (L,
+         "(%s: %i): %s: %i: %s\r\n",
+         G_STRFUNC,
+         __LINE__,
+         g_quark_to_string(tmp_err->domain),
+         tmp_err->code,
+         tmp_err->message);
+        lua_error(L);
+        return 0;
+      }
+      else
+      {
+        g_object_setv(obj, 1, &t, &value);
+        g_value_unset(&value);
+        lua_pushvalue(L, 3);
+        return 1;
+      }
+    }
+    else
+    {
+      lua_pushfstring
+      (L,
+       "Unknown property '%s'\r\n",
+       t);
+      lua_error(L);
+      return 0;
+    }
+  }
+return 0;
+}
+
+static int
 __index(lua_State* L)
 {
   const gchar* t;
@@ -182,6 +244,40 @@ __index(lua_State* L)
         return 1;
       }
     }
+
+    GObjectClass* klass =
+    G_OBJECT_GET_CLASS(obj);
+
+    GParamSpec* pspec =
+    g_object_class_find_property(klass, t);
+    if G_UNLIKELY(pspec != NULL)
+    {
+      GValue value = G_VALUE_INIT;
+      GError* tmp_err = NULL;
+
+      g_value_init(&value, G_PARAM_SPEC_VALUE_TYPE(pspec));
+      g_object_getv(obj, 1, &t, &value);
+      _ds_pushvalue(L, &value, &tmp_err);
+      g_value_unset(&value);
+
+      if G_UNLIKELY(tmp_err != NULL)
+      {
+        lua_pushfstring
+        (L,
+         "(%s: %i): %s: %i: %s\r\n",
+         G_STRFUNC,
+         __LINE__,
+         g_quark_to_string(tmp_err->domain),
+         tmp_err->code,
+         tmp_err->message);
+        lua_error(L);
+        return 0;
+      }
+      else
+      {
+        return 1;
+      }
+    }
   }
 return 0;
 }
@@ -201,6 +297,7 @@ static const
 luaL_Reg instance_mt[] =
 {
   {"__tostring", __tostring},
+  {"__newindex", __newindex},
   {"__index", __index},
   {"__gc", __gc},
   {NULL, NULL},

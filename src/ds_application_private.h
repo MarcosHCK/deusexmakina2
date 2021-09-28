@@ -18,6 +18,7 @@
 #ifndef __DS_APPLICATION_PRIVATE_INCLUDED__
 #define __DS_APPLICATION_PRIVATE_INCLUDED__ 1
 #include <ds_application.h>
+#include <ds_font.h>
 #include <ds_luaobj.h>
 #include <ds_macros.h>
 #include <ds_pipeline.h>
@@ -94,6 +95,7 @@ struct _DsApplication
   SDL_GLContext* glctx;
   guint glew_init;
   DsPipeline* pipeline;
+  DsFont* font;
 
   /*<private>*/
   struct _RendererData
