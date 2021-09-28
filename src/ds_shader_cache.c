@@ -86,7 +86,7 @@ get_shader_cache_dir(guint source_hash, GCancellable* cancellable, GError** erro
   g_snprintf(buf, sizeof(buf), "%x.shader", source_hash);
 
   basedir =
-  _ds_base_dirs_child("shaders", app->glcachedir, cancellable, &tmp_err);
+  _ds_base_dirs_child("shaders", app->basecachedir, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);

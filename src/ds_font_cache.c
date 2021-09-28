@@ -83,10 +83,10 @@ get_charmap_cache_file(guint charset_hash, GCancellable* cancellable, GError** e
   g_assert(DS_IS_APPLICATION(app));
 
   gchar buf[64];
-  g_snprintf(buf, sizeof(buf), "%x.shader", charset_hash);
+  g_snprintf(buf, sizeof(buf), "%x.charmap", charset_hash);
 
   basedir =
-  _ds_base_dirs_child("shaders", app->glcachedir, cancellable, &tmp_err);
+  _ds_base_dirs_child("charmaps", app->basecachedir, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);

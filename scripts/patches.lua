@@ -18,6 +18,15 @@
 local ds = require('ds');
 local scriptsdir = ...;
 
+--[[
+--
+-- This file holds some code which extends built-in Lua standard library,
+-- as well as this project's own API library. Here also are placed some
+-- code which needs to be run as early as possible at startup, like some
+-- Lua compatibility layer, or library paths initialization. 
+--
+--]]
+
 do
   local cache = {};
   _G._ENV = setmetatable({}, {

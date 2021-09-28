@@ -18,6 +18,15 @@
 local ds = require('ds');
 local application, cancellable = ...;
 
+--[[
+--
+-- This file contains setup code for graphical engine, an therefore
+-- has a huge impact on game initialization. Note that application
+-- at this point is almost complete, which means almost all features
+-- of this project's own Lua API library is ready to use.
+--
+--]]
+
 -- Check debug flag
 local debug_ = _ENV["DS_DEBUG"] == 'true';
 

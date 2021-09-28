@@ -89,7 +89,6 @@ struct _DsApplication
   GFile* basedatadir;
   GFile* basecachedir;
   GFile* savesdir;
-  GFile* glcachedir;
   lua_State* L;
   guint sdl_init;
   SDL_Window* window;

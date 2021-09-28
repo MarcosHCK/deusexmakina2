@@ -88,7 +88,6 @@ enum {
   prop_basedatadir,
   prop_basecachedir,
   prop_savesdir,
-  prop_glcachedir,
   prop_lua_state,
   prop_sdl_window,
   prop_gl_context,
@@ -137,7 +136,6 @@ G_DEFINE_TYPE_WITH_CODE
 #define basedatadir self->basedatadir
 #define basecachedir self->basecachedir
 #define savesdir self->savesdir
-#define glcachedir self->glcachedir
 #define L self->L
 #define sdl_init self->sdl_init
 #define window self->window
@@ -249,14 +247,6 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
 
   savesdir =
   _ds_base_dirs_child("saves", basedatadir, cancellable, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-  glcachedir =
-  _ds_base_dirs_child("glcache", basecachedir, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -537,7 +527,6 @@ _error_:
     (&sdl_init, _SDL_fini0);
     g_clear_pointer
     (&L, _lua_close0);
-    g_clear_object(&glcachedir);
     g_clear_object(&savesdir);
     g_clear_object(&basecachedir);
     g_clear_object(&basedatadir);
@@ -552,7 +541,6 @@ return success;
 #undef basedatadir
 #undef basecachedir
 #undef savesdir
-#undef glcachedir
 #undef L
 #undef sdl_init
 #undef window
@@ -585,9 +573,6 @@ void ds_application_class_get_property(GObject* pself, guint prop_id, GValue* va
     break;
   case prop_savesdir:
     g_value_set_object(value, self->savesdir);
-    break;
-  case prop_glcachedir:
-    g_value_set_object(value, self->glcachedir);
     break;
   case prop_lua_state:
     g_value_set_pointer(value, self->L);
@@ -663,7 +648,6 @@ void ds_application_class_dispose(GObject* pself) {
   g_clear_object(&(self->debug_text));
   g_clear_object(&(self->debug_font));
   g_clear_object(&(self->pipeline));
-  g_clear_object(&(self->glcachedir));
   g_clear_object(&(self->savesdir));
   g_clear_object(&(self->basecachedir));
   g_clear_object(&(self->basedatadir));
@@ -727,13 +711,6 @@ void ds_application_class_init(DsApplicationClass* klass) {
   properties[prop_savesdir] =
     g_param_spec_object
     (_TRIPLET("savesdir"),
-     G_TYPE_FILE,
-     G_PARAM_READABLE
-     | G_PARAM_STATIC_STRINGS);
-
-  properties[prop_glcachedir] =
-    g_param_spec_object
-    (_TRIPLET("glcachedir"),
      G_TYPE_FILE,
      G_PARAM_READABLE
      | G_PARAM_STATIC_STRINGS);
