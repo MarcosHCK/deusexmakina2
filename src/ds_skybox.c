@@ -222,8 +222,19 @@ vec3 cube_vertices[] =
    1.0f, -1.0f,  1.0f,
 };
 
-static GLuint
-cubmap_faces[] =
+static const
+GLuint cube_indices[] =
+{
+  0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0,
+};
+
+static const
+GLuint cubmap_faces[] =
 {
   GL_TEXTURE_CUBE_MAP_POSITIVE_X,
   GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
@@ -385,6 +396,15 @@ ds_skybox_g_initable_iface_init_sync(GInitable      *pself,
   __gl_try_catch(
     glBindBuffer(GL_ARRAY_BUFFER, self->vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vertices), cube_vertices, GL_STATIC_DRAW);
+  ,
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  );
+
+  /* indices */
+  __gl_try_catch(
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self->ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_indices), cube_indices, GL_STATIC_DRAW);
   ,
     g_propagate_error(error, tmp_err);
     goto_error();
@@ -629,19 +649,19 @@ ds_skybox_ds_renderable_iface_compile(DsRenderable   *pself,
    (guintptr) 0,
    (guintptr) G_N_ELEMENTS(cube_vertices));
 
+  /* unbind vertex array */
+  ds_render_state_pcall
+  (state,
+   G_CALLBACK(glBindVertexArray),
+   1,
+   (guintptr) 0);
+
   /* unbind texture */
   ds_render_state_pcall
   (state,
    G_CALLBACK(glBindTexture),
    2,
    (guintptr) GL_TEXTURE_CUBE_MAP,
-   (guintptr) 0);
-
-  /* unbind vertex array */
-  ds_render_state_pcall
-  (state,
-   G_CALLBACK(glBindVertexArray),
-   1,
    (guintptr) 0);
 
   /* restore depth function */

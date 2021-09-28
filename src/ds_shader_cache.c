@@ -109,53 +109,18 @@ _error_:
 return return_;
 }
 
-G_GNUC_INTERNAL
-gboolean
-_ds_shader_cache_try_load(GLuint          pid,
-                          guint           source_hash,
-                          GCancellable   *cancellable,
-                          GError        **error)
+static gboolean
+load_from_blob(GLuint         pid,
+               GBytes        *bytes,
+               GCancellable  *cancellable,
+               GError       **error)
 {
   gboolean success = TRUE;
   GError* tmp_err = NULL;
-  GBytes* bytes = NULL;
-  GFile* file = NULL;
   BinaryHeader* header;
-  gsize length = 0;
   GLint return_ = 0;
   GLint infolen = 0;
-
-/*
- * Load binary blob
- *
- */
-
-  file =
-  get_shader_cache_dir(source_hash, cancellable, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-  bytes =
-  g_file_load_bytes(file, cancellable, NULL, &tmp_err);
-  g_clear_object(&file);
-
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    success = (bytes != NULL);
-    if(g_error_matches(tmp_err, G_IO_ERROR, G_IO_ERROR_NOT_FOUND))
-    {
-      g_error_free(tmp_err);
-      goto _error_;
-    }
-    else
-    {
-      g_propagate_error(error, tmp_err);
-      goto_error();
-    }
-  }
+  gsize length = 0;
 
 /*
  * Sanity checks
@@ -203,7 +168,7 @@ _ds_shader_cache_try_load(GLuint          pid,
   __gl_try_catch(
     glProgramBinary(pid, (GLenum) header->format, (gconstpointer) &(header[1]), header->length);
   ,
-    g_propagate_error(error, tmp_err);
+    g_propagate_error(error, glerror);
     goto_error();
   );
 
@@ -235,6 +200,78 @@ _ds_shader_cache_try_load(GLuint          pid,
      msg);
     _g_free0(msg);
     goto_error();
+  }
+
+_error_:
+return success;
+}
+
+G_GNUC_INTERNAL
+gboolean
+_ds_shader_cache_try_load(GLuint          pid,
+                          guint           source_hash,
+                          GCancellable   *cancellable,
+                          GError        **error)
+{
+  gboolean success = TRUE;
+  GError* tmp_err = NULL;
+  GBytes* bytes = NULL;
+  GFile* file = NULL;
+
+/*
+ * Load binary blob
+ *
+ */
+
+  file =
+  get_shader_cache_dir(source_hash, cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+  bytes =
+  g_file_load_bytes(file, cancellable, NULL, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    success = (bytes != NULL);
+    if(g_error_matches(tmp_err, G_IO_ERROR, G_IO_ERROR_NOT_FOUND))
+    {
+      g_error_free(tmp_err);
+      goto _error_;
+    }
+    else
+    {
+      g_propagate_error(error, tmp_err);
+      goto_error();
+    }
+  }
+
+/*
+ * Load blob into program
+ *
+ */
+
+  success =
+  load_from_blob(pid, bytes, cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    if G_LIKELY(tmp_err->domain == DS_GL_ERROR)
+    {
+      g_set_error_literal
+      (error,
+       DS_SHADER_ERROR,
+       DS_SHADER_ERROR_INVALID_BINARY,
+       tmp_err->message);
+      g_clear_error(&tmp_err);
+      goto_error();
+    }
+    else
+    {
+      g_propagate_error(error, tmp_err);
+      goto_error();
+    }
   }
 
 _error_:
@@ -279,8 +316,8 @@ _ds_shader_cache_try_save(GLuint          pid,
   {
     g_set_error_literal
     (error,
-     DS_SHADER_ERROR,
-     DS_SHADER_ERROR_FAILED,
+     DS_GL_ERROR,
+     DS_GL_ERROR_INVALID_VALUE,
      "Invalid binary length\r\n");
     goto_error();
   }

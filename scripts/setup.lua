@@ -100,11 +100,13 @@ do
 --]]
 
   font = ds.type.DsFont.new_simple(
-    ds.ASSETSDIR .. '/WickedGrit.ttf',
+    ds.ASSETSDIR .. '/Unknown.ttf',
     12,
     cancellable,
     error:ref());
   error:check();
+
+  application['debug-font'] = font;
 
 --[[
 --
@@ -115,12 +117,14 @@ do
   text = ds.type.DsText.new(font);
   pipeline:append_object('text', ds.priority.default, text);
 
+  application['debug-text'] = text;
+
 --[[
 --
 -- Text renderer
 --
 --]]
 
-  text:print(nil, "Hello World!", 2, 600 - 24 - 2, cancellable, error:ref());
+  pipeline:update(cancellable, error:ref());
   error:check();
 end

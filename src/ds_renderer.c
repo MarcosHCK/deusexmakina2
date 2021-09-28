@@ -289,6 +289,8 @@ _ds_renderer_init(DsApplication  *self,
   __gl_try_catch(
     glDepthFunc(GL_LESS);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
   ,
     g_propagate_error(error, glerror);
     goto_error();

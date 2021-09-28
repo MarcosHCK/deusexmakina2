@@ -24,6 +24,7 @@
 #include <ds_pipeline.h>
 #include <ds_saves.h>
 #include <ds_settings.h>
+#include <ds_text.h>
 
 #define DS_EVENTS_PUSH "__DS_EVENTS_PUSH"
 
@@ -95,7 +96,8 @@ struct _DsApplication
   SDL_GLContext* glctx;
   guint glew_init;
   DsPipeline* pipeline;
-  DsFont* font;
+  DsFont* debug_font;
+  DsText* debug_text;
 
   /*<private>*/
   struct _RendererData

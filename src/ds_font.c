@@ -27,8 +27,11 @@
 G_DEFINE_QUARK(ds-font-error-quark,
                ds_font_error);
 
-static const gfloat x_norm = 800.f;
-static const gfloat y_norm = 600.f;
+static const gfloat   x_norm_ = 800.f;
+static const gfloat   y_norm_ = 600.f;
+static const gfloat   x_norm = x_norm_ / 2.f;
+static const gfloat   y_norm = y_norm_ / 2.f;
+static const guint64  x_spac = 2;
 
 /*
  * FreeType2
@@ -78,7 +81,10 @@ static const gfloat y_norm = 600.f;
 struct _DsGlyph
 {
   gunichar glyph;
-  gfloat width;
+  gfloat x_adv;
+  gfloat y_adv;
+  vec2 size;
+  vec2 start;
   vec2 uv;
   vec2 uv2;
 };
@@ -131,8 +137,6 @@ struct _DsFont
   gint font_size;
   DsGlyph* glyphs;
   guint n_glyphs;
-  gfloat height;
-  gfloat width;
   GLuint tio;
 };
 
@@ -144,6 +148,7 @@ struct _DsFontClass
   struct FT_MemoryRec_ ft_memory;
   FT_Library ft_library;
   gchar* charset;
+  gfloat ddpi;
   gfloat hdpi;
   gfloat vdpi;
 };
@@ -322,10 +327,9 @@ ds_font_class_base_init_(DsFontClass   *klass,
 
   int n_display = 0;
   int return_;
-  float ddpi;
 
   return_ =
-  SDL_GetDisplayDPI(n_display, &ddpi, &(klass->hdpi), &(klass->vdpi));
+  SDL_GetDisplayDPI(n_display, &(klass->ddpi), &(klass->hdpi), &(klass->vdpi));
   if G_UNLIKELY(0 != return_)
   {
     g_set_error
@@ -379,7 +383,7 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
   GBytes* bytes = NULL;
   gchar* letter = NULL;
   FT_Error ft_error;
-  guchar ucode;
+  gfloat font_size;
   guint i;
 
   DsFont* self = DS_FONT(pself);
@@ -397,7 +401,8 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
   guint64 y_off = 0;
   guint64 x, y;
 
-  const guint64 spacing = 2;
+  gfloat x_gsz;
+  gfloat y_gsz;
 
 /*
  * Load font file bytes
@@ -406,6 +411,7 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
 
   bytes =
   g_file_load_bytes(self->font_file, cancellable, NULL,&tmp_err);
+  g_clear_object(&(self->font_file));
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -434,8 +440,12 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
  *
  */
 
+  font_size  = (gfloat) self->font_size;
+  font_size *= 64.f;
+  font_size *= 72.f / klass->ddpi;
+
   ft_error =
-  FT_Set_Char_Size(face, 0, self->font_size * 64, (FT_UInt) klass->hdpi, (FT_UInt) klass->vdpi);
+  FT_Set_Char_Size(face, 0, (FT_F26Dot6) font_size, (FT_UInt) klass->hdpi, (FT_UInt) klass->vdpi);
   if G_UNLIKELY(_FT_OK(ft_error) == FALSE)
   {
     g_propagate_error(error, ft_get_error(ft_error));
@@ -464,7 +474,7 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
       goto_error();
     }
 
-    image_w += glyph->bitmap.width + spacing;
+    image_w += glyph->bitmap.width + x_spac;
 
     if(glyph->bitmap_top > (gint64) max_asc)
       max_asc = (guint64) ( glyph->bitmap_top );
@@ -524,12 +534,24 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
     }
 
     y_off = max_asc - glyph->bitmap_top;
+    x_gsz = (gfloat) (glyph->metrics.width >> 6);
+    y_gsz = (gfloat) (glyph->metrics.height >> 6);
 
-    glyphs[i].uv[0] = (gfloat) x_off;
-    glyphs[i].uv[1] = (gfloat) y_off;
-    glyphs[i].uv2[0] = glyphs[i].uv[0] + (gfloat) glyph->bitmap.width;
-    glyphs[i].uv2[1] = glyphs[i].uv[1] + (gfloat) glyph->bitmap.rows;
-    glyphs[i].width = (gfloat) glyph->bitmap.width;
+    /* glyph advance */
+    glyphs[i].x_adv = (gfloat) (glyph->advance.x >> 6);
+    glyphs[i].y_adv = (gfloat) (glyph->advance.y >> 6);
+
+    /* glyph size and bearings */
+    glyphs[i].size[0] = x_gsz;
+    glyphs[i].size[1] = y_gsz;
+    glyphs[i].start[0] =  (gfloat) ((                        glyph->metrics.horiBearingX) >> 6);
+    glyphs[i].start[1] = -(gfloat) ((glyph->metrics.height - glyph->metrics.horiBearingY) >> 6);
+
+    /* texture size and bearings */
+    glyphs[i]. uv[0] = ((gfloat) x_off) / ((gfloat) image_w);
+    glyphs[i]. uv[1] = ((gfloat) y_off) / ((gfloat) image_h);
+    glyphs[i].uv2[0] = (x_gsz / ((gfloat) image_w)) + glyphs[i].uv[0];
+    glyphs[i].uv2[1] = (y_gsz / ((gfloat) image_h)) + glyphs[i].uv[1];
 
     __gl_try_catch(
       glTexSubImage2D(GL_TEXTURE_2D, 0, x_off, y_off, glyph->bitmap.width, glyph->bitmap.rows, GL_RED, GL_UNSIGNED_BYTE, glyph->bitmap.buffer);
@@ -538,7 +560,7 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
       goto_error();
     );
 
-    x_off += glyph->bitmap.width + spacing;
+    x_off += glyph->bitmap.width + x_spac;
   }
 
   __gl_try_catch(
@@ -558,17 +580,15 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
 
   self->glyphs = g_steal_pointer(&glyphs);
   self->n_glyphs = n_glyphs;
-  self->height = (gfloat) image_h;
-  self->width = (gfloat) image_w;
   self->tio = tio;
   tio = 0;
 
 _error_:
-  g_clear_object(&(self->font_file));
-  glDeleteTextures(1, &tio);
-  _g_bytes_unref0(bytes);
-  _FT_Done_Face0(face);
   _g_free0(glyphs);
+  _FT_Done_Face0(face);
+  _g_bytes_unref0(bytes);
+  if G_UNLIKELY(tio != 0)
+    glDeleteTextures(1, &tio);
 return success;
 }
 
@@ -820,11 +840,10 @@ _ds_font_generate_vao(DsFont         *font,
   gsize b_vertices = sizeof(DsTextVertex) * n_vertices;
   vbox* boxes = NULL;
 
-  gfloat height = font->height;
+  gfloat height = 0.f;
   gfloat width = 0.f;
-
-  const gfloat x_norm_ = x_norm / 2.f;
-  const gfloat y_norm_ = y_norm / 2.f;
+  gfloat x_off = xy[0], x_st;
+  gfloat y_off = xy[1], y_st;
 
 /*
  * Generate vertex array
@@ -867,13 +886,10 @@ _ds_font_generate_vao(DsFont         *font,
     goto_error();
   );
 
-  /*
+/*
  * Fill vertices
  *
  */
-
-  gfloat x_off = xy[0];
-  gfloat y_off = xy[1];
 
   for(letter = text, i = 0;
       letter != NULL && letter[0] != '\0';
@@ -891,10 +907,11 @@ _ds_font_generate_vao(DsFont         *font,
        1, letter);
       goto_error();
     }
-    else
-    {
-      width = glyph->width;
-    }
+
+    width = glyph->size[0];
+    height = glyph->size[1];
+    x_st = glyph->start[0];
+    y_st = glyph->start[1];
 
   /*
    * Prepare square on
@@ -903,37 +920,37 @@ _ds_font_generate_vao(DsFont         *font,
    *
    */
 
-    boxes[i][0].xy[0] = ((x_off         ) - x_norm_) / x_norm_;
-    boxes[i][0].xy[1] = ((y_off + height) - y_norm_) / y_norm_;
-    boxes[i][0].uv[0] = (glyph->uv[0] / font->width);
-    boxes[i][0].uv[1] = 0.f;
+    boxes[i][0].xy[0] = ((x_off + x_st         ) - x_norm) / x_norm;
+    boxes[i][0].xy[1] = ((y_off + y_st + height) - y_norm) / y_norm;
+    boxes[i][0].uv[0] = glyph->uv[0];
+    boxes[i][0].uv[1] = glyph->uv[1];
 
-    boxes[i][1].xy[0] = ((x_off         ) - x_norm_) / x_norm_;
-    boxes[i][1].xy[1] = ((y_off         ) - y_norm_) / y_norm_;
-    boxes[i][1].uv[0] = (glyph->uv[0] / font->width);
-    boxes[i][1].uv[1] = 1.f;
+    boxes[i][1].xy[0] = ((x_off + x_st         ) - x_norm) / x_norm;
+    boxes[i][1].xy[1] = ((y_off + y_st         ) - y_norm) / y_norm;
+    boxes[i][1].uv[0] = glyph->uv[0];
+    boxes[i][1].uv[1] = glyph->uv2[1];
 
-    boxes[i][2].xy[0] = ((x_off +  width) - x_norm_) / x_norm_;
-    boxes[i][2].xy[1] = ((y_off         ) - y_norm_) / y_norm_;
-    boxes[i][2].uv[0] = (glyph->uv2[0] / font->width);
-    boxes[i][2].uv[1] = 1.f;
+    boxes[i][2].xy[0] = ((x_off + x_st +  width) - x_norm) / x_norm;
+    boxes[i][2].xy[1] = ((y_off + y_st         ) - y_norm) / y_norm;
+    boxes[i][2].uv[0] = glyph->uv2[0];
+    boxes[i][2].uv[1] = glyph->uv2[1];
 
-    boxes[i][3].xy[0] = ((x_off         ) - x_norm_) / x_norm_;
-    boxes[i][3].xy[1] = ((y_off + height) - y_norm_) / y_norm_;
-    boxes[i][3].uv[0] = (glyph->uv[0] / font->width);
-    boxes[i][3].uv[1] = 0.f;
+    boxes[i][3].xy[0] = ((x_off + x_st         ) - x_norm) / x_norm;
+    boxes[i][3].xy[1] = ((y_off + y_st + height) - y_norm) / y_norm;
+    boxes[i][3].uv[0] = glyph->uv[0];
+    boxes[i][3].uv[1] = glyph->uv[1];
 
-    boxes[i][4].xy[0] = ((x_off +  width) - x_norm_) / x_norm_;
-    boxes[i][4].xy[1] = ((y_off         ) - y_norm_) / y_norm_;
-    boxes[i][4].uv[0] = (glyph->uv2[0] / font->width);
-    boxes[i][4].uv[1] = 1.f;
+    boxes[i][4].xy[0] = ((x_off + x_st +  width) - x_norm) / x_norm;
+    boxes[i][4].xy[1] = ((y_off + y_st         ) - y_norm) / y_norm;
+    boxes[i][4].uv[0] = glyph->uv2[0];
+    boxes[i][4].uv[1] = glyph->uv2[1];
 
-    boxes[i][5].xy[0] = ((x_off +  width) - x_norm_) / x_norm_;
-    boxes[i][5].xy[1] = ((y_off + height) - y_norm_) / y_norm_;
-    boxes[i][5].uv[0] = (glyph->uv2[0] / font->width);
-    boxes[i][5].uv[1] = 0.f;
+    boxes[i][5].xy[0] = ((x_off + x_st +  width) - x_norm) / x_norm;
+    boxes[i][5].xy[1] = ((y_off + y_st + height) - y_norm) / y_norm;
+    boxes[i][5].uv[0] = glyph->uv2[0];
+    boxes[i][5].uv[1] = glyph->uv[1];
 
-    x_off += width + 10.f;
+    x_off += glyph->x_adv;
   }
 
   __gl_try_catch(

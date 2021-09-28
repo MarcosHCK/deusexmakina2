@@ -109,7 +109,8 @@ enum {
  *
  */
 
-  prop_font,
+  prop_debug_font,
+  prop_debug_text,
 
 /*
  * Property number, a convenience way
@@ -516,19 +517,6 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   lua_gc(L, LUA_GCCOLLECT, 1);
 
 /*
- * Update pipeline
- *
- */
-
-  success =
-  ds_pipeline_update(pipeline, cancellable, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-/*
  * Get Lua stack ready
  *
  */
@@ -628,8 +616,11 @@ void ds_application_class_get_property(GObject* pself, guint prop_id, GValue* va
   case prop_pipeline:
     g_value_set_object(value, self->pipeline);
     break;
-  case prop_font:
-    g_value_set_object(value, self->font);
+  case prop_debug_font:
+    g_value_set_object(value, self->debug_font);
+    break;
+  case prop_debug_text:
+    g_value_set_object(value, self->debug_text);
     break;
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID(pself, prop_id, pspec);
@@ -643,8 +634,11 @@ void ds_application_class_set_property(GObject* pself, guint prop_id, const GVal
   DsApplication* self = DS_APPLICATION(pself);
   switch(prop_id)
   {
-  case prop_font:
-    g_set_object(&(self->font), g_value_get_object(value));
+  case prop_debug_font:
+    g_set_object(&(self->debug_font), g_value_get_object(value));
+    break;
+  case prop_debug_text:
+    g_set_object(&(self->debug_text), g_value_get_object(value));
     break;
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID(pself, prop_id, pspec);
@@ -666,7 +660,8 @@ G_OBJECT_CLASS(ds_application_parent_class)->finalize(pself);
 static
 void ds_application_class_dispose(GObject* pself) {
   DsApplication* self = DS_APPLICATION(pself);
-  g_clear_object(&(self->font));
+  g_clear_object(&(self->debug_text));
+  g_clear_object(&(self->debug_font));
   g_clear_object(&(self->pipeline));
   g_clear_object(&(self->glcachedir));
   g_clear_object(&(self->savesdir));
@@ -812,10 +807,17 @@ void ds_application_class_init(DsApplicationClass* klass) {
    *
    */
 
-  properties[prop_font] =
+  properties[prop_debug_font] =
     g_param_spec_object
-    (_TRIPLET("font"),
+    (_TRIPLET("debug-font"),
      DS_TYPE_FONT,
+     G_PARAM_READWRITE
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_debug_text] =
+    g_param_spec_object
+    (_TRIPLET("debug-text"),
+     DS_TYPE_TEXT,
      G_PARAM_READWRITE
      | G_PARAM_STATIC_STRINGS);
 
