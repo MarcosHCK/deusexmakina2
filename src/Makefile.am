@@ -103,8 +103,9 @@ EXTRA_DIST+=\
 	ds_luaobj.h \
 	ds_luavala.h \
 	ds_macros.h \
-	ds_marshals.h \
 	ds_model.h \
+	ds_marshals.h \
+	ds_mvpholder.h \
 	ds_pipeline.h \
 	ds_renderable.h \
 	ds_renderer.h \
@@ -139,8 +140,9 @@ deusexmakina2_SOURCES=\
 	ds_luaenum.c \
 	ds_lualib.c \
 	ds_luaobj.c \
-	ds_marshals.c \
 	ds_model.c \
+	ds_marshals.c \
+	ds_mvpholder.c \
 	ds_pipeline.c \
 	ds_renderable.c \
 	ds_renderer.c \
@@ -211,11 +213,12 @@ deusexmakina2_LDADD=\
 #
 
 VALA_PKG=\
-	gio-2.0 \
-	gobject-2.0 \
-	glib-2.0 \
-	lua \
+	cglm \
 	config \
+	gio-2.0 \
+	glib-2.0 \
+	gobject-2.0 \
+	lua \
 	luad \
 	$(VOID)
 

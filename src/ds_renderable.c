@@ -140,8 +140,8 @@ ds_render_state_call(DsRenderState  *state,
 }
 
 void
-ds_render_state_mvp_set_model(DsRenderState  *state,
-                              gfloat*         mvp_model)
+ds_render_state_model(DsRenderState  *state,
+                      gfloat         *mvp_model)
 {
   JitState* ctx = (JitState*) state;
   _ds_jit_compile_mvp_model(ctx, (gpointer) mvp_model);

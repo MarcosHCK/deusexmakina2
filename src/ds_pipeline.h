@@ -71,12 +71,6 @@ ds_pipeline_update(DsPipeline    *pipeline,
                    GError       **error);
 void
 ds_pipeline_execute(DsPipeline   *pipeline);
-void
-ds_pipeline_mvps_set_projection(DsPipeline *pipeline,
-                                gfloat     *projection);
-void
-ds_pipeline_mvps_set_view(DsPipeline *pipeline,
-                          gfloat     *view);
 
 #if __cplusplus
 }

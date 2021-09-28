@@ -253,7 +253,7 @@ ds_text_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, G
  *
  */
 
-  ds_render_state_mvp_set_model(state, (gfloat*) scale);
+  ds_render_state_model(state, (gfloat*) scale);
 
   /* activate texture */
   ds_render_state_pcall

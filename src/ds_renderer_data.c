@@ -17,6 +17,7 @@
  */
 #include <config.h>
 #include <ds_application_private.h>
+#include <ds_mvpholder.h>
 
 G_GNUC_INTERNAL
 void
@@ -61,7 +62,7 @@ _ds_renderer_data_set_projection(DsApplication *self,
    100.0f,
    projection);
 
-  ds_pipeline_mvps_set_projection(pipeline, (gfloat*) projection);
+  ds_mvp_holder_set_projection(DS_MVP_HOLDER(pipeline), (gfloat*) projection);
 }
 
 #define position    d->position
@@ -109,7 +110,7 @@ _ds_renderer_data_set_view(DsApplication *self,
   glm_vec3_add(position, front, center);
   glm_lookat(position, center, up, camera);
 
-  ds_pipeline_mvps_set_view(pipeline, (gfloat*) camera);
+  ds_mvp_holder_set_view(DS_MVP_HOLDER(pipeline), (gfloat*) camera);
 }
 
 #undef sensitivity

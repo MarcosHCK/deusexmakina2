@@ -606,7 +606,7 @@ ds_skybox_ds_renderable_iface_compile(DsRenderable   *pself,
  *
  */
 
-  ds_render_state_mvp_set_model
+  ds_render_state_model
   (state,
    (gfloat*)
    self->scale);

@@ -20,6 +20,7 @@
 #include <ds_callable.h>
 #include <ds_gl.h>
 #include <ds_macros.h>
+#include <ds_mvpholder.h>
 #include <ds_pipeline.h>
 #include <GL/glew.h>
 #include <jit/jit.h>
@@ -33,6 +34,8 @@ static
 void ds_pipeline_g_initable_iface_init(GInitableIface* iface);
 static
 void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface);
+static
+void ds_pipeline_ds_mvp_holder_iface_init(DsMvpHolderIface* iface);
 
 typedef union  _ShaderList  ShaderList;
 typedef struct _ShaderEntry ShaderEntry;
@@ -98,7 +101,10 @@ G_DEFINE_TYPE_WITH_CODE
   ds_pipeline_g_initable_iface_init)
  G_IMPLEMENT_INTERFACE
  (DS_TYPE_CALLABLE,
-  ds_pipeline_ds_callable_iface_init));
+  ds_pipeline_ds_callable_iface_init)
+ G_IMPLEMENT_INTERFACE
+ (DS_TYPE_MVP_HOLDER,
+  ds_pipeline_ds_mvp_holder_iface_init));
 
 static gboolean
 ds_pipeline_g_initable_iface_init_sync(GInitable     *pself,
@@ -196,6 +202,25 @@ void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
    2,
    G_TYPE_CANCELLABLE,
    G_TYPE_POINTER);
+}
+
+static
+void ds_pipeline_ds_mvp_holder_iface_init(DsMvpHolderIface* iface)
+{
+  iface->p_model =
+    G_STRUCT_OFFSET(DsPipeline, ctx)
+  + G_STRUCT_OFFSET(JitState, mvps)
+  + G_STRUCT_OFFSET(JitMvps, model);
+
+  iface->p_view =
+    G_STRUCT_OFFSET(DsPipeline, ctx)
+  + G_STRUCT_OFFSET(JitState, mvps)
+  + G_STRUCT_OFFSET(JitMvps, view);
+
+  iface->p_projection =
+    G_STRUCT_OFFSET(DsPipeline, ctx)
+  + G_STRUCT_OFFSET(JitState, mvps)
+  + G_STRUCT_OFFSET(JitMvps, projection);
 }
 
 static
@@ -595,24 +620,4 @@ ds_pipeline_execute(DsPipeline* pipeline)
     g_error_free(tmp_err);
     g_assert_not_reached();
   }
-}
-
-void
-ds_pipeline_mvps_set_projection(DsPipeline *pipeline,
-                                gfloat     *projection)
-{
-  g_return_if_fail(DS_IS_PIPELINE(pipeline));
-  JitState* ctx = &(pipeline->ctx);
-
-  glm_mat4_copy((gpointer) projection, ctx->mvps.projection);
-}
-
-void
-ds_pipeline_mvps_set_view(DsPipeline *pipeline,
-                          gfloat     *view)
-{
-  g_return_if_fail(DS_IS_PIPELINE(pipeline));
-  JitState* ctx = &(pipeline->ctx);
-
-  glm_mat4_copy((gpointer) view, ctx->mvps.view);
 }

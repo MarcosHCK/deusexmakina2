@@ -49,6 +49,9 @@ ds_renderable_compile(DsRenderable         *renderable,
                       GLuint                program,
                       GCancellable         *cancellable,
                       GError              **error);
+void
+ds_render_state_model(DsRenderState  *state,
+                      gfloat         *mvp_model);
 
 void
 ds_render_state_pcall(DsRenderState  *state,
@@ -60,9 +63,6 @@ ds_render_state_call(DsRenderState  *state,
                      GCallback       callback,
                      guint           n_params,
                      ...);
-void
-ds_render_state_mvp_set_model(DsRenderState  *state,
-                              gfloat         *mvp_model);
 
 #if __cplusplus
 }
