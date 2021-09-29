@@ -16,18 +16,23 @@
  *
  */
 #include <config.h>
-#include <ds_application_private.h>
+#include <ds_application.h>
 #include <ds_events.h>
-#include <math.h>
+#include <ds_macros.h>
+#include <SDL.h>
 
 G_GNUC_INTERNAL
 gboolean
-_ds_events_poll(DsApplication* self)
+_ds_events_poll(DsRendererData* data)
 {
-  SDL_Event event;
+  DsApplication* self =
+  (DsApplication*)
+  g_application_get_default();
+
   lua_State* L = self->L;
   int top = lua_gettop(L);
 
+  SDL_Event event;
   while(SDL_PollEvent(&event))
   switch(event.type)
   {
@@ -41,9 +46,8 @@ _ds_events_poll(DsApplication* self)
     lua_pushnumber(L, event.motion.xrel);
     lua_pushnumber(L, event.motion.yrel);
 
-    _ds_renderer_data_set_view
-    (self,
-     self->pipeline,
+    ds_renderer_data_look
+    (data,
      (gfloat) event.motion.x,
      (gfloat) event.motion.y,
      (gfloat) event.motion.xrel,
@@ -80,26 +84,6 @@ _ds_events_poll(DsApplication* self)
     lua_pushnumber(L, event.key.keysym.sym);
     lua_pushnumber(L, event.key.repeat);
     lua_pushboolean(L, event.key.state);
-
-    {
-      RendererData* d =
-      &(self->renderer_data);
-
-      vec3 front;
-      glm_vec3_scale(d->front_, 0.2f, front);
-
-      switch(event.key.keysym.sym)
-      {
-      case SDLK_w:
-        glm_vec3_add(d->position, front, d->position);
-        _ds_renderer_data_set_view(self, self->pipeline, 0, 0, 0, 0);
-        break;
-      case SDLK_s:
-        glm_vec3_sub(d->position, front, d->position);
-        _ds_renderer_data_set_view(self, self->pipeline, 0, 0, 0, 0);
-        break;
-      }
-    }
     break;
   }
 

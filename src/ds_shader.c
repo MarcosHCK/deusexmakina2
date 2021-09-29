@@ -31,6 +31,21 @@ void ds_shader_ds_callable_iface_init(DsCallableIface* iface);
 
 typedef struct _Shaders Shaders;
 
+G_GNUC_INTERNAL
+gboolean
+_ds_shader_cache_try_load(DsCacheProvider  *cache_provider,
+                          GLuint            program,
+                          guint             source_hash,
+                          GCancellable     *cancellable,
+                          GError          **error);
+G_GNUC_INTERNAL
+gboolean
+_ds_shader_cache_try_save(DsCacheProvider  *cache_provider,
+                          GLuint            program,
+                          guint             source_hash,
+                          GCancellable     *cancellable,
+                          GError          **error);
+
 /*
  * Structs
  *
@@ -63,7 +78,9 @@ struct _DsShader
 
   /*<private>*/
   GLuint pid;
+  DsCacheProvider* cache_provider;
 
+  /*<private>*/
   union
   {
     GFile* files[n_shaders];
@@ -75,6 +92,7 @@ struct _DsShader
     };
   };
 
+  /*<private>*/
   union
   {
     GInputStream* streams[n_shaders];
@@ -97,6 +115,7 @@ enum {
   prop_vertex_stream,
   prop_fragment_stream,
   prop_geometry_stream,
+  prop_cache_provider,
   prop_number,
 };
 
@@ -422,24 +441,6 @@ _error_:
 return success;
 }
 
-G_GNUC_INTERNAL
-gboolean
-_ds_shader_cache_try_load(GLuint          program,
-                          guint           source_hash,
-                          GCancellable   *cancellable,
-                          GError        **error);
-G_GNUC_INTERNAL
-gboolean
-_ds_shader_cache_try_save(GLuint          program,
-                          guint           source_hash,
-                          GCancellable   *cancellable,
-                          GError        **error);
-G_GNUC_INTERNAL
-gboolean
-_ds_shader_cache_cleanup(guint          source_hash,
-                         GCancellable  *cancellable,
-                         GError       **error);
-
 static gboolean
 ds_shader_g_initable_iface_init_sync(GInitable     *pself,
                                      GCancellable  *cancellable,
@@ -455,6 +456,33 @@ ds_shader_g_initable_iface_init_sync(GInitable     *pself,
 
   Shaders shaders[n_shaders] = {0};
   guint source_hash;
+
+/*
+ * Get cache provider
+ *
+ */
+
+  if G_UNLIKELY
+    (self->cache_provider == NULL)
+  {
+    self->cache_provider =
+    ds_cache_provider_get_default();
+
+    if G_UNLIKELY
+      (self->cache_provider == NULL)
+    {
+      g_set_error_literal
+      (error,
+       DS_FOLDER_PROVIDER_ERROR,
+       DS_FOLDER_PROVIDER_ERROR_INVALID,
+       "Invalid default cache provider\r\n");
+      goto_error();
+    }
+    else
+    {
+      g_object_ref(self->cache_provider);
+    }
+  }
 
 /*
  * Load sources
@@ -474,19 +502,6 @@ ds_shader_g_initable_iface_init_sync(GInitable     *pself,
     g_assert(source_hash != 0);
   }
 
-/*
- * Clean-up shaders
- *
- */
-#if 0
-  success =
-  _ds_shader_cache_cleanup(source_hash, cancellable, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-#endif // 0
 /*
  * Create program
  *
@@ -514,9 +529,10 @@ ds_shader_g_initable_iface_init_sync(GInitable     *pself,
  *
  */
 
+#if !DEBUG
   /* try load from cache */
   success =
-  _ds_shader_cache_try_load(pid, source_hash, cancellable, &tmp_err);
+  _ds_shader_cache_try_load(self->cache_provider, pid, source_hash, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     if(g_error_matches(tmp_err, DS_SHADER_ERROR, DS_SHADER_ERROR_INVALID_BINARY))
@@ -543,6 +559,8 @@ ds_shader_g_initable_iface_init_sync(GInitable     *pself,
   /* load from source and cache it */
   if G_UNLIKELY(success == FALSE)
   {
+#endif // !DEBUG
+
     success =
     compile_from_source(pid, shaders, cancellable, &tmp_err);
     if G_UNLIKELY(tmp_err != NULL)
@@ -551,14 +569,16 @@ ds_shader_g_initable_iface_init_sync(GInitable     *pself,
       goto_error();
     }
 
+#if !DEBUG
     success =
-    _ds_shader_cache_try_save(pid, source_hash, cancellable, &tmp_err);
+    _ds_shader_cache_try_save(self->cache_provider, pid, source_hash, cancellable, &tmp_err);
     if G_UNLIKELY(tmp_err != NULL)
     {
       g_propagate_error(error, tmp_err);
       goto_error();
     }
   }
+#endif // !DEBUG
 
 /*
  * Validate program
@@ -638,15 +658,16 @@ void ds_shader_g_initable_iface_init(GInitableIface* iface) {
 }
 
 static DsShader*
-_callable_new(gpointer      null_,
-              GFile        *vertex_file,
-              GInputStream *vertex_stream,
-              GFile        *fragment_file,
-              GInputStream *fragment_stream,
-              GFile        *geometry_file,
-              GInputStream *geometry_stream,
-              GCancellable *cancellable,
-              GError      **error)
+_callable_new(gpointer          null_,
+              GFile            *vertex_file,
+              GInputStream     *vertex_stream,
+              GFile            *fragment_file,
+              GInputStream     *fragment_stream,
+              GFile            *geometry_file,
+              GInputStream     *geometry_stream,
+              DsCacheProvider  *cache_provider,
+              GCancellable     *cancellable,
+              GError          **error)
 {
   return
   ds_shader_new
@@ -656,6 +677,7 @@ _callable_new(gpointer      null_,
    fragment_stream,
    geometry_file,
    geometry_stream,
+   cache_provider,
    cancellable,
    error);
 }
@@ -663,12 +685,13 @@ _callable_new(gpointer      null_,
 #define _g_object_unref0(var) ((var == NULL) ? NULL : (var = (g_object_unref (var), NULL)))
 
 static DsShader*
-_callable_new_simple(gpointer       null_,
-                     const gchar   *vertex_file,
-                     const gchar   *fragment_file,
-                     const gchar   *geometry_file,
-                     GCancellable  *cancellable,
-                     GError       **error)
+_callable_new_simple(gpointer         null_,
+                     const gchar     *vertex_file,
+                     const gchar     *fragment_file,
+                     const gchar     *geometry_file,
+                     DsCacheProvider *cache_provider,
+                     GCancellable    *cancellable,
+                     GError         **error)
 {
   GFile *vertex_file_ = NULL,
         *fragment_file_ = NULL,
@@ -689,6 +712,7 @@ _callable_new_simple(gpointer       null_,
    NULL,
    geometry_file_,
    NULL,
+   cache_provider,
    cancellable,
    error);
 
@@ -705,16 +729,17 @@ void ds_shader_ds_callable_iface_init(DsCallableIface* iface) {
    "new",
    DS_CLOSURE_CONSTRUCTOR,
    G_CALLBACK(_callable_new),
-   ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTER,
-   ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTERv,
+   ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTER,
+   ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTERv,
    DS_TYPE_SHADER,
-   8,
+   9,
    G_TYPE_FILE,
    G_TYPE_INPUT_STREAM,
    G_TYPE_FILE,
    G_TYPE_INPUT_STREAM,
    G_TYPE_FILE,
    G_TYPE_INPUT_STREAM,
+   DS_TYPE_CACHE_PROVIDER,
    G_TYPE_CANCELLABLE,
    G_TYPE_POINTER);
   ds_callable_iface_add_method
@@ -722,13 +747,14 @@ void ds_shader_ds_callable_iface_init(DsCallableIface* iface) {
    "new_simple",
    DS_CLOSURE_CONSTRUCTOR,
    G_CALLBACK(_callable_new_simple),
-   ds_cclosure_marshal_OBJECT__STRING_STRING_STRING_OBJECT_POINTER,
-   ds_cclosure_marshal_OBJECT__STRING_STRING_STRING_OBJECT_POINTERv,
+   ds_cclosure_marshal_OBJECT__STRING_STRING_STRING_OBJECT_OBJECT_POINTER,
+   ds_cclosure_marshal_OBJECT__STRING_STRING_STRING_OBJECT_OBJECT_POINTERv,
    DS_TYPE_SHADER,
-   5,
+   6,
    G_TYPE_STRING,
    G_TYPE_STRING,
    G_TYPE_STRING,
+   DS_TYPE_CACHE_PROVIDER,
    G_TYPE_CANCELLABLE,
    G_TYPE_POINTER);
 }
@@ -756,6 +782,9 @@ void ds_shader_class_set_property(GObject* pself, guint prop_id, const GValue* v
   case prop_geometry_stream:
     g_set_object(&(self->geometry_stream), g_value_get_object(value));
     break;
+  case prop_cache_provider:
+    g_set_object(&(self->cache_provider), g_value_get_object(value));
+    break;
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID(pself, prop_id, pspec);
     break;
@@ -765,11 +794,6 @@ void ds_shader_class_set_property(GObject* pself, guint prop_id, const GValue* v
 static
 void ds_shader_class_finalize(GObject* pself) {
   DsShader* self = DS_SHADER(pself);
-
-/*
- * Finalize
- *
- */
 
   __gl_try(
     glDeleteProgram(self->pid);
@@ -783,33 +807,21 @@ void ds_shader_class_finalize(GObject* pself) {
     g_error_free(glerror);
   ,);
 
-/*
- * Chain-up
- *
- */
-  G_OBJECT_CLASS(ds_shader_parent_class)->finalize(pself);
+G_OBJECT_CLASS(ds_shader_parent_class)->finalize(pself);
 }
 
 static
 void ds_shader_class_dispose(GObject* pself) {
   DsShader* self = DS_SHADER(pself);
 
-/*
- * Dispose
- *
- */
   g_clear_object(&(self->vertex_file));
   g_clear_object(&(self->fragment_file));
   g_clear_object(&(self->geometry_file));
   g_clear_object(&(self->vertex_stream));
   g_clear_object(&(self->fragment_stream));
   g_clear_object(&(self->geometry_stream));
-
-/*
- * Chain-up
- *
- */
-  G_OBJECT_CLASS(ds_shader_parent_class)->dispose(pself);
+  g_clear_object(&(self->cache_provider));
+G_OBJECT_CLASS(ds_shader_parent_class)->dispose(pself);
 }
 
 static
@@ -882,6 +894,15 @@ void ds_shader_class_init(DsShaderClass* klass) {
      G_PARAM_WRITABLE
      | G_PARAM_CONSTRUCT_ONLY);
 
+  properties[prop_cache_provider] =
+    g_param_spec_object
+    ("cache-provider",
+     "cache-provider",
+     "cache-provider",
+     DS_TYPE_CACHE_PROVIDER,
+     G_PARAM_WRITABLE
+     | G_PARAM_CONSTRUCT_ONLY);
+
   g_object_class_install_properties
   (oclass,
    prop_number,
@@ -898,14 +919,15 @@ void ds_shader_init(DsShader* self) {
  */
 
 DsShader*
-ds_shader_new(GFile        *vertex_file,
-              GInputStream *vertex_stream,
-              GFile        *fragment_file,
-              GInputStream *fragment_stream,
-              GFile        *geometry_file,
-              GInputStream *geometry_stream,
-              GCancellable *cancellable,
-              GError      **error)
+ds_shader_new(GFile            *vertex_file,
+              GInputStream     *vertex_stream,
+              GFile            *fragment_file,
+              GInputStream     *fragment_stream,
+              GFile            *geometry_file,
+              GInputStream     *geometry_stream,
+              DsCacheProvider  *cache_provider,
+              GCancellable     *cancellable,
+              GError          **error)
 {
   return (DsShader*)
   g_initable_new
@@ -918,9 +940,11 @@ ds_shader_new(GFile        *vertex_file,
    "fragment-stream", fragment_stream,
    "geometry-file", geometry_file,
    "geometry-stream", geometry_stream,
+   "cache-provider", cache_provider,
    NULL);
 }
 
+G_GNUC_INTERNAL
 GLuint
 _ds_shader_get_pid(DsShader *shader)
 {

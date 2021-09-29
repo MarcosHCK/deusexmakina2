@@ -47,6 +47,7 @@ do
     ds.GFXDIR .. '/model_vs.glsl',
     ds.GFXDIR .. '/model_fs.glsl',
     nil,
+    nil,
     cancellable,
     error:ref());
   error:check();
@@ -64,6 +65,7 @@ do
     ds.GFXDIR .. '/skybox_vs.glsl',
     ds.GFXDIR .. '/skybox_fs.glsl',
     nil,
+    nil,
     cancellable,
     error:ref());
   error:check();
@@ -80,6 +82,7 @@ do
   ds.type.DsShader.new_simple(
     ds.GFXDIR .. '/text_vs.glsl',
     ds.GFXDIR .. '/text_fs.glsl',
+    nil,
     nil,
     cancellable,
     error:ref());
@@ -111,11 +114,10 @@ do
   font = ds.type.DsFont.new_simple(
     ds.ASSETSDIR .. '/Unknown.ttf',
     12,
+    nil,
     cancellable,
     error:ref());
   error:check();
-
-  application['debug-font'] = font;
 
 --[[
 --
@@ -126,11 +128,12 @@ do
   text = ds.type.DsText.new(font);
   pipeline:append_object('text', ds.priority.default, text);
 
-  application['debug-text'] = text;
+  text:print(nil, require('build').PACKAGE_STRING, 2, 600 - 12 - 2, cancellable, error:ref());
+  error:check();
 
 --[[
 --
--- Text renderer
+-- Update pipeline
 --
 --]]
 

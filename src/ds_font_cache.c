@@ -16,7 +16,6 @@
  *
  */
 #include <config.h>
-#include <ds_application_private.h>
 #include <ds_font.h>
 #include <ds_macros.h>
 #include <webp/encode.h>
@@ -64,11 +63,10 @@ return success;
 }
 
 static GFile*
-get_charmap_cache_file(guint charset_hash, GCancellable* cancellable, GError** error)
+get_charmap_cache_file(DsCacheProvider* cprov, guint charset_hash, GCancellable* cancellable, GError** error)
 {
   gboolean success = TRUE;
   GError* tmp_err = NULL;
-  DsApplication* app = NULL;
   GFile* return_ = NULL;
   GFile* basedir = NULL;
   GFile* shader = NULL;
@@ -78,15 +76,11 @@ get_charmap_cache_file(guint charset_hash, GCancellable* cancellable, GError** e
  *
  */
 
-  app = (DsApplication*)
-  g_application_get_default();
-  g_assert(DS_IS_APPLICATION(app));
-
   gchar buf[64];
   g_snprintf(buf, sizeof(buf), "%x.charmap", charset_hash);
 
   basedir =
-  _ds_base_dirs_child("charmaps", app->basecachedir, cancellable, &tmp_err);
+  ds_folder_provider_child(DS_FOLDER_PROVIDER(cprov), "charmaps", cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -111,7 +105,13 @@ return return_;
 
 G_GNUC_INTERNAL
 gboolean
-_ds_font_cache_try_load(guint charset_hash, GBytes** pbytes, gint* pw, gint* ph, GCancellable* cancellable, GError** error)
+_ds_font_cache_try_load(DsCacheProvider  *cprov,
+                        guint             charset_hash,
+                        GBytes          **pbytes,
+                        gint             *pw,
+                        gint             *ph,
+                        GCancellable     *cancellable,
+                        GError          **error)
 {
   g_set_error_literal
   (error,
@@ -124,7 +124,13 @@ return FALSE;
 
 G_GNUC_INTERNAL
 gboolean
-_ds_font_cache_try_save(guint charset_hash, GBytes* bytes, gint w, gint h, GCancellable* cancellable, GError** error)
+_ds_font_cache_try_save(DsCacheProvider  *cprov,
+                        guint             charset_hash,
+                        GBytes           *bytes,
+                        gint              w,
+                        gint              h,
+                        GCancellable     *cancellable,
+                        GError          **error)
 {
   gboolean success = TRUE;
   GError* tmp_err = NULL;
@@ -140,7 +146,7 @@ _ds_font_cache_try_save(guint charset_hash, GBytes* bytes, gint w, gint h, GCanc
  */
 
   outfile =
-  get_charmap_cache_file(charset_hash, cancellable, &tmp_err);
+  get_charmap_cache_file(cprov, charset_hash, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);

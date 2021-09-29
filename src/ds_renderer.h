@@ -17,6 +17,8 @@
  */
 #ifndef __DS_RENDERER_INCLUDED__
 #define __DS_RENDERER_INCLUDED__
+#include <ds_application.h>
+#include <ds_renderer_data.h>
 #include <ds_gl.h>
 
 #if __cplusplus
@@ -31,7 +33,7 @@ _ds_renderer_init(DsApplication  *self,
                   GError        **error);
 G_GNUC_INTERNAL
 gboolean
-_ds_renderer_step(DsApplication* self);
+_ds_renderer_step(DsRendererData* self);
 
 #if __cplusplus
 }

@@ -17,7 +17,10 @@
  */
 #ifndef __DS_EVENTS_INCLUDED__
 #define __DS_EVENTS_INCLUDED__
+#include <gio/gio.h>
+#include <ds_application.h>
 #include <ds_lua.h>
+#include <ds_renderer_data.h>
 
 #if __cplusplus
 extern "C" {
@@ -31,7 +34,7 @@ _ds_events_init(lua_State      *L,
                 GError        **error);
 G_GNUC_INTERNAL
 gboolean
-_ds_events_poll(DsApplication* self);
+_ds_events_poll(DsRendererData* data);
 G_GNUC_INTERNAL
 gboolean
 ds_events_push(lua_State  *L,

@@ -17,6 +17,7 @@
  */
 #ifndef __DS_FONT_INCLUDED__
 #define __DS_FONT_INCLUDED__ 1
+#include <ds_folder_provider.h>
 #include <gio/gio.h>
 
 /**
@@ -71,30 +72,13 @@ GType
 ds_font_get_type();
 
 DsFont*
-ds_font_new(GFile          *font_file,
-            gint            font_size,
-            GCancellable   *cancellable,
-            GError        **error);
+ds_font_new(GFile            *font_file,
+            gint              font_size,
+            DsCacheProvider  *cache_provider,
+            GCancellable     *cancellable,
+            GError          **error);
 
-/*
- * font cache
- * defined at ds_font_cache.c
- *
- */
-
-G_GNUC_INTERNAL
-gboolean
-_ds_font_save_charmap_image(GFile* output_, GBytes* bytes, gint w, gint h, GCancellable* cancellable, GError** error);
-G_GNUC_INTERNAL
-GBytes*
-_ds_font_load_charmap_image(GFile* output_, gint w, gint h, GCancellable* cancellable, GError** error);
-
-/*
- * libicu code
- * defined at ds_icu.cpp
- *
- */
-
+/* Internal API */
 G_GNUC_INTERNAL
 gboolean
 _ds_icu_get_charset(gchar         **pcharset,

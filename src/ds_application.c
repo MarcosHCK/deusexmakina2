@@ -16,15 +16,17 @@
  *
  */
 #include <config.h>
-#include <ds_application_private.h>
-#include <ds_error.h>
+#include <ds_application.h>
 #include <ds_events.h>
+#include <ds_folder_provider.h>
 #include <ds_luaobj.h>
-#include <ds_model.h>
+#include <ds_macros.h>
+#include <ds_mvpholder.h>
 #include <ds_renderer.h>
-#include <ds_skybox.h>
-#include <ds_text.h>
-#include <glib/gi18n.h>
+#include <ds_renderer_data.h>
+#include <ds_settings.h>
+#include <GL/glew.h>
+#include <SDL.h>
 #undef main
 
 G_DEFINE_QUARK(ds-application-error-quark,
@@ -74,6 +76,19 @@ _lua_close0(lua_State* var)
  *
  */
 
+struct _DsApplicationPrivate
+{
+  DsSettings* dssettings;
+  GSettings* gsettings;
+  DsDataProvider* data_provider;
+  DsCacheProvider* cache_provider;
+  guint sdl_init;
+  SDL_Window* window;
+  SDL_GLContext* glctx;
+  guint glew_init;
+  DsRendererData* renderer_data;
+};
+
 enum {
   prop_0,
 
@@ -83,33 +98,8 @@ enum {
  *
  */
 
-  prop_dssettings,
-  prop_gsettings,
-  prop_basedatadir,
-  prop_basecachedir,
-  prop_savesdir,
   prop_lua_state,
-  prop_sdl_window,
-  prop_gl_context,
-  prop_width,
-  prop_height,
-  prop_viewport_width,
-  prop_viewport_height,
-  prop_framelimit,
   prop_pipeline,
-
-/*
- * Setup-time variables,
- * fill by setup script and
- * therefore they are READ-WRITE,
- * but as they are pretty global,
- * the best is to not overwrite
- * them
- *
- */
-
-  prop_debug_font,
-  prop_debug_text,
 
 /*
  * Property number, a convenience way
@@ -129,19 +119,13 @@ G_DEFINE_TYPE_WITH_CODE
  G_TYPE_APPLICATION,
  G_IMPLEMENT_INTERFACE
  (G_TYPE_INITABLE,
-  ds_application_g_initiable_iface_init));
+  ds_application_g_initiable_iface_init)
+ G_ADD_PRIVATE(DsApplication));
 
-#define dssettings self->dssettings
-#define gsettings self->gsettings
-#define basedatadir self->basedatadir
-#define basecachedir self->basecachedir
-#define savesdir self->savesdir
-#define L self->L
-#define sdl_init self->sdl_init
-#define window self->window
-#define glctx self->glctx
-#define glew_init self->glew_init
-#define pipeline self->pipeline
+#define L         (self->L)
+#define sdl_init  (self->priv->sdl_init)
+#define glew_init (self->priv->glew_init)
+#define pipeline  (self->pipeline)
 
 static gboolean
 ds_application_g_initiable_iface_init_sync(GInitable     *pself,
@@ -155,28 +139,11 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   gboolean debug = FALSE;
   gint return_ = 0;
 
-/*
- * Ensure class initialization
- *
- */
-
-  g_type_ensure(DS_TYPE_APPLICATION);
-  g_type_ensure(DS_TYPE_ERROR);
-  g_type_ensure(DS_TYPE_FONT);
-  g_type_ensure(DS_TYPE_MODEL);
-  g_type_ensure(DS_TYPE_PIPELINE);
-  g_type_ensure(DS_TYPE_SAVE);
-  g_type_ensure(DS_TYPE_SETTINGS);
-  g_type_ensure(DS_TYPE_SHADER);
-  g_type_ensure(DS_TYPE_SKYBOX);
-  g_type_ensure(DS_TYPE_TEXT);
-
-  g_type_ensure(ds_gl_error_get_type());
-  g_type_ensure(ds_gl_object_type_get_type());
-  g_type_ensure(ds_gl_texture_type_get_type());
-  g_type_ensure(ds_gl_debug_source_get_type());
-  g_type_ensure(ds_gl_debug_message_type_get_type());
-  g_type_ensure(ds_gl_debug_severity_get_type());
+  DsSettings* dssettings = NULL;
+  GSettings* gsettings = NULL;
+  SDL_Window* window = NULL;
+  SDL_GLContext* glctx = NULL;
+  DsRendererData* renderer_data = NULL;
 
 /*
  * Debug flag
@@ -206,6 +173,7 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
+    _g_object_unref0(dssettings);
     goto_error();
   }
 
@@ -221,32 +189,29 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
      DS_APPLICATION_ERROR_GSETTINGS_INIT,
      "ds_settings_get_settings(): failed!: schema '%s' not found\r\n",
      schema_id);
+    _g_object_unref0(dssettings);
+    _g_object_unref0(gsettings);
     goto_error();
   }
+
+  self->priv->dssettings = dssettings;
+  self->priv->gsettings = gsettings;
 
 /*
  * Saves manager
  *
  */
 
-  basedatadir =
-  _ds_base_data_dir_pick(cancellable, &tmp_err);
+  self->priv->data_provider =
+  ds_data_provider_new(cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
     goto_error();
   }
 
-  basecachedir =
-  _ds_base_cache_dir_pick(cancellable, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-  savesdir =
-  _ds_base_dirs_child("saves", basedatadir, cancellable, &tmp_err);
+  self->priv->cache_provider =
+  ds_cache_provider_new(cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -397,9 +362,6 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
-  self->renderer_data.width = width;
-  self->renderer_data.height = height;
-
   glctx =
   SDL_GL_CreateContext(window);
   if G_UNLIKELY(glctx == NULL)
@@ -410,14 +372,12 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
      DS_APPLICATION_ERROR_GL_CONTEXT_INIT,
      "SDL_GL_CreateContext(): failed!: %s\r\n",
      SDL_GetError());
+    _SDL_DestroyWindow0(window);
     goto_error();
   }
 
-  SDL_GL_GetDrawableSize
-  (window,
-   &(self->renderer_data.viewport_w),
-   &(self->renderer_data.viewport_h));
-
+  self->priv->window = window;
+  self->priv->glctx = glctx;
   SDL_ShowCursor(1);
 
 /*
@@ -441,6 +401,11 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     glew_init = 1;
   }
 
+/*
+ * Renderer data
+ *
+ */
+
   success =
   _ds_renderer_init(self, gsettings, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
@@ -448,6 +413,17 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     g_propagate_error(error, tmp_err);
     goto_error();
   }
+
+  renderer_data =
+  ds_renderer_data_new(gsettings, window, cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    _g_object_unref0(renderer_data);
+    goto_error();
+  }
+
+  self->priv->renderer_data = renderer_data;
 
 /*
  * Pipeline
@@ -462,9 +438,20 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
-  /* setup mvp matrix components */
-  _ds_renderer_data_set_projection(self, pipeline);
-  _ds_renderer_data_set_view(self, pipeline, 0.f, 0.f, 0.f, 0.f);
+  g_signal_connect_swapped
+  (renderer_data,
+   "update-projection",
+   G_CALLBACK(ds_mvp_holder_set_projection),
+   pipeline);
+
+  g_signal_connect_swapped
+  (renderer_data,
+   "update-view",
+   G_CALLBACK(ds_mvp_holder_set_view),
+   pipeline);
+
+   /* force matrix update */
+   ds_renderer_data_force_update(renderer_data);
 
 /*
  * Execute setup script
@@ -504,47 +491,15 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
+  lua_settop(L, 0);
   lua_gc(L, LUA_GCCOLLECT, 1);
 
-/*
- * Get Lua stack ready
- *
- */
-
-  lua_settop(L, 0);
-
 _error_:
-  if G_UNLIKELY(success == FALSE)
-  {
-    g_clear_object(&pipeline);
-    g_clear_handle_id
-    (&glew_init, _glew_fini0);
-    g_clear_pointer
-    (&glctx, _SDL_GL_DeleteContext0);
-    g_clear_pointer
-    (&window, _SDL_DestroyWindow0);
-    g_clear_handle_id
-    (&sdl_init, _SDL_fini0);
-    g_clear_pointer
-    (&L, _lua_close0);
-    g_clear_object(&savesdir);
-    g_clear_object(&basecachedir);
-    g_clear_object(&basedatadir);
-    g_clear_object(&gsettings);
-    g_clear_object(&dssettings);
-  }
 return success;
 }
 
-#undef dssettings
-#undef gsettings
-#undef basedatadir
-#undef basecachedir
-#undef savesdir
 #undef L
 #undef sdl_init
-#undef window
-#undef glctx
 #undef glew_init
 #undef pipeline
 
@@ -559,53 +514,11 @@ void ds_application_class_get_property(GObject* pself, guint prop_id, GValue* va
   DsApplication* self = DS_APPLICATION(pself);
   switch(prop_id)
   {
-  case prop_dssettings:
-    g_value_set_object(value, self->dssettings);
-    break;
-  case prop_gsettings:
-    g_value_set_object(value, self->gsettings);
-    break;
-  case prop_basedatadir:
-    g_value_set_object(value, self->basedatadir);
-    break;
-  case prop_basecachedir:
-    g_value_set_object(value, self->basecachedir);
-    break;
-  case prop_savesdir:
-    g_value_set_object(value, self->savesdir);
-    break;
   case prop_lua_state:
     g_value_set_pointer(value, self->L);
     break;
-  case prop_sdl_window:
-    g_value_set_pointer(value, self->window);
-    break;
-  case prop_gl_context:
-    g_value_set_pointer(value, self->glctx);
-    break;
-  case prop_width:
-    g_value_set_int(value, self->renderer_data.width);
-    break;
-  case prop_height:
-    g_value_set_int(value, self->renderer_data.height);
-    break;
-  case prop_viewport_width:
-    g_value_set_int(value, self->renderer_data.viewport_w);
-    break;
-  case prop_viewport_height:
-    g_value_set_int(value, self->renderer_data.viewport_h);
-    break;
-  case prop_framelimit:
-    g_value_set_boolean(value, self->renderer_data.framelimit);
-    break;
   case prop_pipeline:
     g_value_set_object(value, self->pipeline);
-    break;
-  case prop_debug_font:
-    g_value_set_object(value, self->debug_font);
-    break;
-  case prop_debug_text:
-    g_value_set_object(value, self->debug_text);
     break;
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID(pself, prop_id, pspec);
@@ -619,12 +532,6 @@ void ds_application_class_set_property(GObject* pself, guint prop_id, const GVal
   DsApplication* self = DS_APPLICATION(pself);
   switch(prop_id)
   {
-  case prop_debug_font:
-    g_set_object(&(self->debug_font), g_value_get_object(value));
-    break;
-  case prop_debug_text:
-    g_set_object(&(self->debug_text), g_value_get_object(value));
-    break;
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID(pself, prop_id, pspec);
     break;
@@ -634,10 +541,10 @@ void ds_application_class_set_property(GObject* pself, guint prop_id, const GVal
 static
 void ds_application_class_finalize(GObject* pself) {
   DsApplication* self = DS_APPLICATION(pself);
-  _glew_fini0(self->glew_init);
-  _SDL_GL_DeleteContext0(self->glctx);
-  _SDL_DestroyWindow0(self->window);
-  _SDL_fini0(self->sdl_init);
+  _glew_fini0(self->priv->glew_init);
+  _SDL_GL_DeleteContext0(self->priv->glctx);
+  _SDL_DestroyWindow0(self->priv->window);
+  _SDL_fini0(self->priv->sdl_init);
   _lua_close0(self->L);
 G_OBJECT_CLASS(ds_application_parent_class)->finalize(pself);
 }
@@ -645,14 +552,12 @@ G_OBJECT_CLASS(ds_application_parent_class)->finalize(pself);
 static
 void ds_application_class_dispose(GObject* pself) {
   DsApplication* self = DS_APPLICATION(pself);
-  g_clear_object(&(self->debug_text));
-  g_clear_object(&(self->debug_font));
   g_clear_object(&(self->pipeline));
-  g_clear_object(&(self->savesdir));
-  g_clear_object(&(self->basecachedir));
-  g_clear_object(&(self->basedatadir));
-  g_clear_object(&(self->gsettings));
-  g_clear_object(&(self->dssettings));
+  g_clear_object(&(self->priv->renderer_data));
+  g_clear_object(&(self->priv->cache_provider));
+  g_clear_object(&(self->priv->data_provider));
+  g_clear_object(&(self->priv->gsettings));
+  g_clear_object(&(self->priv->dssettings));
 G_OBJECT_CLASS(ds_application_parent_class)->dispose(pself);
 }
 
@@ -680,95 +585,9 @@ void ds_application_class_init(DsApplicationClass* klass) {
    *
    */
 
-  properties[prop_dssettings] =
-    g_param_spec_object
-    (_TRIPLET("dssettings"),
-     DS_TYPE_SETTINGS,
-     G_PARAM_READABLE
-     | G_PARAM_STATIC_STRINGS);
-
-  properties[prop_gsettings] =
-    g_param_spec_object
-    (_TRIPLET("gsettings"),
-     G_TYPE_SETTINGS,
-     G_PARAM_READABLE
-     | G_PARAM_STATIC_STRINGS);
-
-  properties[prop_basedatadir] =
-    g_param_spec_object
-    (_TRIPLET("basedatadir"),
-     G_TYPE_FILE,
-     G_PARAM_READABLE
-     | G_PARAM_STATIC_STRINGS);
-
-  properties[prop_basecachedir] =
-    g_param_spec_object
-    (_TRIPLET("basecachedir"),
-     G_TYPE_FILE,
-     G_PARAM_READABLE
-     | G_PARAM_STATIC_STRINGS);
-
-  properties[prop_savesdir] =
-    g_param_spec_object
-    (_TRIPLET("savesdir"),
-     G_TYPE_FILE,
-     G_PARAM_READABLE
-     | G_PARAM_STATIC_STRINGS);
-
   properties[prop_lua_state] =
     g_param_spec_pointer
     (_TRIPLET("lua-state"),
-     G_PARAM_READABLE
-     | G_PARAM_STATIC_STRINGS);
-
-  properties[prop_sdl_window] =
-    g_param_spec_pointer
-    (_TRIPLET("sdl-window"),
-     G_PARAM_READABLE
-     | G_PARAM_STATIC_STRINGS);
-
-  properties[prop_gl_context] =
-    g_param_spec_pointer
-    (_TRIPLET("gl-context"),
-     G_PARAM_READABLE
-     | G_PARAM_STATIC_STRINGS);
-
-  properties[prop_width] =
-    g_param_spec_int
-    (_TRIPLET("window-width"),
-     0, G_MAXINT,
-     0,
-     G_PARAM_READABLE
-     | G_PARAM_STATIC_STRINGS);
-
-  properties[prop_height] =
-    g_param_spec_int
-    (_TRIPLET("window-height"),
-     0, G_MAXINT,
-     0,
-     G_PARAM_READABLE
-     | G_PARAM_STATIC_STRINGS);
-
-  properties[prop_viewport_width] =
-    g_param_spec_int
-    (_TRIPLET("viewport-width"),
-     0, G_MAXINT,
-     0,
-     G_PARAM_READABLE
-     | G_PARAM_STATIC_STRINGS);
-
-  properties[prop_viewport_height] =
-    g_param_spec_int
-    (_TRIPLET("viewport-height"),
-     0, G_MAXINT,
-     0,
-     G_PARAM_READABLE
-     | G_PARAM_STATIC_STRINGS);
-
-  properties[prop_framelimit] =
-    g_param_spec_boolean
-    (_TRIPLET("framelimit"),
-     FALSE,
      G_PARAM_READABLE
      | G_PARAM_STATIC_STRINGS);
 
@@ -777,25 +596,6 @@ void ds_application_class_init(DsApplicationClass* klass) {
     (_TRIPLET("pipeline"),
      DS_TYPE_PIPELINE,
      G_PARAM_READABLE
-     | G_PARAM_STATIC_STRINGS);
-
-  /*
-   * Setup
-   *
-   */
-
-  properties[prop_debug_font] =
-    g_param_spec_object
-    (_TRIPLET("debug-font"),
-     DS_TYPE_FONT,
-     G_PARAM_READWRITE
-     | G_PARAM_STATIC_STRINGS);
-
-  properties[prop_debug_text] =
-    g_param_spec_object
-    (_TRIPLET("debug-text"),
-     DS_TYPE_TEXT,
-     G_PARAM_READWRITE
      | G_PARAM_STATIC_STRINGS);
 
   /*
@@ -811,6 +611,7 @@ void ds_application_class_init(DsApplicationClass* klass) {
 
 static
 void ds_application_init(DsApplication* self) {
+  self->priv = ds_application_get_instance_private(self);
 }
 
 /*
@@ -836,7 +637,7 @@ void on_activate(DsApplication* self) {
   (source,
    (GSourceFunc)
    _ds_renderer_step,
-   g_object_ref(self),
+   g_object_ref(self->priv->renderer_data),
    g_object_unref);
 
   g_source_set_priority(source, G_PRIORITY_DEFAULT_IDLE);
@@ -856,7 +657,7 @@ void on_activate(DsApplication* self) {
   (source,
    (GSourceFunc)
    _ds_events_poll,
-   g_object_ref(self),
+   g_object_ref(self->priv->renderer_data),
    g_object_unref);
 
   g_source_set_priority(source, G_PRIORITY_DEFAULT_IDLE);
@@ -881,8 +682,6 @@ int
 main(int    argc,
      char  *argv[])
 {
-  setlocale(LC_ALL, "");
-
 /*
  * Create application
  *

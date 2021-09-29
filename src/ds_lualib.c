@@ -24,6 +24,8 @@
 #include <ds_macros.h>
 #include <gio/gio.h>
 
+typedef GType (*GTypeGetFunc) (void);
+
 /* Some kind of static assert */
 #include <luajit.h>
 
@@ -52,6 +54,73 @@ luaL_Reg lualib[] =
     lua_settable((L), 1); \
   } G_STMT_END
 
+static gchar*
+type_name_mangle(const gchar* name)
+{
+  GString* symbol_name = g_string_new("");
+  gint i;
+
+  for(i = 0;name[i] != '\0';i++)
+  {
+    /* skip if uppercase, first or previous is uppercase */
+    if((name[i] == g_ascii_toupper(name[i])
+        && i > 0
+        && name[i-1] != g_ascii_toupper(name[i-1]))
+       || (i > 2
+           && name[i] == g_ascii_toupper(name[i])
+           && name[i-1] == g_ascii_toupper(name[i-1])
+           && name[i-2] == g_ascii_toupper(name[i-2])))
+    {
+      g_string_append_c(symbol_name, '_');
+    }
+
+    g_string_append_c(symbol_name, g_ascii_tolower(name[i]));
+  }
+
+  g_string_append(symbol_name, "_get_type");
+return g_string_free(symbol_name, FALSE);
+}
+
+static GType
+resolve_type_lazily(const gchar* name)
+{
+  static
+  GModule* module = NULL;
+  GTypeGetFunc func;
+  GType gtype = G_TYPE_INVALID;
+  gchar* symbol;
+
+  if G_UNLIKELY(module == NULL)
+  {
+    module = g_module_open(NULL, 0);
+  }
+
+  symbol = type_name_mangle(name);
+
+  if(g_module_symbol
+     (module,
+      symbol,
+      (gpointer)&func))
+  {
+    gtype = func();
+  }
+
+  g_free(symbol);
+return gtype;
+}
+
+static GType
+resolve_type(const gchar* name)
+{
+  GType gtype;
+
+  if((gtype = g_type_from_name(name)) != G_TYPE_INVALID)
+    return gtype;
+  if((gtype = resolve_type_lazily(name)) != G_TYPE_INVALID)
+    return gtype;
+return G_TYPE_INVALID;
+}
+
 static int
 __index(lua_State* L)
 {
@@ -66,7 +135,7 @@ __index(lua_State* L)
     }
 
     GType g_type =
-    g_type_from_name(typename_);
+    resolve_type(typename_);
     if(g_type != G_TYPE_INVALID)
     {
       if(G_TYPE_IS_ENUM(g_type))
@@ -91,47 +160,6 @@ __index(lua_State* L)
     }
   }
 return 0;
-}
-
-/*
- * priority.* funcs
- *
- */
-
-static int
-priority_higher(lua_State* L)
-{
-  lua_getfield(L, LUA_REGISTRYINDEX, "__ds_priority_higher");
-  if G_UNLIKELY(lua_isnumber(L, -1) == FALSE)
-  {
-    lua_pushnumber(L, G_PRIORITY_HIGH);
-  }
-
-  int higher = (int) lua_tonumber(L, -1);
-      higher -= 100;
-
-  lua_pushnumber(L, higher);
-  lua_pushvalue(L, -1);
-  lua_setfield(L, LUA_REGISTRYINDEX, "__ds_priority_higher");
-return 1;
-}
-
-static int
-priority_lower(lua_State* L)
-{
-  lua_getfield(L, LUA_REGISTRYINDEX, "__ds_priority_lower");
-  if G_UNLIKELY(lua_isnumber(L, -1) == FALSE)
-  {
-    lua_pushnumber(L, G_PRIORITY_HIGH);
-  }
-
-  int lower = (int) lua_tonumber(L, -1);
-      lower += 100;
-
-  lua_pushnumber(L, lower);
-  lua_pushvalue(L, -1);
-  lua_setfield(L, LUA_REGISTRYINDEX, "__ds_priority_lower");
-return 1;
 }
 
 /*

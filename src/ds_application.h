@@ -17,6 +17,8 @@
  */
 #ifndef __DS_APPLICATION_INCLUDED__
 #define __DS_APPLICATION_INCLUDED__ 1
+#include <ds_lua.h>
+#include <ds_pipeline.h>
 #include <gio/gio.h>
 
 /**
@@ -61,8 +63,9 @@ typedef enum {
 #define DS_IS_APPLICATION_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE((klass), DS_TYPE_APPLICATION))
 #define DS_APPLICATION_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS((obj), DS_TYPE_APPLICATION, DsApplicationClass))
 
-typedef struct _DsApplication       DsApplication;
-typedef struct _DsApplicationClass  DsApplicationClass;
+typedef struct _DsApplication         DsApplication;
+typedef struct _DsApplicationPrivate  DsApplicationPrivate;
+typedef struct _DsApplicationClass    DsApplicationClass;
 
 #if __cplusplus
 extern "C" {
@@ -72,6 +75,14 @@ GType
 ds_application_get_type();
 GQuark
 ds_application_error_quark();
+
+struct _DsApplication
+{
+  GApplication parent_instance;
+  DsApplicationPrivate* priv;
+  lua_State* L;
+  DsPipeline* pipeline;
+};
 
 struct _DsApplicationClass
 {

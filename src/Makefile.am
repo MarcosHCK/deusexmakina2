@@ -130,6 +130,7 @@ deusexmakina2_SOURCES=\
 	ds_enums.c \
 	ds_error.c \
 	ds_events.c \
+	ds_folder_provider.vala \
 	ds_font.c \
 	ds_font_cache.c \
 	ds_gl.c \
@@ -163,6 +164,7 @@ deusexmakina2_CFLAGS=\
 	$(GIO_CFLAGS) \
 	$(GLEW_CFLAGS) \
 	$(GLIB_CFLAGS) \
+	$(GMODULE_CFLAGS) \
 	$(GOBJECT_CFLAGS) \
 	$(LIBAKASHIC_CFLAGS) \
 	$(LIBICU_CFLAGS) \
@@ -196,6 +198,7 @@ deusexmakina2_LDADD=\
 	$(GIO_LIBS) \
 	$(GLEW_LIBS) \
 	$(GLIB_LIBS) \
+	$(GMODULE_LIBS) \
 	$(GOBJECT_LIBS) \
 	$(LIBAKASHIC_LIBS) \
 	$(LIBICU_LIBS) \
@@ -213,7 +216,6 @@ deusexmakina2_LDADD=\
 #
 
 VALA_PKG=\
-	cglm \
 	config \
 	gio-2.0 \
 	glib-2.0 \

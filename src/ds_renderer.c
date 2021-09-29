@@ -16,16 +16,16 @@
  *
  */
 #include <config.h>
-#include <ds_application_private.h>
+#include <ds_application.h>
 #include <ds_gl.h>
+#include <ds_macros.h>
 #include <ds_renderer.h>
+#include <SDL.h>
 
 G_GNUC_INTERNAL
 gboolean
-_ds_renderer_step(DsApplication* self)
+_ds_renderer_step(DsRendererData* data)
 {
-  RendererData* data = &(self->renderer_data);
-  glViewport(0, 0, data->viewport_w, data->viewport_h);
   glClearColor(0.f, 0.f, 0.f, 0.f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -47,6 +47,9 @@ _ds_renderer_step(DsApplication* self)
  *
  */
 
+  DsApplication* self =
+  (DsApplication*)
+  g_application_get_default();
   ds_pipeline_execute(self->pipeline);
 
 /*
@@ -54,9 +57,7 @@ _ds_renderer_step(DsApplication* self)
  *
  */
 
-  SDL_GL_SwapWindow(self->window);
-  if(data->framelimit == TRUE)
-    SDL_Delay(10);
+  SDL_GL_SwapWindow(SDL_GL_GetCurrentWindow());
 return G_SOURCE_CONTINUE;
 }
 
@@ -175,49 +176,18 @@ on_gl_debug_message(GLenum          source,
 }
 
 static void
-on_width_changed(GSettings     *gsettings,
-                 const gchar   *key,
-                 DsApplication *self)
-{
-  RendererData* data = &(self->renderer_data);
-  g_settings_get(gsettings, key, "i", &(data->width));
-  SDL_SetWindowSize(self->window, data->width, data->height);
-  SDL_GL_GetDrawableSize(self->window, &(data->viewport_w), &(data->viewport_h));
-  _ds_renderer_data_set_projection(self, self->pipeline);
-}
-
-static void
-on_height_changed(GSettings     *gsettings,
-                  const gchar   *key,
-                  DsApplication *self)
-{
-  RendererData* data = &(self->renderer_data);
-  g_settings_get(gsettings, key, "i", &(data->height));
-  SDL_SetWindowSize(self->window, data->width, data->height);
-  SDL_GL_GetDrawableSize(self->window, &(data->viewport_w), &(data->viewport_h));
-  _ds_renderer_data_set_projection(self, self->pipeline);
-}
-
-static void
-on_framelimit_changed(GSettings     *gsettings,
-                      const gchar   *key,
-                      DsApplication *self)
-{
-  RendererData* data = &(self->renderer_data);
-  g_settings_get(gsettings, key, "b", &(data->framelimit));
-}
-
-static void
 on_fullscreen_changed(GSettings     *gsettings,
                       const gchar   *key,
                       DsApplication *self)
 {
-  RendererData* data = &(self->renderer_data);
   gboolean flag;
   g_settings_get(gsettings, key, "b", &flag);
 
+  SDL_Window* window =
+  SDL_GL_GetCurrentWindow();
+
   Uint32 flags =
-  SDL_GetWindowFlags(self->window);
+  SDL_GetWindowFlags(window);
 
   if(g_strcmp0(key, "fullscreen") == 0)
   {
@@ -235,30 +205,7 @@ on_fullscreen_changed(GSettings     *gsettings,
     g_assert_not_reached();
   }
 
-  SDL_SetWindowFullscreen(self->window, flags);
-}
-
-static void
-on_sensitivity_changed(GSettings     *gsettings,
-                       const gchar   *key,
-                       DsApplication *self)
-{
-  RendererData* data = &(self->renderer_data);
-  gdouble sensitivity;
-  g_settings_get(gsettings, key, "d", &sensitivity);
-  data->sensitivity = (gfloat) sensitivity;
-}
-
-static void
-on_fov_changed(GSettings     *gsettings,
-               const gchar   *key,
-               DsApplication *self)
-{
-  RendererData* data = &(self->renderer_data);
-  gdouble fov;
-  g_settings_get(gsettings, key, "d", &fov);
-  data->fov = (gfloat) fov;
-  _ds_renderer_data_set_projection(self, self->pipeline);
+  SDL_SetWindowFullscreen(window, flags);
 }
 
 G_GNUC_INTERNAL
@@ -321,24 +268,6 @@ _ds_renderer_init(DsApplication  *self,
 
   g_signal_connect
   (gsettings,
-   "changed::width",
-   G_CALLBACK(on_width_changed),
-   self);
-
-  g_signal_connect
-  (gsettings,
-   "changed::height",
-   G_CALLBACK(on_height_changed),
-   self);
-
-  g_signal_connect
-  (gsettings,
-   "changed::framelimit",
-   G_CALLBACK(on_framelimit_changed),
-   self);
-
-  g_signal_connect
-  (gsettings,
    "changed::fullscreen",
    G_CALLBACK(on_fullscreen_changed),
    self);
@@ -349,19 +278,6 @@ _ds_renderer_init(DsApplication  *self,
    G_CALLBACK(on_fullscreen_changed),
    self);
 
-  g_signal_connect
-  (gsettings,
-   "changed::sensitivity",
-   G_CALLBACK(on_sensitivity_changed),
-   self);
-
-  g_signal_connect
-  (gsettings,
-   "changed::fov",
-   G_CALLBACK(on_fov_changed),
-   self);
-
-  _ds_renderer_data_init(self, gsettings);
 _error_:
 return success;
 }

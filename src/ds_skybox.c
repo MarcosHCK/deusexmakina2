@@ -606,10 +606,7 @@ ds_skybox_ds_renderable_iface_compile(DsRenderable   *pself,
  *
  */
 
-  ds_render_state_model
-  (state,
-   (gfloat*)
-   self->scale);
+  ds_render_state_model(state, (gfloat*) self->scale);
 
   /* update depth function */
   ds_render_state_pcall

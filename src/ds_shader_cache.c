@@ -16,7 +16,6 @@
  *
  */
 #include <config.h>
-#include <ds_application_private.h>
 #include <ds_gl.h>
 #include <ds_macros.h>
 #include <ds_shader.h>
@@ -64,11 +63,10 @@ G_STATIC_ASSERT(sizeof(guint) == sizeof(GLint));
  */
 
 static GFile*
-get_shader_cache_dir(guint source_hash, GCancellable* cancellable, GError** error)
+get_shader_cache_dir(DsCacheProvider* cprov, guint source_hash, GCancellable* cancellable, GError** error)
 {
   gboolean success = TRUE;
   GError* tmp_err = NULL;
-  DsApplication* app = NULL;
   GFile* return_ = NULL;
   GFile* basedir = NULL;
   GFile* shader = NULL;
@@ -78,15 +76,11 @@ get_shader_cache_dir(guint source_hash, GCancellable* cancellable, GError** erro
  *
  */
 
-  app = (DsApplication*)
-  g_application_get_default();
-  g_assert(DS_IS_APPLICATION(app));
-
   gchar buf[64];
   g_snprintf(buf, sizeof(buf), "%x.shader", source_hash);
 
   basedir =
-  _ds_base_dirs_child("shaders", app->basecachedir, cancellable, &tmp_err);
+  ds_folder_provider_child(DS_FOLDER_PROVIDER(cprov), "shaders", cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -208,10 +202,11 @@ return success;
 
 G_GNUC_INTERNAL
 gboolean
-_ds_shader_cache_try_load(GLuint          pid,
-                          guint           source_hash,
-                          GCancellable   *cancellable,
-                          GError        **error)
+_ds_shader_cache_try_load(DsCacheProvider  *cprov,
+                          GLuint            pid,
+                          guint             source_hash,
+                          GCancellable     *cancellable,
+                          GError          **error)
 {
   gboolean success = TRUE;
   GError* tmp_err = NULL;
@@ -224,7 +219,7 @@ _ds_shader_cache_try_load(GLuint          pid,
  */
 
   file =
-  get_shader_cache_dir(source_hash, cancellable, &tmp_err);
+  get_shader_cache_dir(cprov, source_hash, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -282,10 +277,11 @@ return success;
 
 G_GNUC_INTERNAL
 gboolean
-_ds_shader_cache_try_save(GLuint          pid,
-                          guint           source_hash,
-                          GCancellable   *cancellable,
-                          GError        **error)
+_ds_shader_cache_try_save(DsCacheProvider  *cprov,
+                          GLuint            pid,
+                          guint             source_hash,
+                          GCancellable     *cancellable,
+                          GError          **error)
 {
   gboolean success = TRUE;
   GError* tmp_err = NULL;
@@ -361,7 +357,7 @@ _ds_shader_cache_try_save(GLuint          pid,
 
   /* generate name */
   file =
-  get_shader_cache_dir(source_hash, cancellable, &tmp_err);
+  get_shader_cache_dir(cprov, source_hash, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -442,92 +438,5 @@ _error_:
   _g_object_unref0(stream);
   _g_object_unref0(file);
   _g_free0(buff);
-return success;
-}
-
-G_GNUC_INTERNAL
-gboolean
-_ds_shader_cache_cleanup(guint          source_hash,
-                         GCancellable  *cancellable,
-                         GError       **error)
-{
-  gboolean success = TRUE;
-  GError* tmp_err = NULL;
-  GFileEnumerator* enum_ = NULL;
-  GFile* parent = NULL;
-  GFile* child = NULL;
-  GFile* file = NULL;
-  guint i;
-
-/*
- * Get current blob filename
- *
- */
-
-  file =
-  get_shader_cache_dir(source_hash, cancellable, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-/*
- * Enumerate blob storage unit
- *
- */
-
-  parent = g_file_get_parent(file);
-  g_assert(parent != NULL);
-
-  /* open enumerator */
-  enum_ =
-  g_file_enumerate_children(parent, G_FILE_ATTRIBUTE_STANDARD_NAME, G_FILE_QUERY_INFO_NONE, cancellable, &tmp_err);
-  g_clear_object(&parent);
-
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-  /* iterate */
-  while(g_file_enumerator_iterate(enum_, NULL, &child, cancellable, &tmp_err))
-  {
-    if G_UNLIKELY(child == NULL)
-      break;
-
-    gboolean is =
-    g_file_equal(file, child);
-    if G_LIKELY(is == FALSE)
-    {
-      success =
-      g_file_delete(child, cancellable, &tmp_err);
-      if G_UNLIKELY(tmp_err != NULL)
-      {
-        g_propagate_error(error, tmp_err);
-        goto_error();
-      }
-    }
-  }
-
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-  /* close enumerator */
-  g_file_enumerator_close(enum_, cancellable, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-_error_:
-  _g_object_unref0(enum_);
-  _g_object_unref0(parent);
-  _g_object_unref0(file);
 return success;
 }

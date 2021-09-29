@@ -17,6 +17,7 @@
  */
 #ifndef __DS_SHADER_INCLUDED__
 #define __DS_SHADER_INCLUDED__
+#include <ds_folder_provider.h>
 #include <cglm/cglm.h>
 #include <gio/gio.h>
 
@@ -74,14 +75,15 @@ struct _DsShaderClass
 };
 
 DsShader*
-ds_shader_new(GFile        *vertex_file,
-              GInputStream *vertex_stream,
-              GFile        *fragment_file,
-              GInputStream *fragment_stream,
-              GFile        *geometry_file,
-              GInputStream *geometry_stream,
-              GCancellable *cancellable,
-              GError      **error);
+ds_shader_new(GFile            *vertex_file,
+              GInputStream     *vertex_stream,
+              GFile            *fragment_file,
+              GInputStream     *fragment_stream,
+              GFile            *geometry_file,
+              GInputStream     *geometry_stream,
+              DsCacheProvider  *cache_provider,
+              GCancellable     *cancellable,
+              GError          **error);
 void
 ds_shader_new_async(GFile                *vertex_file,
                     GInputStream         *vertex_stream,

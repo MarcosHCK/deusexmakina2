@@ -41,6 +41,7 @@ typedef union  _ShaderList  ShaderList;
 typedef struct _ShaderEntry ShaderEntry;
 typedef union  _ObjectList  ObjectList;
 
+G_GNUC_INTERNAL
 GLuint
 _ds_shader_get_pid(DsShader *shader);
 

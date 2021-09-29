@@ -32,4 +32,65 @@ _ds_jit_helper_update_mvps(JitMvps* mvps)
 {
   glm_mat4_mul(mvps->projection, mvps->view, mvps->mvp);
   glm_mat4_mul(mvps->mvp, mvps->model, mvps->mvp);
+
+#if DEBUG_MVP
+# define F "%02.08f "
+# define v mvps->model
+
+  g_print
+  ("model:\r\n"
+   F F F F "\r\n"
+   F F F F "\r\n"
+   F F F F "\r\n"
+   F F F F "\r\n",
+   v[0][0], v[0][1], v[0][2], v[0][3],
+   v[1][0], v[1][1], v[1][2], v[1][3],
+   v[2][0], v[2][1], v[2][2], v[2][3],
+   v[3][0], v[3][1], v[3][2], v[3][3]);
+
+# undef v
+# define v mvps->view
+
+  g_print
+  ("view:\r\n"
+   F F F F "\r\n"
+   F F F F "\r\n"
+   F F F F "\r\n"
+   F F F F "\r\n",
+   v[0][0], v[0][1], v[0][2], v[0][3],
+   v[1][0], v[1][1], v[1][2], v[1][3],
+   v[2][0], v[2][1], v[2][2], v[2][3],
+   v[3][0], v[3][1], v[3][2], v[3][3]);
+
+# undef v
+# define v mvps->projection
+
+  g_print
+  ("projection:\r\n"
+   F F F F "\r\n"
+   F F F F "\r\n"
+   F F F F "\r\n"
+   F F F F "\r\n",
+   v[0][0], v[0][1], v[0][2], v[0][3],
+   v[1][0], v[1][1], v[1][2], v[1][3],
+   v[2][0], v[2][1], v[2][2], v[2][3],
+   v[3][0], v[3][1], v[3][2], v[3][3]);
+
+# undef v
+# define v mvps->mvp
+
+  g_print
+  ("mvp:\r\n"
+   F F F F "\r\n"
+   F F F F "\r\n"
+   F F F F "\r\n"
+   F F F F "\r\n",
+   v[0][0], v[0][1], v[0][2], v[0][3],
+   v[1][0], v[1][1], v[1][2], v[1][3],
+   v[2][0], v[2][1], v[2][2], v[2][3],
+   v[3][0], v[3][1], v[3][2], v[3][3]);
+
+# undef F
+# undef v
+#endif // DEBUG_MVP
 }

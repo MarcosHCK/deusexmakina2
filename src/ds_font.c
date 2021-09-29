@@ -133,6 +133,7 @@ struct _DsFont
 
   /*<private>*/
   GFile* font_file;
+  DsCacheProvider* cache_provider;
   gint face_index;
   gint font_size;
   DsGlyph* glyphs;
@@ -159,6 +160,7 @@ enum {
   prop_face_index,
   prop_font_size,
   prop_texture_id,
+  prop_cache_provider,
   prop_number,
 };
 
@@ -405,6 +407,33 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
   gfloat y_gsz;
 
 /*
+ * Get cache provider
+ *
+ */
+
+  if G_UNLIKELY
+    (self->cache_provider == NULL)
+  {
+    self->cache_provider =
+    ds_cache_provider_get_default();
+
+    if G_UNLIKELY
+      (self->cache_provider == NULL)
+    {
+      g_set_error_literal
+      (error,
+       DS_FOLDER_PROVIDER_ERROR,
+       DS_FOLDER_PROVIDER_ERROR_INVALID,
+       "Invalid default cache provider\r\n");
+      goto_error();
+    }
+    else
+    {
+      g_object_ref(self->cache_provider);
+    }
+  }
+
+/*
  * Load font file bytes
  *
  */
@@ -599,26 +628,29 @@ void ds_font_g_initable_iface_init(GInitableIface* iface) {
 }
 
 static DsFont*
-_callable_new(gpointer        null_,
-              GFile          *font_file,
-              gint            font_size,
-              GCancellable   *cancellable,
-              GError        **error)
+_callable_new(gpointer          null_,
+              GFile            *font_file,
+              gint              font_size,
+              DsCacheProvider  *cache_provider,
+              GCancellable     *cancellable,
+              GError          **error)
 {
   return
   ds_font_new
   (font_file,
    font_size,
+   cache_provider,
    cancellable,
    error);
 }
 
 static DsFont*
-_callable_new_simple(gpointer       null_,
-                     const gchar   *font_filename,
-                     gint           font_size,
-                     GCancellable  *cancellable,
-                     GError       **error)
+_callable_new_simple(gpointer         null_,
+                     const gchar     *font_filename,
+                     gint             font_size,
+                     DsCacheProvider *cache_provider,
+                     GCancellable    *cancellable,
+                     GError         **error)
 {
   GFile* font_file = NULL;
   font_file = g_file_new_for_path(font_filename);
@@ -627,6 +659,7 @@ _callable_new_simple(gpointer       null_,
   ds_font_new
   (font_file,
    font_size,
+   cache_provider,
    cancellable,
    error);
 
@@ -641,25 +674,28 @@ void ds_font_ds_callable_iface_init(DsCallableIface* iface) {
    "new",
    DS_CLOSURE_CONSTRUCTOR,
    G_CALLBACK(_callable_new),
-   ds_cclosure_marshal_OBJECT__OBJECT_INT_OBJECT_POINTER,
-   ds_cclosure_marshal_OBJECT__OBJECT_INT_OBJECT_POINTERv,
+   ds_cclosure_marshal_OBJECT__OBJECT_INT_OBJECT_OBJECT_POINTER,
+   ds_cclosure_marshal_OBJECT__OBJECT_INT_OBJECT_OBJECT_POINTERv,
    DS_TYPE_FONT,
-   4,
+   5,
    G_TYPE_FILE,
    G_TYPE_INT,
+   DS_TYPE_CACHE_PROVIDER,
    G_TYPE_CANCELLABLE,
    G_TYPE_POINTER);
+
   ds_callable_iface_add_method
   (iface,
    "new_simple",
    DS_CLOSURE_CONSTRUCTOR,
    G_CALLBACK(_callable_new_simple),
-   ds_cclosure_marshal_OBJECT__STRING_INT_OBJECT_POINTER,
-   ds_cclosure_marshal_OBJECT__STRING_INT_OBJECT_POINTERv,
+   ds_cclosure_marshal_OBJECT__STRING_INT_OBJECT_OBJECT_POINTER,
+   ds_cclosure_marshal_OBJECT__STRING_INT_OBJECT_OBJECT_POINTERv,
    DS_TYPE_FONT,
-   4,
+   5,
    G_TYPE_STRING,
    G_TYPE_INT,
+   DS_TYPE_CACHE_PROVIDER,
    G_TYPE_CANCELLABLE,
    G_TYPE_POINTER);
 }
@@ -692,6 +728,9 @@ void ds_font_class_set_property(GObject* pself, guint prop_id, const GValue* val
   case prop_font_size:
     self->font_size = g_value_get_int(value);
     break;
+  case prop_cache_provider:
+    g_set_object(&(self->cache_provider), g_value_get_object(value));
+    break;
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID(pself, prop_id, pspec);
     break;
@@ -710,6 +749,7 @@ static
 void ds_font_class_dispose(GObject* pself) {
   DsFont* self = DS_FONT(pself);
   g_clear_object(&(self->font_file));
+  g_clear_object(&(self->cache_provider));
 G_OBJECT_CLASS(ds_font_parent_class)->dispose(pself);
 }
 
@@ -764,6 +804,14 @@ void ds_font_class_init(DsFontClass* klass) {
      G_PARAM_READABLE
      | G_PARAM_STATIC_STRINGS);
 
+  properties[prop_cache_provider] =
+    g_param_spec_object
+    (_TRIPLET("cache-provider"),
+     DS_TYPE_CACHE_PROVIDER,
+     G_PARAM_WRITABLE
+     | G_PARAM_CONSTRUCT_ONLY
+     | G_PARAM_STATIC_STRINGS);
+
   g_object_class_install_properties
   (oclass,
    prop_number,
@@ -780,10 +828,11 @@ void ds_font_init(DsFont* self) {
  */
 
 DsFont*
-ds_font_new(GFile          *font_file,
-            gint            font_size,
-            GCancellable   *cancellable,
-            GError        **error)
+ds_font_new(GFile            *font_file,
+            gint              font_size,
+            DsCacheProvider  *cache_provider,
+            GCancellable     *cancellable,
+            GError          **error)
 {
   return (DsFont*)
   g_initable_new
@@ -792,6 +841,7 @@ ds_font_new(GFile          *font_file,
    error,
    "font-file", font_file,
    "font-size", font_size,
+   "cache-provider", cache_provider,
    NULL);
 }
 

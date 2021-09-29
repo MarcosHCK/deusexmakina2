@@ -21,6 +21,7 @@ namespace Ds
   [Compact]
   public class Closure : GLib.Closure
   {
+    GLib.Closure closure_;
   }
 }
 
