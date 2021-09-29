@@ -16,6 +16,7 @@
  *
  */
 #include <config.h>
+#include <cglm/cglm.h>
 #include <ds_mvpholder.h>
 
 static
@@ -77,6 +78,7 @@ void
 ds_mvp_holder_set_model(DsMvpHolder* holder, gfloat* mat4_)
 {
   g_return_if_fail(DS_IS_MVP_HOLDER(holder));
+  g_return_if_fail(mat4_ != NULL);
   DsMvpHolderIface* iface = DS_MVP_HOLDER_GET_INTERFACE(holder);
 
   if G_UNLIKELY
@@ -91,12 +93,18 @@ ds_mvp_holder_set_model(DsMvpHolder* holder, gfloat* mat4_)
   gpointer ptr  = (gpointer) holder;
            ptr += iface->p_model;
   glm_mat4_copy((gpointer) mat4_, ptr);
+
+  if(iface->notify_model != NULL)
+  {
+    iface->notify_model(holder);
+  }
 }
 
 void
 ds_mvp_holder_get_model(DsMvpHolder* holder, gfloat* mat4_)
 {
   g_return_if_fail(DS_IS_MVP_HOLDER(holder));
+  g_return_if_fail(mat4_ != NULL);
   DsMvpHolderIface* iface = DS_MVP_HOLDER_GET_INTERFACE(holder);
 
   if G_UNLIKELY
@@ -117,6 +125,7 @@ void
 ds_mvp_holder_set_view(DsMvpHolder* holder, gfloat* mat4_)
 {
   g_return_if_fail(DS_IS_MVP_HOLDER(holder));
+  g_return_if_fail(mat4_ != NULL);
   DsMvpHolderIface* iface = DS_MVP_HOLDER_GET_INTERFACE(holder);
 
   if G_UNLIKELY
@@ -131,12 +140,18 @@ ds_mvp_holder_set_view(DsMvpHolder* holder, gfloat* mat4_)
   gpointer ptr  = (gpointer) holder;
            ptr += iface->p_view;
   glm_mat4_copy((gpointer) mat4_, ptr);
+
+  if(iface->notify_view != NULL)
+  {
+    iface->notify_view(holder);
+  }
 }
 
 void
 ds_mvp_holder_get_view(DsMvpHolder* holder, gfloat* mat4_)
 {
   g_return_if_fail(DS_IS_MVP_HOLDER(holder));
+  g_return_if_fail(mat4_ != NULL);
   DsMvpHolderIface* iface = DS_MVP_HOLDER_GET_INTERFACE(holder);
 
   if G_UNLIKELY
@@ -157,6 +172,7 @@ void
 ds_mvp_holder_set_projection(DsMvpHolder* holder, gfloat* mat4_)
 {
   g_return_if_fail(DS_IS_MVP_HOLDER(holder));
+  g_return_if_fail(mat4_ != NULL);
   DsMvpHolderIface* iface = DS_MVP_HOLDER_GET_INTERFACE(holder);
 
   if G_UNLIKELY
@@ -171,12 +187,18 @@ ds_mvp_holder_set_projection(DsMvpHolder* holder, gfloat* mat4_)
   gpointer ptr  = (gpointer) holder;
            ptr += iface->p_projection;
   glm_mat4_copy((gpointer) mat4_, ptr);
+
+  if(iface->notify_projection != NULL)
+  {
+    iface->notify_projection(holder);
+  }
 }
 
 void
 ds_mvp_holder_get_projection(DsMvpHolder* holder, gfloat* mat4_)
 {
   g_return_if_fail(DS_IS_MVP_HOLDER(holder));
+  g_return_if_fail(mat4_ != NULL);
   DsMvpHolderIface* iface = DS_MVP_HOLDER_GET_INTERFACE(holder);
 
   if G_UNLIKELY
@@ -191,4 +213,26 @@ ds_mvp_holder_get_projection(DsMvpHolder* holder, gfloat* mat4_)
   gpointer ptr  = (gpointer) holder;
            ptr += iface->p_projection;
   glm_mat4_copy(ptr, (gpointer) mat4_);
+}
+
+void
+ds_mvp_holder_set_position(DsMvpHolder* holder, gfloat* vec3_)
+{
+  g_return_if_fail(DS_IS_MVP_HOLDER(holder));
+  g_return_if_fail(vec3_ != NULL);
+
+  DsMvpHolderIface* iface =
+  DS_MVP_HOLDER_GET_INTERFACE(holder);
+  iface->set_position(holder, vec3_);
+}
+
+void
+ds_mvp_holder_get_position(DsMvpHolder* holder, gfloat* vec3_)
+{
+  g_return_if_fail(DS_IS_MVP_HOLDER(holder));
+  g_return_if_fail(vec3_ != NULL);
+
+  DsMvpHolderIface* iface =
+  DS_MVP_HOLDER_GET_INTERFACE(holder);
+  iface->get_position(holder, vec3_);
 }

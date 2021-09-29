@@ -974,8 +974,20 @@ void ds_model_ds_callable_iface_init(DsCallableIface* iface) {
 }
 
 static
+void ds_model_ds_mvp_holder_iface_set_position(DsMvpHolder* pself, gfloat* dst)
+{
+}
+
+static
+void ds_model_ds_mvp_holder_iface_get_position(DsMvpHolder* pself, gfloat* dst)
+{
+}
+
+static
 void ds_model_ds_mvp_holder_iface_init(DsMvpHolderIface* iface) {
   iface->p_model = G_STRUCT_OFFSET(DsModel, model);
+  iface->set_position = ds_model_ds_mvp_holder_iface_set_position;
+  iface->get_position = ds_model_ds_mvp_holder_iface_get_position;
 }
 
 static gboolean

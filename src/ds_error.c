@@ -58,7 +58,8 @@ _callable_check(DsError* self, lua_State* L)
     (self->error != NULL
      && L != NULL)
   {
-    GError* error = self->error;
+    GError* error =
+    g_steal_pointer(&(self->error));
 
     lua_pushfstring
     (L,
@@ -68,6 +69,7 @@ _callable_check(DsError* self, lua_State* L)
      g_quark_to_string(error->domain),
      error->code,
      error->message);
+    g_error_free(error);
     lua_error(L);
   }
 }
@@ -131,14 +133,7 @@ ds_error_g_value_transform_to_gerror(const GValue* src, GValue* dst)
 {
   DsError* dserror =
   g_value_get_object(src);
-  if(dserror != NULL)
-  {
-    g_value_set_boxed(dst, dserror->error);
-  }
-  else
-  {
-    g_value_set_boxed(dst, NULL);
-  }
+  g_value_set_boxed(dst, dserror->error);
 }
 
 static

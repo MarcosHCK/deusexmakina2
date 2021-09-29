@@ -15,17 +15,9 @@
  *  along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#version 330 core
-out vec3 TexCoords;
+#ifndef __JIT_MACOS_INCLUDED__
+#define __JIT_MACOS_INCLUDED__ 1
 
-layout (location = 0) in vec3 a_Pos;
 
-uniform mat4 a_mvp;
-uniform mat4 a_jvp;
 
-void main()
-{
-  TexCoords = a_Pos;
-  vec4 pos = a_jvp * vec4(a_Pos, 1.0);
-  gl_Position = pos.xyzw;
-}
+#endif // __JIT_MACOS_INCLUDED__

@@ -27,6 +27,7 @@
 |.actionlist actions
 |.globalnames globl_names
 |.externnames extern_names
+|.include jit_macros.h
 
 |.if fastcall_style == "linux"
 |.define arg1, rdi
@@ -86,6 +87,17 @@
 | mov [rdi], rax
 | epilogue
 |1:
+|.endmacro
+
+|.macro movu, uloc
+||if(sizeof(GLuint) > 32)
+||{
+|   mov64 arg1, ((guintptr) uloc)
+||}
+||else
+||{
+|   mov arg1, uloc
+||}
 |.endmacro
 
 G_GNUC_INTERNAL
@@ -209,9 +221,12 @@ _ds_jit_compile_free(JitState* ctx)
 
   if G_UNLIKELY(ctx->block != NULL)
   {
-    munmap
-    (ctx->block,
-     ctx->blocksz);
+#if G_OS_WINDOWS
+    VirtualFree(ctx->block, ctx->blocksz, 0);
+#else
+    munmap(ctx->block, ctx->blocksz);
+#endif // G_OS_WINDOWS
+
     ctx->block = NULL;
     ctx->blocksz = 0;
   }
@@ -298,17 +313,28 @@ _ds_jit_compile_call(JitState  *ctx,
 
 G_GNUC_INTERNAL
 void
-_ds_jit_compile_mvp_model(JitState *ctx,
-                          mat4      model)
+_ds_jit_compile_mvps_jvp(JitState *ctx)
 {
-  if G_LIKELY(ctx->mvpl != (-1))
+  if(ctx->mvps.l_jvp != (-1))
   {
-    | mov arg1, mvps
-    | mov64 arg2, ((guintptr) model)
-    | invoke _ds_jit_helper_update_model
-    | mov arg1, mvps
-    | invoke _ds_jit_helper_update_mvps
-    | mov64 arg1, ((guintptr) ctx->mvpl)
+    GLuint uloc = ctx->mvps.l_jvp;
+    | mov arg1, uloc
+    | mov arg2, 1
+    | mov arg3, GL_FALSE
+    | mov arg4, mvps
+    | add arg4, G_STRUCT_OFFSET(JitMvps, jvp)
+    | invoke glUniformMatrix4fv
+  }
+}
+
+G_GNUC_INTERNAL
+void
+_ds_jit_compile_mvps_mvp(JitState *ctx)
+{
+  if(ctx->mvps.l_mvp != (-1))
+  {
+    GLuint uloc = ctx->mvps.l_mvp;
+    | movu uloc
     | mov arg2, 1
     | mov arg3, GL_FALSE
     | mov arg4, mvps

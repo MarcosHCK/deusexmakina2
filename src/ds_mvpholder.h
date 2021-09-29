@@ -17,7 +17,6 @@
  */
 #ifndef __DS_MVPHOLDER_INCLUDED__
 #define __DS_MVPHOLDER_INCLUDED__ 1
-#include <cglm/cglm.h>
 #include <glib-object.h>
 
 #define DS_TYPE_MVP_HOLDER                (ds_mvp_holder_get_type ())
@@ -38,9 +37,17 @@ ds_mvp_holder_get_type();
 struct _DsMvpHolderIface
 {
   GTypeInterface parent_iface;
+
   goffset p_model;
   goffset p_view;
   goffset p_projection;
+
+  void (*notify_model) (DsMvpHolder* holder);
+  void (*notify_view) (DsMvpHolder* holder);
+  void (*notify_projection) (DsMvpHolder* holder);
+
+  void (*set_position) (DsMvpHolder* holder, gfloat* vec3_);
+  void (*get_position) (DsMvpHolder* holder, gfloat* vec3_);
 };
 
 void
@@ -55,6 +62,10 @@ void
 ds_mvp_holder_set_projection(DsMvpHolder* holder, gfloat* mat4_);
 void
 ds_mvp_holder_get_projection(DsMvpHolder* holder, gfloat* mat4_);
+void
+ds_mvp_holder_set_position(DsMvpHolder* holder, gfloat* vec3_);
+void
+ds_mvp_holder_get_position(DsMvpHolder* holder, gfloat* vec3_);
 
 #if __cplusplus
 }

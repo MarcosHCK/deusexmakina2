@@ -38,7 +38,7 @@ typedef struct _DsTextEntry DsTextEntry;
 static mat4 scale;
 
 static void
-ds_text_entry(DsTextEntry* entry);
+ds_text_entry_free(DsTextEntry* entry);
 
 /*
  * Object definition
@@ -242,7 +242,7 @@ ds_text_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, G
       {
         self->texts = (DsTextList*)
         g_list_remove_link(&(self->texts->list_), &(list->list_));
-        ds_text_entry(list->c);
+        ds_text_entry_free(list->c);
       }
     }
   }
@@ -345,8 +345,8 @@ void ds_text_class_constructed(GObject* pself) {
 G_OBJECT_CLASS(ds_text_parent_class)->constructed(pself);
 }
 
-static void
-ds_text_entry(DsTextEntry* entry)
+static void inline
+ds_text_entry_dispose(DsTextEntry* entry)
 {
   __gl_try_catch(
     glDeleteVertexArrays(1, &(entry->vao));
@@ -361,7 +361,12 @@ ds_text_entry(DsTextEntry* entry)
      glerror->message);
     g_error_free(glerror);
   );
+}
 
+static void
+ds_text_entry_free(DsTextEntry* entry)
+{
+  ds_text_entry_dispose(entry);
   g_slice_free(DsTextEntry, entry);
 }
 
@@ -374,7 +379,7 @@ void ds_text_class_finalize(GObject* pself) {
       list != NULL;
       list = list->next)
   {
-    ds_text_entry(list->c);
+    ds_text_entry_free(list->c);
     list->c = NULL;
   }
 G_OBJECT_CLASS(ds_text_parent_class)->finalize(pself);
@@ -520,6 +525,8 @@ ds_text_print(DsText         *text,
     data =
     (DsTextEntry*)
     handle;
+
+    ds_text_entry_dispose(data);
   }
 
 /*
@@ -530,13 +537,16 @@ ds_text_print(DsText         *text,
   data->vao = ds_steal_handle_id(&vao);
   data->vbo = ds_steal_handle_id(&vbo);
   data->nvt = n_vertices;
+  data->df = FALSE;
 
   handle = (DsTextHandle) data;
 _error_:
   if G_UNLIKELY(success == FALSE)
     handle = NULL;
-  glDeleteVertexArrays(1, &vao);
-  glDeleteBuffers(1, &vbo);
+  if G_UNLIKELY(vao != 0)
+    glDeleteVertexArrays(1, &vao);
+  if G_UNLIKELY(vbo != 0)
+    glDeleteBuffers(1, &vbo);
 return handle;
 }
 

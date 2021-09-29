@@ -57,8 +57,8 @@ luaD_tovalue(lua_State* L,
 }
 
 void
-luaD_pushobject(lua_State  *L,
-                GObject    *obj)
+(luaD_pushobject)(lua_State  *L,
+                  GObject    *obj)
 {
   GObject** ptr = (GObject**)
   lua_newuserdata(L, sizeof(GObject*));
@@ -99,8 +99,8 @@ return FALSE;
 }
 
 GObject*
-luaD_toobject(lua_State  *L,
-              int         idx)
+(luaD_toobject)(lua_State  *L,
+                int         idx)
 {
   GObject **ptr =
   lua_touserdata(L, idx);
@@ -131,8 +131,8 @@ return NULL;
 }
 
 GObject*
-luaD_checkobject(lua_State  *L,
-                 int         arg)
+(luaD_checkobject)(lua_State *L,
+                   int        arg)
 {
   gboolean is =
   luaD_isobject(L, arg);

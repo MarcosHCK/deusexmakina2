@@ -87,6 +87,8 @@ struct _DsApplicationPrivate
   SDL_GLContext* glctx;
   guint glew_init;
   DsRendererData* renderer_data;
+  guint source_renderer;
+  guint source_events;
 };
 
 enum {
@@ -552,6 +554,8 @@ G_OBJECT_CLASS(ds_application_parent_class)->finalize(pself);
 static
 void ds_application_class_dispose(GObject* pself) {
   DsApplication* self = DS_APPLICATION(pself);
+  g_clear_handle_id(&(self->priv->source_renderer), g_source_remove);
+  g_clear_handle_id(&(self->priv->source_events), g_source_remove);
   g_clear_object(&(self->pipeline));
   g_clear_object(&(self->priv->renderer_data));
   g_clear_object(&(self->priv->cache_provider));
@@ -637,11 +641,13 @@ void on_activate(DsApplication* self) {
   (source,
    (GSourceFunc)
    _ds_renderer_step,
-   g_object_ref(self->priv->renderer_data),
-   g_object_unref);
+   self->priv->renderer_data,
+   NULL);
 
   g_source_set_priority(source, G_PRIORITY_DEFAULT_IDLE);
   g_source_set_name(source, "Renderer source");
+
+  self->priv->source_renderer =
   g_source_attach(source, context);
   g_source_unref(source);
 
@@ -657,11 +663,13 @@ void on_activate(DsApplication* self) {
   (source,
    (GSourceFunc)
    _ds_events_poll,
-   g_object_ref(self->priv->renderer_data),
-   g_object_unref);
+   self->priv->renderer_data,
+   NULL);
 
   g_source_set_priority(source, G_PRIORITY_DEFAULT_IDLE);
   g_source_set_name(source, "Events poll source");
+
+  self->priv->source_events =
   g_source_attach(source, context);
   g_source_unref(source);
 
@@ -734,7 +742,6 @@ main(int    argc,
  *
  */
 
-  while(g_source_remove_by_user_data(app));
   lua_gc(DS_APPLICATION(app)->L, LUA_GCCOLLECT, 1);
   g_object_unref(app);
 return status;

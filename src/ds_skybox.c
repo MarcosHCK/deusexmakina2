@@ -70,8 +70,6 @@ struct _DsSkybox
       GLuint ebo;
     };
   };
-
-  mat4 scale;
 };
 
 struct _DsSkyboxClass
@@ -606,8 +604,6 @@ ds_skybox_ds_renderable_iface_compile(DsRenderable   *pself,
  *
  */
 
-  ds_render_state_model(state, (gfloat*) self->scale);
-
   /* update depth function */
   ds_render_state_pcall
   (state,
@@ -616,19 +612,48 @@ ds_skybox_ds_renderable_iface_compile(DsRenderable   *pself,
    (guintptr) GL_LEQUAL);
 
   /* activate texture */
-  ds_render_state_pcall
-  (state,
-   G_CALLBACK(glActiveTexture),
-   1,
-   (guintptr) GL_TEXTURE0);
-
+#if GL_VERSION_4_5 == 1
   /* bind texture to texture unit */
   ds_render_state_pcall
   (state,
-   G_CALLBACK(glBindTexture),
+   G_CALLBACK(glBindTextureUnit),
    2,
-   (guintptr) GL_TEXTURE_CUBE_MAP,
+   (guintptr) 0,
    (guintptr) self->tio);
+#else // GL_VERSION_4_5
+# if GL_ARB_direct_state_access == 1
+  if G_LIKELY(GLEW_ARB_direct_state_access == TRUE)
+  {
+    /* bind texture to texture unit */
+    ds_render_state_pcall
+    (state,
+     G_CALLBACK(glBindTextureUnit),
+     2,
+     (guintptr) 0,
+     (guintptr) self->tio);
+    g_print("texture unit\r\n");
+  }
+  else
+  {
+# endif // GL_ARB_direct_state_access
+    /* activate texture unit */
+    ds_render_state_pcall
+    (state,
+     G_CALLBACK(glActiveTexture),
+     1,
+     (guintptr) GL_TEXTURE0);
+
+    /* bind texture to texture unit */
+    ds_render_state_pcall
+    (state,
+     G_CALLBACK(glBindTexture),
+     2,
+     (guintptr) GL_TEXTURE_CUBE_MAP,
+     (guintptr) self->tio);
+# if GL_ARB_direct_state_access == 1
+  }
+# endif // GL_ARB_direct_state_access
+#endif // GL_VERSION_4_5
 
   /* bind vertex array */
   ds_render_state_pcall
@@ -782,10 +807,6 @@ void ds_skybox_class_init(DsSkyboxClass* klass) {
 
 static
 void ds_skybox_init(DsSkybox* self) {
-  vec3 scale;
-  glm_mat4_identity(self->scale);
-  glm_vec3_fill(scale, 10.f);
-  glm_scale(self->scale, scale);
 }
 
 /*

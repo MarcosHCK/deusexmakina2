@@ -16,6 +16,7 @@
  *
  */
 #include <config.h>
+#include <ds_error.h>
 #include <ds_lua.h>
 #include <ds_macros.h>
 
@@ -185,7 +186,7 @@ reporter(lua_State* L)
   if G_UNLIKELY(err == NULL)
   {
     if(luaL_callmeta(L, 1, "__tostring") && lua_type(L, -1) == LUA_TSTRING)
-      return 1;
+      err = lua_tostring(L, -1);
     else
       err = lua_pushfstring(L, "(error object is a %s value)", lua_typename(L, 1));
   }
@@ -196,9 +197,9 @@ return 1;
 
 gboolean
 luaD_xpcall(lua_State  *L,
-          int         argc,
-          int         retn,
-          GError    **error)
+            int         argc,
+            int         retn,
+            GError    **error)
 {
   g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
   lua_pushcfunction(L, reporter);

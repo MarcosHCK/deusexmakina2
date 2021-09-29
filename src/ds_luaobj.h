@@ -49,6 +49,13 @@ GObject*
 luaD_checkobject(lua_State  *L,
                  int         arg);
 
+#define luaD_pushobject(L, object) \
+  (luaD_pushobject((L), ((GObject*) (object))))
+#define luaD_toobject(L, narg) \
+  ((gpointer) luaD_toobject((L), (narg)))
+#define luaD_checkobject(L, narg) \
+  ((gpointer) luaD_checkobject((L), (narg)))
+
 #if __cplusplus
 }
 #endif // __cplusplus

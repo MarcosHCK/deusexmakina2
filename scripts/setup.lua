@@ -15,8 +15,9 @@
 -- You should have received a copy of the GNU General Public License
 -- along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
 --]]
-local ds = require('ds');
 local application, cancellable = ...;
+local event = require('event');
+local ds = require('ds');
 
 --[[
 --
@@ -34,7 +35,7 @@ local debug_ = _ENV["DS_DEBUG"] == 'true';
 do
   local pipeline = application.pipeline;
   local shader, skybox, font, text;
-  local error = ds.type.DsError();
+  local tmp_err = ds.type.DsError();
 
 --[[
 --
@@ -49,8 +50,8 @@ do
     nil,
     nil,
     cancellable,
-    error:ref());
-  error:check();
+    tmp_err:ref());
+  tmp_err:check();
 
   pipeline:register_shader('model', ds.priority.default, shader);
 
@@ -67,8 +68,8 @@ do
     nil,
     nil,
     cancellable,
-    error:ref());
-  error:check();
+    tmp_err:ref());
+  tmp_err:check();
 
   pipeline:register_shader('skybox', ds.priority.higher, shader);
 
@@ -85,8 +86,8 @@ do
     nil,
     nil,
     cancellable,
-    error:ref());
-  error:check();
+    tmp_err:ref());
+  tmp_err:check();
 
   pipeline:register_shader('text', ds.priority.lower, shader);
 
@@ -100,8 +101,8 @@ do
     ds.ASSETSDIR .. '/skybox/',
     '%s.dds',
     cancellable,
-    error:ref());
-  error:check();
+    tmp_err:ref());
+  tmp_err:check();
 
   pipeline:append_object('skybox', ds.priority.default, skybox);
 
@@ -113,11 +114,11 @@ do
 
   font = ds.type.DsFont.new_simple(
     ds.ASSETSDIR .. '/Unknown.ttf',
-    12,
+    13,
     nil,
     cancellable,
-    error:ref());
-  error:check();
+    tmp_err:ref());
+  tmp_err:check();
 
 --[[
 --
@@ -128,8 +129,8 @@ do
   text = ds.type.DsText.new(font);
   pipeline:append_object('text', ds.priority.default, text);
 
-  text:print(nil, require('build').PACKAGE_STRING, 2, 600 - 12 - 2, cancellable, error:ref());
-  error:check();
+  text:print(nil, require('build').PACKAGE_STRING, 2, 600 - 12 - 2, cancellable, tmp_err:ref());
+  tmp_err:check();
 
 --[[
 --
@@ -137,6 +138,17 @@ do
 --
 --]]
 
-  pipeline:update(cancellable, error:ref());
-  error:check();
+  pipeline:update(cancellable, tmp_err:ref());
+  tmp_err:check();
+end
+
+-- Register default event tmp_err handler
+do
+  function event.onError(reason)
+    if(type(reason) == 'string') then
+      io.stderr:write(string.format('%s\r\n', reason));
+    else
+      io.stderr:write(string.format('Unsupported tmp_err reasoning of type \'%s\'\r\n', type(reason)));
+    end
+  end
 end

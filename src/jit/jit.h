@@ -42,10 +42,14 @@ typedef struct {
  * pointer as 'mvp' address
  *
  */
-  mat4 mvp;
+  mat4 mvp;         /* model-view-projection matrix */
+  mat4 jvp;         /* just view-projection matrix  */
   mat4 projection;
   mat4 view;
   mat4 model;
+
+  GLuint l_mvp;
+  GLuint l_jvp;
 } JitMvps;
 
 typedef struct {
@@ -56,7 +60,6 @@ typedef struct {
   gpointer block;
   gsize blocksz;
   JitMvps mvps;
-  GLuint mvpl;
 } JitState;
 
 typedef void (*JitMain) (gpointer instance, JitMvps* mvps, GError** error);
@@ -94,13 +97,16 @@ _ds_jit_compile_call(JitState  *ctx,
                      gboolean  protected_,
                      guint      n_params,
                      ...);
+
 G_GNUC_INTERNAL
 void
-_ds_jit_compile_mvp_model(JitState *ctx,
-                          mat4      model);
+_ds_jit_compile_mvps_jvp(JitState *ctx);
+G_GNUC_INTERNAL
+void
+_ds_jit_compile_mvps_mvp(JitState *ctx);
 
 /*
- * Internal API
+ * Helpers
  *
  */
 

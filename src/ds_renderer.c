@@ -26,7 +26,6 @@ G_GNUC_INTERNAL
 gboolean
 _ds_renderer_step(DsRendererData* data)
 {
-  glClearColor(0.f, 0.f, 0.f, 0.f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 /*
@@ -238,6 +237,13 @@ _ds_renderer_init(DsApplication  *self,
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glCullFace(GL_BACK);
     glFrontFace(GL_CCW);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+  __gl_try_catch(
+    glClearColor(0.f, 0.f, 0.f, 0.f);
   ,
     g_propagate_error(error, glerror);
     goto_error();

@@ -34,10 +34,14 @@ void update_projection(DsRendererData* self);
  *
  */
 
+#define n_connections 5
+
 struct _DsRendererDataPrivate
 {
   GSettings* gsettings;
   SDL_Window* window;
+
+  gulong connections[n_connections];
 
   gfloat fov;
   gint width;
@@ -163,30 +167,35 @@ ds_renderer_data_g_initable_init_sync(GInitable* pself, GCancellable* cancellabl
   d->fov = (gfloat) fov;
   d->sensitivity = (gfloat) sensitivity;
 
+  d->connections[0] =
   g_signal_connect
   (d->gsettings,
    "changed::width",
    G_CALLBACK(on_width_changed),
    self);
 
+  d->connections[1] =
   g_signal_connect
   (d->gsettings,
    "changed::height",
    G_CALLBACK(on_height_changed),
    self);
 
+  d->connections[2] =
   g_signal_connect
   (d->gsettings,
    "changed::framelimit",
    G_CALLBACK(on_framelimit_changed),
    self);
 
+  d->connections[3] =
   g_signal_connect
   (d->gsettings,
    "changed::sensitivity",
    G_CALLBACK(on_sensitivity_changed),
    self);
 
+  d->connections[4] =
   g_signal_connect
   (d->gsettings,
    "changed::fov",
@@ -195,7 +204,6 @@ ds_renderer_data_g_initable_init_sync(GInitable* pself, GCancellable* cancellabl
 
   ds_renderer_data_force_update(self);
 _error_:
-  g_clear_object(&(self->priv->gsettings));
 return success;
 }
 
@@ -225,7 +233,18 @@ void ds_renderer_data_class_set_property(GObject* pself, guint prop_id, const GV
 static
 void ds_renderer_data_class_dispose(GObject* pself) {
   DsRendererData* self = DS_RENDERER_DATA(pself);
-  g_clear_object(&(self->priv->gsettings));
+  guint i;
+
+  for(i = 0;
+      i < n_connections;
+      i++)
+  if(d->connections[i] != 0)
+  {
+    g_signal_handler_disconnect(d->gsettings, d->connections[i]);
+    d->connections[i] = 0;
+  }
+
+  g_clear_object(&(d->gsettings));
 G_OBJECT_CLASS(ds_renderer_data_parent_class)->dispose(pself);
 }
 

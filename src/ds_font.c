@@ -138,6 +138,8 @@ struct _DsFont
   gint font_size;
   DsGlyph* glyphs;
   guint n_glyphs;
+  guint64 image_w;
+  guint64 image_h;
   GLuint tio;
 };
 
@@ -610,6 +612,8 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
 
   self->glyphs = g_steal_pointer(&glyphs);
   self->n_glyphs = n_glyphs;
+  self->image_w = image_w;
+  self->image_h = image_h;
   self->tio = tio;
   tio = 0;
 
@@ -884,6 +888,7 @@ _ds_font_generate_vao(DsFont         *font,
   DsGlyph* glyphs = font->glyphs;
   guint n_glyphs = font->n_glyphs;
   DsGlyph* glyph = NULL;
+  gunichar char_;
   guint i, j;
 
   gsize length = g_utf8_strlen(text, -1);
@@ -946,16 +951,27 @@ _ds_font_generate_vao(DsFont         *font,
       letter != NULL && letter[0] != '\0';
       letter = g_utf8_next_char(letter), i++)
   {
+    char_ =
+    g_utf8_get_char(letter);
+    switch(char_)
+    {
+    case '\n':
+      y_off += (gfloat) font->image_h;
+    case '\r':
+      x_off = xy[0];
+      continue;
+    }
+
     glyph =
-    search_glyph(glyphs, n_glyphs, g_utf8_get_char(letter));
+    search_glyph(glyphs, n_glyphs, char_);
     if G_UNLIKELY(glyph == NULL)
     {
       g_set_error
       (error,
        DS_FONT_ERROR,
        DS_FONT_ERROR_UNKNOWN_GLYPH,
-       "Unknown glyph '%.*s'\r\n",
-       1, letter);
+       "Unknown glyph '%C'\r\n",
+       char_);
       goto_error();
     }
 

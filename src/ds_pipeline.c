@@ -55,7 +55,8 @@ struct _DsPipeline
   GObject parent_instance;
 
   /*<private>*/
-  guint modified : 1;
+  gboolean modified;
+  gboolean notified;
   JitState ctx;
   JitMain main;
 
@@ -205,8 +206,16 @@ void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
    G_TYPE_POINTER);
 }
 
-static
-void ds_pipeline_ds_mvp_holder_iface_init(DsMvpHolderIface* iface)
+static void
+ds_pipeline_ds_mvp_holder_iface_notify(DsMvpHolder* pself)
+{
+  DsPipeline* self = ((DsPipeline*) pself);
+  _ds_jit_helper_update_mvps(&(self->ctx.mvps));
+  self->notified = TRUE;
+}
+
+static void
+ds_pipeline_ds_mvp_holder_iface_init(DsMvpHolderIface* iface)
 {
   iface->p_model =
     G_STRUCT_OFFSET(DsPipeline, ctx)
@@ -222,6 +231,9 @@ void ds_pipeline_ds_mvp_holder_iface_init(DsMvpHolderIface* iface)
     G_STRUCT_OFFSET(DsPipeline, ctx)
   + G_STRUCT_OFFSET(JitState, mvps)
   + G_STRUCT_OFFSET(JitMvps, projection);
+
+  iface->notify_view = ds_pipeline_ds_mvp_holder_iface_notify;
+  iface->notify_projection = ds_pipeline_ds_mvp_holder_iface_notify;
 }
 
 static
@@ -290,6 +302,10 @@ void ds_pipeline_class_init(DsPipelineClass* klass) {
 
 static
 void ds_pipeline_init(DsPipeline* self) {
+  mat4 init = GLM_MAT4_IDENTITY_INIT;
+  ds_mvp_holder_set_model(DS_MVP_HOLDER(self), (gfloat*) init);
+  ds_mvp_holder_set_view(DS_MVP_HOLDER(self), (gfloat*) init);
+  ds_mvp_holder_set_projection(DS_MVP_HOLDER(self), (gfloat*) init);
 }
 
 /*
@@ -487,6 +503,23 @@ ds_pipeline_remove_object(DsPipeline   *pipeline,
   entry->n_objects--;
 }
 
+static void
+jvp_query_start(GLuint uloc, gboolean* pnotified, const GLfloat* mat4_)
+{
+  if G_UNLIKELY
+    (*pnotified == TRUE
+     && uloc != (-1))
+  {
+    glUniformMatrix4fv(uloc, 1, FALSE, mat4_);
+  }
+}
+
+static void
+jvp_query_end(gboolean* pnotified)
+{
+  *pnotified = FALSE;
+}
+
 gboolean
 ds_pipeline_update(DsPipeline    *pipeline,
                    GCancellable  *cancellable,
@@ -520,7 +553,7 @@ ds_pipeline_update(DsPipeline    *pipeline,
     _ds_shader_get_pid(entry->shader);
 
   /*
-   * Prepare mvp
+   * Prepare mvps
    *
    */
 
@@ -532,7 +565,14 @@ ds_pipeline_update(DsPipeline    *pipeline,
     );
 
     __gl_try_catch(
-      ctx->mvpl = glGetUniformLocation(program, "a_mvp");
+      ctx->mvps.l_mvp = glGetUniformLocation(program, "a_mvp");
+    ,
+      g_propagate_error(error, glerror);
+      goto_error();
+    );
+
+    __gl_try_catch(
+      ctx->mvps.l_jvp = glGetUniformLocation(program, "a_jvp");
     ,
       g_propagate_error(error, glerror);
       goto_error();
@@ -550,6 +590,16 @@ ds_pipeline_update(DsPipeline    *pipeline,
      TRUE,
      1,
      (guintptr) program);
+
+    /* check if jvp must be updated */
+    _ds_jit_compile_call
+    (ctx,
+     G_CALLBACK(jvp_query_start),
+     TRUE,
+     3,
+     (guintptr) ctx->mvps.l_jvp,
+     (guintptr) &(pipeline->notified),
+     (guintptr) ctx->mvps.jvp);
 
     /* propagate compile */
     for(olist = entry->objects;
@@ -571,6 +621,14 @@ ds_pipeline_update(DsPipeline    *pipeline,
         goto_error();
       }
     }
+
+    /* reset jvp update flag */
+    _ds_jit_compile_call
+    (ctx,
+     G_CALLBACK(jvp_query_end),
+     FALSE,
+     1,
+     (guintptr) &(pipeline->notified));
   }
 
   /* finalize code */
