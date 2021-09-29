@@ -28,9 +28,9 @@
 #include <ds_dds.h>
 #include <ds_macros.h>
 #include <ds_model.h>
+#include <ds_mvpholder.h>
 #include <ds_renderable.h>
 #include <SDL.h>
-#include <SDL_image.h>
 
 G_DEFINE_QUARK(ds-model-error-quark,
                ds_model_error);
@@ -41,6 +41,8 @@ static
 void ds_model_g_initable_iface_init(GInitableIface* iface);
 static
 void ds_model_ds_callable_iface_init(DsCallableIface* iface);
+static
+void ds_model_ds_mvp_holder_iface_init(DsMvpHolderIface* iface);
 static
 void ds_model_ds_renderable_iface_init(DsRenderableIface* iface);
 
@@ -94,6 +96,8 @@ struct _DsModel
       MeshList* prev;
     };
   } *meshes;
+
+  mat4 model;
 };
 
 union _VertexArray
@@ -158,6 +162,9 @@ G_DEFINE_TYPE_WITH_CODE
  G_IMPLEMENT_INTERFACE
  (DS_TYPE_CALLABLE,
   ds_model_ds_callable_iface_init)
+ G_IMPLEMENT_INTERFACE
+ (DS_TYPE_MVP_HOLDER,
+  ds_model_ds_mvp_holder_iface_init)
  G_IMPLEMENT_INTERFACE
  (DS_TYPE_RENDERABLE,
   ds_model_ds_renderable_iface_init));
@@ -964,6 +971,11 @@ void ds_model_ds_callable_iface_init(DsCallableIface* iface) {
    G_TYPE_STRING,
    G_TYPE_CANCELLABLE,
    G_TYPE_POINTER);
+}
+
+static
+void ds_model_ds_mvp_holder_iface_init(DsMvpHolderIface* iface) {
+  iface->p_model = G_STRUCT_OFFSET(DsModel, model);
 }
 
 static gboolean
