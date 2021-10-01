@@ -16,7 +16,7 @@
  *
  */
 #ifndef __DS_RENDERABLE_INCLUDED__
-#define __DS_RENDERABLE_INCLUDED__
+#define __DS_RENDERABLE_INCLUDED__ 1
 #include <gio/gio.h>
 #include <ds_gl.h>
 

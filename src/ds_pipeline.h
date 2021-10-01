@@ -16,7 +16,7 @@
  *
  */
 #ifndef __DS_PIPELINE_INCLUDED__
-#define __DS_PIPELINE_INCLUDED__
+#define __DS_PIPELINE_INCLUDED__ 1
 #include <ds_renderable.h>
 #include <ds_shader.h>
 #include <gio/gio.h>

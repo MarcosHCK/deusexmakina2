@@ -16,7 +16,7 @@
  *
  */
 #ifndef __DS_GL_INCLUDED__
-#define __DS_GL_INCLUDED__
+#define __DS_GL_INCLUDED__ 1
 #include <glib-object.h>
 #include <GL/glew.h>
 

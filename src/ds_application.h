@@ -37,8 +37,6 @@
  * @DS_APPLICATION_ERROR_GSETTINGS_INIT: main settings initialization error.
  * @DS_APPLICATION_ERROR_LUA_INIT: Lua engine initialization error.
  * @DS_APPLICATION_ERROR_SDL2_INIT: SDL2 initialization error.
- * @DS_APPLICATION_ERROR_SDL2_IMG_INIT: SDL2_IMG initialization error.
- * @DS_APPLICATION_ERROR_SDL2_TTF_INIT: SDL2_TTF initialization error.
  * @DS_APPLICATION_ERROR_SDL2_WINDOW_INIT: SDL2 Window initialization error.
  * @DS_APPLICATION_ERROR_GLEW_INIT: glew initialization error.
  *
@@ -51,8 +49,6 @@ typedef enum {
   DS_APPLICATION_ERROR_GSETTINGS_INIT,
   DS_APPLICATION_ERROR_LUA_INIT,
   DS_APPLICATION_ERROR_SDL2_INIT,
-  DS_APPLICATION_ERROR_SDL2_IMG_INIT,
-  DS_APPLICATION_ERROR_SDL2_TTF_INIT,
   DS_APPLICATION_ERROR_SDL2_WINDOW_INIT,
   DS_APPLICATION_ERROR_GL_CONTEXT_INIT,
   DS_APPLICATION_ERROR_GLEW_INIT,
@@ -73,10 +69,10 @@ typedef struct _DsApplicationClass    DsApplicationClass;
 extern "C" {
 #endif // __cplusplus
 
-GType
-ds_application_get_type();
 GQuark
 ds_application_error_quark();
+GType
+ds_application_get_type();
 
 struct _DsApplication
 {

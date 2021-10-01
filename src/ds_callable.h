@@ -16,7 +16,7 @@
  *
  */
 #ifndef __DS_CALLABLE_INCLUDED__
-#define __DS_CALLABLE_INCLUDED__
+#define __DS_CALLABLE_INCLUDED__ 1
 #include <ds_marshals.h>
 #include <ds_closure.h>
 #include <gio/gio.h>

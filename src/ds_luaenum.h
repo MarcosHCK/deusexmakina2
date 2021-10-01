@@ -16,7 +16,7 @@
  *
  */
 #ifndef __DS_LUAENUM_INCLUDED__
-#define __DS_LUAENUM_INCLUDED__
+#define __DS_LUAENUM_INCLUDED__ 1
 #include <ds_lua.h>
 #include <glib-object.h>
 

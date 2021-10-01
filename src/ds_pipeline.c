@@ -124,26 +124,8 @@ void ds_pipeline_g_initable_iface_init(GInitableIface* iface) {
   iface->init = ds_pipeline_g_initable_iface_init_sync;
 }
 
-static DsPipeline*
-_callable_new(gpointer null_, GCancellable* cancellable, GError** error)
-{
-  return ds_pipeline_new(cancellable, error);
-}
-
 static
 void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
-  ds_callable_iface_add_method
-  (iface,
-   "new",
-   DS_CLOSURE_CONSTRUCTOR,
-   G_CALLBACK(_callable_new),
-   ds_cclosure_marshal_OBJECT__OBJECT_POINTER,
-   ds_cclosure_marshal_OBJECT__OBJECT_POINTERv,
-   DS_TYPE_PIPELINE,
-   2,
-   G_TYPE_CANCELLABLE,
-   G_TYPE_POINTER);
-
   ds_callable_iface_add_method
   (iface,
    "register_shader",

@@ -16,7 +16,7 @@
  *
  */
 #ifndef __DS_EVENTS_INCLUDED__
-#define __DS_EVENTS_INCLUDED__
+#define __DS_EVENTS_INCLUDED__ 1
 #include <gio/gio.h>
 
 #define DS_TYPE_EVENTS            (ds_events_get_type())

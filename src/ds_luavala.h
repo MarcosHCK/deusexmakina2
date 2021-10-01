@@ -16,7 +16,7 @@
  *
  */
 #ifndef __DS_LUAVALA_INCLUDED__
-#define __DS_LUAVALA_INCLUDED__
+#define __DS_LUAVALA_INCLUDED__ 1
 
 #include <ds_luaboxed.h>
 #include <ds_luaclass.h>

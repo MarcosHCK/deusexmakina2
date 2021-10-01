@@ -16,7 +16,7 @@
  *
  */
 #ifndef __DS_ERROR_INCLUDED__
-#define __DS_ERROR_INCLUDED__
+#define __DS_ERROR_INCLUDED__ 1
 #include <glib-object.h>
 
 #define DS_TYPE_ERROR             (ds_error_get_type())

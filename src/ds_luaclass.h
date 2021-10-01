@@ -16,7 +16,7 @@
  *
  */
 #ifndef __DS_LUACLASS_INCLUDED__
-#define __DS_LUACLASS_INCLUDED__
+#define __DS_LUACLASS_INCLUDED__ 1
 #include <ds_lua.h>
 #include <glib-object.h>
 

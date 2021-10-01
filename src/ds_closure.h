@@ -16,7 +16,7 @@
  *
  */
 #ifndef __DS_CLOSURE_INCLUDED__
-#define __DS_CLOSURE_INCLUDED__
+#define __DS_CLOSURE_INCLUDED__ 1
 #include <glib-object.h>
 
 /**

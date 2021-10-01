@@ -16,7 +16,7 @@
  *
  */
 #ifndef __DS_DDS_INCLUDED__
-#define __DS_DDS_INCLUDED__
+#define __DS_DDS_INCLUDED__ 1
 #include <gio/gio.h>
 
 /**

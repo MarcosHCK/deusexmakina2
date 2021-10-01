@@ -16,7 +16,7 @@
  *
  */
 #ifndef __DS_SHADER_INCLUDED__
-#define __DS_SHADER_INCLUDED__
+#define __DS_SHADER_INCLUDED__ 1
 #include <ds_folder_provider.h>
 #include <cglm/cglm.h>
 #include <gio/gio.h>

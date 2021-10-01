@@ -16,7 +16,7 @@
  *
  */
 #ifndef __DS_LUACLOSURE_INCLUDED__
-#define __DS_LUACLOSURE_INCLUDED__
+#define __DS_LUACLOSURE_INCLUDED__ 1
 #include <ds_closure.h>
 #include <ds_luaobj.h>
 
