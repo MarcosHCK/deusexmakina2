@@ -550,6 +550,9 @@ void ds_application_class_finalize(GObject* pself) {
   _SDL_GL_DeleteContext0(self->priv->glctx);
   _SDL_DestroyWindow0(self->priv->window);
   _SDL_fini0(self->priv->sdl_init);
+
+  /* Find out if Lua uses application object it won't be destroyed  */
+  /* because Lua holds a reference                                  */
   _lua_close0(self->L);
 G_OBJECT_CLASS(ds_application_parent_class)->finalize(pself);
 }
@@ -702,7 +705,8 @@ main(int    argc,
  *
  */
 
-  lua_gc(DS_APPLICATION(app)->L, LUA_GCCOLLECT, 1);
-  g_object_unref(app);
+  lua_gc(DS_APPLICATION(app)->L, LUA_GCCOLLECT, 1);         /* Collects all unused references, thus it may destroy some objects */
+  g_clear_pointer(&(DS_APPLICATION(app)->L), _lua_close0);  /* Release a possibly held reference to application object          */
+  g_assert_finalize_object(app);                            /* Finally destroy application object                               */
 return status;
 }
