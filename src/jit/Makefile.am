@@ -30,25 +30,11 @@ EXTRA_DIST=
 VOID=
 
 #
-# Build minilua
-# if luajit is not present
-#
-
-if MINILUA_LOCAL
-noinst_PROGRAMS=minilua
-minilua_SOURCES=minilua.c
-minilua_CFLAGS=
-minilua_LDADD=-lm
-else
-EXTRA_DIST+=minilua.c
-endif
-
-#
 # *.dasc.c to *.c make target
 #
 
 %.c: %.dasc.c
-	$(MINILUA) ${top_builddir}/dynasm/dynasm.lua -D fastcall_style=\"${fastcall_style}\" -o $(@:.dynasm.c=.c) $<
+	$(DYNASM) -D fastcall_style=\"${fastcall_style}\" -o $(@:.dynasm.c=.c) $<
 
 #
 # C headers
@@ -97,7 +83,8 @@ libjit_la_CFLAGS=\
 	-DPKGDATADIR=\"${pkgdatadir}\" \
 	-DPKGLIBEXECDIR=\"${pkglibexecdir}\" \
 	-DABSTOPBUILDDIR=\"${abs_top_builddir}\" \
-	-DGAPPNAME=\"org.hck.${PACKAGE_NAME}\"
+	-DGAPPNAME=\"org.hck.${PACKAGE_NAME}\" \
+	-I${top_builddir}/build/ \
 	$(VOID)
 
 libjit_la_LDFLAGS=\

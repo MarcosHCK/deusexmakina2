@@ -146,7 +146,7 @@ ds_render_state_model(DsRenderState  *state,
   JitState* ctx = (JitState*) state;
   JitMvps* mvps = (JitMvps*) &(ctx->mvps);
 
-  _ds_jit_helper_update_model(mvps, mvp_model);
+  _ds_jit_helper_update_model(mvps, (gpointer) mvp_model);
   _ds_jit_helper_update_mvps(mvps);
   _ds_jit_compile_mvps_mvp(ctx);
 }

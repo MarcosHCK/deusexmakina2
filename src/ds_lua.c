@@ -23,6 +23,19 @@
 G_DEFINE_QUARK(ds-lua-error-quark,
                ds_lua_error);
 
+typedef struct _DsQData DsQData;
+
+struct _DsQData
+{
+  gpointer user_data;
+  GDestroyNotify notify;
+};
+
+/*
+ * Methods
+ *
+ */
+
 G_GNUC_INTERNAL
 G_GNUC_NORETURN
 int

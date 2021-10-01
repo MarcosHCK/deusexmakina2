@@ -16,15 +16,6 @@
  *
  */
 
-namespace Ds
-{
-  [Compact]
-  public class Closure : GLib.Closure
-  {
-    GLib.Closure closure_;
-  }
-}
-
 [CCode (cprefix = "luaD_", lower_case_cprefix = "luaD_", cheader_filename = "ds_luavala.h")]
 namespace luaD
 {

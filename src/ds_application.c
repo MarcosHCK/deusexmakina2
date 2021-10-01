@@ -33,8 +33,6 @@ G_DEFINE_QUARK(ds-application-error-quark,
 static
 void ds_application_g_initiable_iface_init(GInitableIface* iface);
 
-#define _g_object_unref0(var) ((var == NULL) ? NULL : (var = (g_object_unref (var), NULL)))
-
 /*
  * Clean-up
  *

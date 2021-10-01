@@ -494,63 +494,18 @@ void ds_skybox_g_initable_iface_init(GInitableIface* iface) {
   iface->init = ds_skybox_g_initable_iface_init_sync;
 }
 
-static DsSkybox*
-_callable_new(gpointer      null_,
-              GFile        *source,
-              const gchar  *name,
-              GCancellable *cancellable,
-              GError      **error)
-{
-  return
-  ds_skybox_new
-  (source,
-   name,
-   cancellable,
-   error);
-}
-
-static DsSkybox*
-_callable_new_simple(gpointer      null_,
-                     const gchar  *source,
-                     const gchar  *name,
-                     GCancellable *cancellable,
-                     GError      **error)
-{
-  GFile *source_ = NULL;
-  source_ = g_file_new_for_path(source);
-
-  DsSkybox* skybox =
-  ds_skybox_new(source_, name, cancellable, error);
-  g_object_unref(source_);
-return skybox;
-}
-
 static
 void ds_skybox_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "new",
    DS_CLOSURE_CONSTRUCTOR,
-   G_CALLBACK(_callable_new),
+   G_CALLBACK(ds_skybox_new),
    ds_cclosure_marshal_OBJECT__OBJECT_STRING_OBJECT_POINTER,
    ds_cclosure_marshal_OBJECT__OBJECT_STRING_OBJECT_POINTERv,
    G_TYPE_OBJECT,
    4,
    G_TYPE_FILE,
-   G_TYPE_STRING,
-   G_TYPE_CANCELLABLE,
-   G_TYPE_POINTER);
-
-  ds_callable_iface_add_method
-  (iface,
-   "new_simple",
-   DS_CLOSURE_CONSTRUCTOR,
-   G_CALLBACK(_callable_new_simple),
-   ds_cclosure_marshal_OBJECT__STRING_STRING_OBJECT_POINTER,
-   ds_cclosure_marshal_OBJECT__STRING_STRING_OBJECT_POINTERv,
-   G_TYPE_OBJECT,
-   4,
-   G_TYPE_STRING,
    G_TYPE_STRING,
    G_TYPE_CANCELLABLE,
    G_TYPE_POINTER);

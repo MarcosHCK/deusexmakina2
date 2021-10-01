@@ -96,14 +96,6 @@ G_DEFINE_TYPE_WITH_CODE
    glm_mat4_identity(scale);
  });
 
-static DsText*
-_callable_new(gpointer  null_,
-              DsFont   *provider)
-{
-  return
-  ds_text_new(provider);
-}
-
 static DsTextHandle
 _ds_text_print(DsText* text, DsTextHandle handle, const gchar* text_, gfloat x, gfloat y, GCancellable* cancellable, GError** error)
 {
@@ -118,20 +110,21 @@ void ds_text_ds_callable_iface_init(DsCallableIface* iface) {
   (iface,
    "new",
    DS_CLOSURE_CONSTRUCTOR,
-   G_CALLBACK(_callable_new),
+   G_CALLBACK(ds_text_new),
    ds_cclosure_marshal_OBJECT__OBJECT,
    ds_cclosure_marshal_OBJECT__OBJECTv,
    DS_TYPE_TEXT,
    1,
    DS_TYPE_FONT,
    G_TYPE_NONE);
+
   ds_callable_iface_add_method
   (iface,
    "print",
    DS_CLOSURE_FLAGS_NONE,
    G_CALLBACK(_ds_text_print),
-   g_cclosure_marshal_generic,
-   g_cclosure_marshal_generic_va,
+   ds_cclosure_marshal_POINTER__INSTANCE_POINTER_STRING_FLOAT_FLOAT_OBJECT_POINTER,
+   ds_cclosure_marshal_POINTER__INSTANCE_POINTER_STRING_FLOAT_FLOAT_OBJECT_POINTERv,
    G_TYPE_POINTER,
    6,
    G_TYPE_POINTER,

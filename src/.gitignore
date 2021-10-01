@@ -29,6 +29,7 @@ ds_basedirs.c
 ds_enums.c
 ds_folder_provider.c
 ds_looper.c
+ds_luagir.c
 ds_marshals.c
 ds_marshals.h
 ds_saves.c

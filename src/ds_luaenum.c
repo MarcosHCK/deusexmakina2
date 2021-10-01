@@ -226,7 +226,7 @@ _ds_luaenum_init(lua_State *L,
   luaL_newmetatable(L, _METATABLE);
   luaL_setfuncs(L, instance_mt, 0);
   lua_pushliteral(L, "__name");
-  lua_pushstring(L, _METATABLE);
+  lua_pushliteral(L, _METATABLE);
   lua_settable(L, -3);
   lua_pop(L, 1);
 

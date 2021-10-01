@@ -15,49 +15,34 @@
  *  along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#ifndef __DS_LUACLASS_INCLUDED__
-#define __DS_LUACLASS_INCLUDED__ 1
+#ifndef __DS_LUAQDATA_INCLUDED__
+#define __DS_LUAQDATA_INCLUDED__
 #include <ds_lua.h>
 #include <glib-object.h>
-
-typedef struct _DsClass DsClass;
 
 #if __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-struct _DsClass
-{
-  GType g_type;
-  GTypeClass* klass;
-  guint fundamental : 1;
-  guint classed : 1;
-  guint instantiatable : 1;
-};
-
 G_GNUC_INTERNAL
 gboolean
-_ds_luaclass_init(lua_State  *L,
-                  GError    **error);
+_ds_luaqdata_init(lua_State *L,
+                 GError   **error);
 G_GNUC_INTERNAL
 void
-_ds_luaclass_fini(lua_State* L);
+_ds_luaqdata_fini(lua_State* L);
 
+gpointer
+luaD_get_qdata(lua_State* L, GQuark quark);
+gpointer
+luaD_steal_qdata(lua_State* L, GQuark quark);
 void
-luaD_pushclass(lua_State *L,
-               GType      g_type);
-gboolean
-luaD_isclass(lua_State  *L,
-             int         idx);
-DsClass*
-luaD_toclass(lua_State  *L,
-             int         idx);
-DsClass*
-luaD_checkclass(lua_State  *L,
-                int         arg);
+luaD_set_qdata_full(lua_State* L, GQuark quark, gpointer user_data, GDestroyNotify notify);
+void
+luaD_set_qdata(lua_State* L, GQuark quark, gpointer user_data);
 
 #if __cplusplus
 }
 #endif // __cplusplus
 
-#endif // __DS_LUACLASS_INCLUDED__
+#endif // __DS_LUAQDATA_INCLUDED__

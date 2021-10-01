@@ -1,4 +1,4 @@
-# Copyright 2021-2022 MarcosHCK
+# Copyright 2021-2023 MarcosHCK
 # This file is part of deusexmakina2.
 #
 # deusexmakina2 is free software: you can redistribute it and/or modify
@@ -14,11 +14,31 @@
 # You should have received a copy of the GNU General Public License
 # along with deusexmakina2. If not, see <http://www.gnu.org/licenses/>.
 #
-ACLOCAL_AMFLAGS=-I m4 ${ACLOCAL_FLAGS}
 
-SUBDIRS=\
-	build \
-	src \
-	settings \
-	scripts \
-	gfx
+#
+# Some variables
+#
+
+PACKAGE_NAME=@PACKAGE_NAME@
+PACKAGE_RELEASE=@PACKAGE_RELEASE@
+PACKAGE_VERSION_MAYOR=@PACKAGE_VERSION_MAYOR@
+PACKAGE_VERSION_MINOR=@PACKAGE_VERSION_MINOR@
+PACKAGE_VERSION_MICRO=@PACKAGE_VERSION_MICRO@
+PACKAGE_VERSION_BUILD=@PACKAGE_VERSION_BUILD@
+
+EXTRA_DIST=
+VOID=
+
+#
+# Build minilua
+# if luajit is not present
+#
+
+if MINILUA_LOCAL
+noinst_PROGRAMS=minilua
+minilua_SOURCES=minilua.c
+minilua_CFLAGS=
+minilua_LDADD=-lm
+else
+EXTRA_DIST+=minilua.c
+endif

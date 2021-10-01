@@ -25,21 +25,6 @@ namespace _Ds
     UNEXPECTED_TYPE,
   }
 
-  static bool checktype(GLib.Type expected, GLib.Type got) throws GLib.Error
-  {
-    if(expected != GLib.Type.INVALID)
-    {
-      if(unlikely(got.is_a(expected) == false))
-      {
-        throw new PushError.UNEXPECTED_TYPE
-        ("expected type '%s', got '%s'\r\n",
-         expected.name(),
-         got.name());
-      }
-    }
-  return true;
-  }
-
   internal bool pushvalue(Lua.LuaVM L, GLib.Value value) throws GLib.Error
   {
     var gtype = value.type();
@@ -107,6 +92,21 @@ namespace _Ds
          gtype.name());
       }
       break;
+    }
+  return true;
+  }
+
+  static bool checktype(GLib.Type expected, GLib.Type got) throws GLib.Error
+  {
+    if(expected != GLib.Type.INVALID)
+    {
+      if(unlikely(got.is_a(expected) == false))
+      {
+        throw new PushError.UNEXPECTED_TYPE
+        ("expected type '%s', got '%s'\r\n",
+         expected.name(),
+         got.name());
+      }
     }
   return true;
   }

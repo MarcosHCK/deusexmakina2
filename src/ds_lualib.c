@@ -20,7 +20,9 @@
 #include <ds_luaclass.h>
 #include <ds_luaclosure.h>
 #include <ds_luaenum.h>
+#include <ds_luagir.h>
 #include <ds_luaobj.h>
+#include <ds_luaqdata.h>
 #include <ds_macros.h>
 #include <gio/gio.h>
 
@@ -144,18 +146,10 @@ __index(lua_State* L)
         cachetype(L, typename_);
         return 1;
       } else
-      if(G_TYPE_IS_CLASSED(g_type))
       {
         luaD_pushclass(L, g_type);
         cachetype(L, typename_);
         return 1;
-      } else
-      {
-        lua_pushfstring
-        (L,
-         "%s is an unclassed type\r\n",
-         typename_);
-        lua_error(L);
       }
     }
   }
@@ -175,6 +169,42 @@ _ds_lualib_init(lua_State  *L,
   gboolean success = TRUE;
   GError* tmp_err = NULL;
 
+/*
+ * Dependencies
+ * sorted in by dependency
+ *
+ */
+
+  success =
+  _ds_luaqdata_init(L, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+  success =
+  _ds_luaclosure_init(L, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+  success =
+  _ds_luagir_init(L, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+/*
+ * Generic type
+ * sorted alphabetically
+ *
+ */
+
   success =
   _ds_luaboxed_init(L, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
@@ -185,14 +215,6 @@ _ds_lualib_init(lua_State  *L,
 
   success =
   _ds_luaclass_init(L, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-  success =
-  _ds_luaclosure_init(L, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -303,9 +325,23 @@ G_GNUC_INTERNAL
 void
 _ds_lualib_fini(lua_State* L)
 {
+
+/*
+ * Generic type
+ *
+ */
+
   _ds_luaobj_fini(L);
   _ds_luaenum_fini(L);
-  _ds_luaclosure_fini(L);
   _ds_luaclass_fini(L);
   _ds_luaboxed_fini(L);
+
+/*
+ * Dependencies
+ *
+ */
+
+  _ds_luagir_fini(L);
+  _ds_luaclosure_fini(L);
+  _ds_luaqdata_fini(L);
 }

@@ -84,20 +84,13 @@ ds_shader_new(GFile            *vertex_file,
               DsCacheProvider  *cache_provider,
               GCancellable     *cancellable,
               GError          **error);
-void
-ds_shader_new_async(GFile                *vertex_file,
-                    GInputStream         *vertex_stream,
-                    GFile                *fragment_file,
-                    GInputStream         *fragment_stream,
-                    GFile                *geometry_file,
-                    GInputStream         *geometry_stream,
-                    int                   io_priority,
-                    GCancellable         *cancellable,
-                    GAsyncReadyCallback   callback,
-                    gpointer              user_data);
 DsShader*
-ds_shader_new_finish(GAsyncResult  *res,
-                     GError       **error);
+ds_shader_new_from_files(GFile           *vertex_file,
+                         GFile           *fragment_file,
+                         GFile           *geometry_file,
+                         DsCacheProvider *cache_provider,
+                         GCancellable    *cancellable,
+                         GError         **error);
 gboolean
 ds_shader_use(DsShader     *shader,
               GError      **error);

@@ -17,6 +17,7 @@
  */
 #include <config.h>
 #include <ds_callable.h>
+#include <ds_macros.h>
 #include <gobject/gvaluecollector.h>
 
 static
@@ -112,13 +113,28 @@ return has;
 }
 
 DsClosure*
-ds_callable_iface_get_field(DsCallableIface* iface,
+ds_callable_iface_peek_field(DsCallableIface* iface,
                             const gchar* name)
 {
   g_return_val_if_fail(iface != NULL, NULL);
   g_return_val_if_fail(name != NULL, NULL);
   DsCallableIfacePrivate* priv = iface->priv;
 return (DsClosure*) g_hash_table_lookup(priv->funcs, name);
+}
+
+DsClosure*
+ds_callable_iface_get_field(DsCallableIface* iface,
+                            const gchar* name)
+{
+  g_return_val_if_fail(iface != NULL, NULL);
+  g_return_val_if_fail(name != NULL, NULL);
+  DsCallableIfacePrivate* priv = iface->priv;
+
+  DsClosure* closure = (DsClosure*)
+  g_hash_table_lookup(priv->funcs, name);
+  if G_LIKELY(closure != NULL)
+    ds_closure_ref(closure);
+return closure;
 }
 
 void
@@ -142,12 +158,8 @@ ds_callable_iface_set_field(DsCallableIface* iface,
   }
 
   g_hash_table_insert(priv->funcs, g_strdup(name), closure);
-
-  g_closure_ref((GClosure*) closure);
-  g_closure_sink((GClosure*) closure);
+  ds_closure_ref_sink(closure);
 }
-
-#define _g_free0(var) ((var == NULL) ? NULL : (var = (g_free (var), NULL)))
 
 static void
 _closure_fini0(gpointer notify_data, DsClosure* closure)
@@ -177,7 +189,7 @@ ds_callable_iface_add_methodv(DsCallableIface* iface,
   closure->return_type = return_type;
   closure->flags = flags;
   closure->n_params = n_params;
-  closure->params = g_memdup(params, sizeof(GType) * n_params);
+  closure->params = g_memdup2(params, sizeof(GType) * n_params);
 
   g_closure_ref((GClosure*) closure);
   g_closure_sink((GClosure*) closure);
@@ -277,7 +289,7 @@ ds_callable_invokev(const GValue* instance_and_params,
   g_return_if_fail(DS_IS_CALLABLE(callable));
 
   DsClosure* closure =
-  ds_callable_iface_get_field
+  ds_callable_iface_peek_field
   (DS_CALLABLE_GET_IFACE(callable),
    name);
   g_return_if_fail(closure != NULL);
@@ -300,7 +312,7 @@ ds_callable_invoke_valist(DsCallable* callable,
   g_return_if_fail(name != NULL);
 
   DsClosure* closure =
-  ds_callable_iface_get_field
+  ds_callable_iface_peek_field
   (DS_CALLABLE_GET_IFACE(callable),
    name);
   g_return_if_fail(closure != NULL);

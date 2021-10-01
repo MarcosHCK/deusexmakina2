@@ -631,73 +631,18 @@ void ds_font_g_initable_iface_init(GInitableIface* iface) {
   iface->init = ds_font_g_initable_iface_init_sync;
 }
 
-static DsFont*
-_callable_new(gpointer          null_,
-              GFile            *font_file,
-              gint              font_size,
-              DsCacheProvider  *cache_provider,
-              GCancellable     *cancellable,
-              GError          **error)
-{
-  return
-  ds_font_new
-  (font_file,
-   font_size,
-   cache_provider,
-   cancellable,
-   error);
-}
-
-static DsFont*
-_callable_new_simple(gpointer         null_,
-                     const gchar     *font_filename,
-                     gint             font_size,
-                     DsCacheProvider *cache_provider,
-                     GCancellable    *cancellable,
-                     GError         **error)
-{
-  GFile* font_file = NULL;
-  font_file = g_file_new_for_path(font_filename);
-
-  DsFont* font =
-  ds_font_new
-  (font_file,
-   font_size,
-   cache_provider,
-   cancellable,
-   error);
-
-  g_object_unref(font_file);
-return font;
-}
-
 static
 void ds_font_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "new",
    DS_CLOSURE_CONSTRUCTOR,
-   G_CALLBACK(_callable_new),
+   G_CALLBACK(ds_font_new),
    ds_cclosure_marshal_OBJECT__OBJECT_INT_OBJECT_OBJECT_POINTER,
    ds_cclosure_marshal_OBJECT__OBJECT_INT_OBJECT_OBJECT_POINTERv,
    DS_TYPE_FONT,
    5,
    G_TYPE_FILE,
-   G_TYPE_INT,
-   DS_TYPE_CACHE_PROVIDER,
-   G_TYPE_CANCELLABLE,
-   G_TYPE_POINTER);
-
-  ds_callable_iface_add_method
-  (iface,
-   "new_simple",
-   DS_CLOSURE_CONSTRUCTOR,
-   G_CALLBACK(_callable_new_simple),
-   ds_cclosure_marshal_OBJECT__STRING_INT_OBJECT_OBJECT_POINTER,
-   ds_cclosure_marshal_OBJECT__STRING_INT_OBJECT_OBJECT_POINTERv,
-   DS_TYPE_FONT,
-   5,
-   G_TYPE_STRING,
    G_TYPE_INT,
    DS_TYPE_CACHE_PROVIDER,
    G_TYPE_CANCELLABLE,

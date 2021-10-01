@@ -45,6 +45,45 @@ _ds_tovalue(lua_State* L,
  *
  */
 
+static void
+_closure_fini0(gpointer notify_data, DsClosure* closure)
+{
+  _g_free0(closure->params);
+}
+
+
+DsClosure*
+ds_closure_new(DsClosureFlags flags,
+               GCallback callback,
+               GClosureMarshal marshal,
+               GVaClosureMarshal vmarshal,
+               GType return_type,
+               guint n_params,
+               const GType* params)
+{
+  DsClosure* closure = (DsClosure*)
+  g_closure_new_simple(sizeof(DsClosure), callback);
+
+  closure->callback = callback;
+  closure->vmarshal = (vmarshal) ? vmarshal : g_cclosure_marshal_generic_va;
+  closure->return_type = return_type;
+  closure->flags = flags;
+  closure->n_params = n_params;
+  closure->params = g_memdup2(params, sizeof(GType) * n_params);
+
+  g_closure_set_marshal((GClosure*) closure, (marshal) ? marshal : g_cclosure_marshal_generic);
+  g_closure_add_finalize_notifier((GClosure*) closure, NULL, (GClosureNotify) _closure_fini0);
+return ds_closure_ref_sink(closure);
+}
+
+DsClosure*
+ds_closure_ref_sink(DsClosure* closure)
+{
+  g_closure_ref((GClosure*) closure);
+  g_closure_sink((GClosure*) closure);
+return closure;
+}
+
 gboolean
 ds_closure_check_values(DsClosure  *closure,
                         GValue     *return_value,
@@ -325,7 +364,7 @@ _ds_closure__call(lua_State* L,
     }
   }
 
-  for(i = 0, j = (constructor) ? 2 : 3;
+  for(i = 0, j = ((constructor == TRUE) ? 2 : 3);
       i < closure->n_params;
       i++)
   {
@@ -345,13 +384,15 @@ _ds_closure__call(lua_State* L,
   ((GClosure*)
    closure,
    &return_,
-   n_params + 1,
-   params_,
+   n_params + ((constructor == FALSE) ? 1 : 0),
+   params_ + ((constructor == TRUE) ? 1 : 0),
    NULL);
 
   closure->closure.data = old;
 
-  if(rtype != G_TYPE_NONE)
+  if(rtype == G_TYPE_NONE)
+    lua_pushnil(L);
+  else
   {
     _ds_pushvalue(L, &return_, &tmp_err);
     if G_UNLIKELY(tmp_err != NULL)

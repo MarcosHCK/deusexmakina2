@@ -20,7 +20,7 @@ namespace Ds
 {
   const string AUTOSAVE = "autosave";
 
-  public class Save : GLib.Object, GLib.Initable
+  public class Saves : GLib.Object, GLib.Initable
   {
     public string name {get; construct;}
     private GLib.File savesdir = null;
@@ -44,7 +44,7 @@ namespace Ds
       return file.read(cancellable) as GLib.InputStream;
     }
 
-    public Save(string name, GLib.File savesdir, GLib.Cancellable? cancellable = null) throws GLib.Error
+    public Saves(string name, GLib.File savesdir, GLib.Cancellable? cancellable = null) throws GLib.Error
     {
       Object(name: name);
       this.savesdir = savesdir;

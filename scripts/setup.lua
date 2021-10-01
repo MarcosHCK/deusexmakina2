@@ -34,8 +34,10 @@ local debug_ = _ENV["DS_DEBUG"] == 'true';
 -- Load skybox shader
 do
   local pipeline = application.pipeline;
+  local renderer = application.renderer;
   local shader, skybox, font, text;
   local tmp_err = ds.type.DsError();
+  local GFile = ds.type.GFile;
 
 --[[
 --
@@ -44,9 +46,9 @@ do
 --]]
 
   shader =
-  ds.type.DsShader.new_simple(
-    ds.GFXDIR .. '/model_vs.glsl',
-    ds.GFXDIR .. '/model_fs.glsl',
+  ds.type.DsShader.new_from_files(
+    GFile.new_for_path(ds.GFXDIR .. '/model_vs.glsl'),
+    GFile.new_for_path(ds.GFXDIR .. '/model_fs.glsl'),
     nil,
     nil,
     cancellable,
@@ -62,9 +64,9 @@ do
 --]]
 
   shader =
-  ds.type.DsShader.new_simple(
-    ds.GFXDIR .. '/skybox_vs.glsl',
-    ds.GFXDIR .. '/skybox_fs.glsl',
+  ds.type.DsShader.new_from_files(
+    GFile.new_for_path(ds.GFXDIR .. '/skybox_vs.glsl'),
+    GFile.new_for_path(ds.GFXDIR .. '/skybox_fs.glsl'),
     nil,
     nil,
     cancellable,
@@ -80,9 +82,9 @@ do
 --]]
 
   shader =
-  ds.type.DsShader.new_simple(
-    ds.GFXDIR .. '/text_vs.glsl',
-    ds.GFXDIR .. '/text_fs.glsl',
+  ds.type.DsShader.new_from_files(
+    GFile.new_for_path(ds.GFXDIR .. '/text_vs.glsl'),
+    GFile.new_for_path(ds.GFXDIR .. '/text_fs.glsl'),
     nil,
     nil,
     cancellable,
@@ -97,8 +99,8 @@ do
 --
 --]]
 
-  skybox = ds.type.DsSkybox.new_simple(
-    ds.ASSETSDIR .. '/skybox/',
+  skybox = ds.type.DsSkybox.new(
+    GFile.new_for_path(ds.ASSETSDIR .. '/skybox/'),
     '%s.dds',
     cancellable,
     tmp_err:ref());
@@ -112,8 +114,8 @@ do
 --
 --]]
 
-  font = ds.type.DsFont.new_simple(
-    ds.ASSETSDIR .. '/Unknown.ttf',
+  font = ds.type.DsFont.new(
+    GFile.new_for_path(ds.ASSETSDIR .. '/Unknown.ttf'),
     13,
     nil,
     cancellable,
@@ -142,7 +144,7 @@ do
   tmp_err:check();
 
   event.listen('mouse_motion', function(_, x, y, xrel, yrel)
-    application.renderer:look(xrel, yrel);
+    renderer:look(xrel, yrel);
   end);
 end
 

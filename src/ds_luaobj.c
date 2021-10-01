@@ -18,6 +18,7 @@
 #include <config.h>
 #include <ds_callable.h>
 #include <ds_luaclosure.h>
+#include <ds_luagir.h>
 #include <ds_luaobj.h>
 #include <ds_macros.h>
 
@@ -60,7 +61,7 @@ void
 (luaD_pushobject)(lua_State  *L,
                   GObject    *obj)
 {
-  GObject** ptr = (GObject**)
+  GObject **ptr = (GObject**)
   lua_newuserdata(L, sizeof(GObject*));
   luaL_setmetatable(L, _METATABLE);
   (*ptr) = _g_object_ref0(obj);
@@ -223,7 +224,8 @@ return 0;
 static int
 __index(lua_State* L)
 {
-  const gchar* t;
+  const gchar* t = NULL;
+  GError* tmp_err = NULL;
   GObject* obj =
   luaD_checkobject(L, 1);
 
@@ -231,25 +233,8 @@ __index(lua_State* L)
     (lua_isstring(L, 2)
      && (t = lua_tostring(L, 2)) != NULL)
   {
-    if(DS_IS_CALLABLE(obj))
-    {
-      DsCallableIface* iface =
-      DS_CALLABLE_GET_IFACE(obj);
-
-      DsClosure* closure =
-      ds_callable_iface_get_field(iface, t);
-      if(closure != NULL)
-      {
-        luaD_pushclosure(L, closure);
-        return 1;
-      }
-    }
-
-    GObjectClass* klass =
-    G_OBJECT_GET_CLASS(obj);
-
     GParamSpec* pspec =
-    g_object_class_find_property(klass, t);
+    g_object_class_find_property(G_OBJECT_GET_CLASS(obj), t);
     if G_UNLIKELY(pspec != NULL)
     {
       GValue value = G_VALUE_INIT;
@@ -278,6 +263,50 @@ __index(lua_State* L)
         return 1;
       }
     }
+
+    if(DS_IS_CALLABLE(obj))
+    {
+      DsCallableIface* iface =
+      DS_CALLABLE_GET_IFACE(obj);
+
+      DsClosure* closure =
+      ds_callable_iface_get_field(iface, t);
+      if(closure != NULL)
+      {
+        luaD_pushclosure(L, closure);
+        ds_closure_unref(closure);
+        return 1;
+      }
+    }
+    else
+    {
+      DsGirHub* hub = ds_gir_hub_get_default();
+      GType g_type = G_TYPE_FROM_INSTANCE(obj);
+      DsClosure* closure = NULL;
+
+      closure =
+      ds_gir_hub_get_method(hub, g_type, t, &tmp_err);
+      if G_UNLIKELY(tmp_err != NULL)
+      {
+        lua_pushfstring
+        (L,
+         "(%s: %i): %s: %i: %s\r\n",
+         G_STRFUNC,
+         __LINE__,
+         g_quark_to_string(tmp_err->domain),
+         tmp_err->code,
+         tmp_err->message);
+        lua_error(L);
+        return 0;
+      }
+      else
+      if(closure != NULL)
+      {
+        luaD_pushclosure(L, closure);
+        g_closure_unref((GClosure*) closure);
+        return 1;
+      }
+    }
   }
 return 0;
 }
@@ -286,10 +315,9 @@ static int
 __gc(lua_State* L)
 {
   luaD_checkobject(L, 1);
-
-  GObject** ptr =
+  GObject **ptr =
   lua_touserdata(L, 1);
-  g_clear_object(ptr);
+  g_clear_pointer(ptr, g_object_unref);
 return 0;
 }
 
@@ -313,7 +341,7 @@ _ds_luaobj_init(lua_State  *L,
   luaL_newmetatable(L, _METATABLE);
   luaL_setfuncs(L, instance_mt, 0);
   lua_pushliteral(L, "__name");
-  lua_pushstring(L, _METATABLE);
+  lua_pushliteral(L, _METATABLE);
   lua_settable(L, -3);
   lua_pop(L, 1);
 

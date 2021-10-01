@@ -101,8 +101,6 @@ case "${host_os}" in
 esac
 ])
 
-
-
 AS_IF([test "x$host_cpu" = "xx86_64"],
       [CHECK_FASTCALL_STYLE()])
 
@@ -142,11 +140,14 @@ if test "x$GLIB_COMPILE_SCHEMAS" = "xno"; then
   AC_MSG_FAILURE([glib-compile-schemas not found our your system])
 fi
 
-AC_CHECK_PROG([MINILUA], [luajit], [luajit], [no])
+AC_CHECK_PROG([MINILUA], [luajitd], [luajit], [no])
 AM_CONDITIONAL([MINILUA_LOCAL], [test "x$MINILUA" = "xno"])
 if test "x$MINILUA" = "xno"; then
-  AC_SUBST([MINILUA], [./minilua])
+  AC_SUBST([MINILUA], [\${top_builddir}/build/minilua\${EXEEXT}])
 fi
+
+AC_SUBST([MKMARSHAL], [\${MINILUA}\ \${top_builddir}/build/mkmarshal.lua])
+AC_SUBST([DYNASM], [\${MINILUA}\ \${top_builddir}/build/dynasm/dynasm.lua])
 
 #
 # Do you want to debug? Tell me!
@@ -198,6 +199,7 @@ PKG_CHECK_MODULES([ASSIMP], [assimp])
 PKG_CHECK_MODULES([CGLM], [cglm])
 PKG_CHECK_MODULES([FREETYPE], [freetype2])
 PKG_CHECK_MODULES([GIO], [gio-2.0])
+PKG_CHECK_MODULES([GIR], [gobject-introspection-1.0])
 PKG_CHECK_MODULES([GLEW], [glew])
 PKG_CHECK_MODULES([GLIB], [glib-2.0])
 PKG_CHECK_MODULES([GMODULE], [gmodule-2.0])
@@ -265,6 +267,7 @@ fi
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([
 Makefile
+build/Makefile
 src/Makefile
 src/jit/Makefile
 src/vapi/Makefile

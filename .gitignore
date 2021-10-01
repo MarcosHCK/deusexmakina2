@@ -51,8 +51,6 @@ stamp-*
 *.stamp*
 
 #
-# Source code taken
-# from LuaJIT
+# Assets (which comes in a separated package)
 #
-/dynasm/*
 /assets/*

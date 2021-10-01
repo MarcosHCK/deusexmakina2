@@ -68,7 +68,6 @@ ds_enums.c: $(ENUM_FILES) ds_enums.c.template
 #
 
 MARSHAL_CFLAGS=\
-	--stdinc \
 	--prototypes \
 	--valist-marshallers \
 	--internal \
@@ -76,10 +75,10 @@ MARSHAL_CFLAGS=\
 	$(VOID)
 
 ds_marshals.c: ds_marshals.list ds_marshals.h
-	$(GLIB_GENMARSHAL) --body --include-header=config.h $(MARSHAL_CFLAGS) --output=$@ ds_marshals.list
+	$(MKMARSHAL) --body --include-header=config.h $(MARSHAL_CFLAGS) --output=$@ ds_marshals.list
 
 ds_marshals.h: ds_marshals.list
-	$(GLIB_GENMARSHAL) --header $(MARSHAL_CFLAGS) --output=$@ ds_marshals.list
+	$(MKMARSHAL) --header $(MARSHAL_CFLAGS) --output=$@ ds_marshals.list
 
 #
 # C headers
@@ -87,24 +86,27 @@ ds_marshals.h: ds_marshals.list
 
 EXTRA_DIST+=\
 	ds_application.h \
-	ds_application_private.h \
 	ds_callable.h \
 	ds_closure.h \
 	ds_dds.h \
 	ds_error.h \
 	ds_events.h \
+	ds_folder_provider.h \
 	ds_font.h \
 	ds_gl.h \
+	ds_looper.h \
 	ds_lua.h \
 	ds_luaboxed.h \
 	ds_luaclass.h \
 	ds_luaclosure.h \
 	ds_luaenum.h \
+	ds_luagir.h \
 	ds_luaobj.h \
+	ds_luaqdata.h \
 	ds_luavala.h \
 	ds_macros.h \
-	ds_model.h \
 	ds_marshals.h \
+	ds_model.h \
 	ds_mvpholder.h \
 	ds_pipeline.h \
 	ds_renderable.h \
@@ -140,10 +142,12 @@ deusexmakina2_SOURCES=\
 	ds_luaboxed.c \
 	ds_luaclass.c \
 	ds_luaenum.c \
+	ds_luagir.vala \
 	ds_lualib.c \
 	ds_luaobj.c \
-	ds_model.c \
+	ds_luaqdata.c \
 	ds_marshals.c \
+	ds_model.c \
 	ds_mvpholder.c \
 	ds_pipeline.c \
 	ds_renderable.c \
@@ -162,6 +166,7 @@ deusexmakina2_CFLAGS=\
 	$(CGLM_CFLAGS) \
 	$(FREETYPE_CFLAGS) \
 	$(GIO_CFLAGS) \
+	$(GIR_CFLAGS) \
 	$(GLEW_CFLAGS) \
 	$(GLIB_CFLAGS) \
 	$(GMODULE_CFLAGS) \
@@ -196,6 +201,7 @@ deusexmakina2_LDADD=\
 	$(CGLM_LIBS) \
 	$(FREETYPE_LIBS) \
 	$(GIO_LIBS) \
+	$(GIR_LIBS) \
 	$(GLEW_LIBS) \
 	$(GLIB_LIBS) \
 	$(GMODULE_LIBS) \
@@ -216,10 +222,13 @@ deusexmakina2_LDADD=\
 #
 
 VALA_PKG=\
+	closure \
 	config \
 	gio-2.0 \
 	glib-2.0 \
+	gmodule-2.0 \
 	gobject-2.0 \
+	gobject-introspection-1.0 \
 	lua \
 	luad \
 	$(VOID)

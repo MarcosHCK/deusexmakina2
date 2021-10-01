@@ -657,78 +657,13 @@ void ds_shader_g_initable_iface_init(GInitableIface* iface) {
   iface->init = ds_shader_g_initable_iface_init_sync;
 }
 
-static DsShader*
-_callable_new(gpointer          null_,
-              GFile            *vertex_file,
-              GInputStream     *vertex_stream,
-              GFile            *fragment_file,
-              GInputStream     *fragment_stream,
-              GFile            *geometry_file,
-              GInputStream     *geometry_stream,
-              DsCacheProvider  *cache_provider,
-              GCancellable     *cancellable,
-              GError          **error)
-{
-  return
-  ds_shader_new
-  (vertex_file,
-   vertex_stream,
-   fragment_file,
-   fragment_stream,
-   geometry_file,
-   geometry_stream,
-   cache_provider,
-   cancellable,
-   error);
-}
-
-#define _g_object_unref0(var) ((var == NULL) ? NULL : (var = (g_object_unref (var), NULL)))
-
-static DsShader*
-_callable_new_simple(gpointer         null_,
-                     const gchar     *vertex_file,
-                     const gchar     *fragment_file,
-                     const gchar     *geometry_file,
-                     DsCacheProvider *cache_provider,
-                     GCancellable    *cancellable,
-                     GError         **error)
-{
-  GFile *vertex_file_ = NULL,
-        *fragment_file_ = NULL,
-        *geometry_file_ = NULL;
-
-  if G_LIKELY(vertex_file != NULL)
-    vertex_file_ = g_file_new_for_path(vertex_file);
-  if G_LIKELY(fragment_file != NULL)
-    fragment_file_ = g_file_new_for_path(fragment_file);
-  if G_LIKELY(geometry_file != NULL)
-    geometry_file_ = g_file_new_for_path(geometry_file);
-
-  DsShader* shader =
-  ds_shader_new
-  (vertex_file_,
-   NULL,
-   fragment_file_,
-   NULL,
-   geometry_file_,
-   NULL,
-   cache_provider,
-   cancellable,
-   error);
-
-  _g_object_unref0(geometry_file_);
-  _g_object_unref0(fragment_file_);
-  _g_object_unref0(vertex_file_);
-return shader;
-}
-
 static
 void ds_shader_ds_callable_iface_init(DsCallableIface* iface) {
   ds_callable_iface_add_method
   (iface,
    "new",
    DS_CLOSURE_CONSTRUCTOR,
-   G_CALLBACK(_callable_new),
+   G_CALLBACK(ds_shader_new),
    ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTER,
    ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTERv,
    DS_TYPE_SHADER,
@@ -742,18 +677,19 @@ void ds_shader_ds_callable_iface_init(DsCallableIface* iface) {
    DS_TYPE_CACHE_PROVIDER,
    G_TYPE_CANCELLABLE,
    G_TYPE_POINTER);
+
   ds_callable_iface_add_method
   (iface,
-   "new_simple",
+   "new_from_files",
    DS_CLOSURE_CONSTRUCTOR,
-   G_CALLBACK(_callable_new_simple),
-   ds_cclosure_marshal_OBJECT__STRING_STRING_STRING_OBJECT_OBJECT_POINTER,
-   ds_cclosure_marshal_OBJECT__STRING_STRING_STRING_OBJECT_OBJECT_POINTERv,
+   G_CALLBACK(ds_shader_new_from_files),
+   ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTER,
+   ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTERv,
    DS_TYPE_SHADER,
    6,
-   G_TYPE_STRING,
-   G_TYPE_STRING,
-   G_TYPE_STRING,
+   G_TYPE_FILE,
+   G_TYPE_FILE,
+   G_TYPE_FILE,
    DS_TYPE_CACHE_PROVIDER,
    G_TYPE_CANCELLABLE,
    G_TYPE_POINTER);
@@ -940,6 +876,26 @@ ds_shader_new(GFile            *vertex_file,
    "fragment-stream", fragment_stream,
    "geometry-file", geometry_file,
    "geometry-stream", geometry_stream,
+   "cache-provider", cache_provider,
+   NULL);
+}
+
+DsShader*
+ds_shader_new_from_files(GFile           *vertex_file,
+                         GFile           *fragment_file,
+                         GFile           *geometry_file,
+                         DsCacheProvider *cache_provider,
+                         GCancellable    *cancellable,
+                         GError         **error)
+{
+  return (DsShader*)
+  g_initable_new
+  (DS_TYPE_SHADER,
+   cancellable,
+   error,
+   "vertex-file", vertex_file,
+   "fragment-file", fragment_file,
+   "geometry-file", geometry_file,
    "cache-provider", cache_provider,
    NULL);
 }

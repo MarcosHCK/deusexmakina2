@@ -37,7 +37,7 @@ G_DEFINE_TYPE_WITH_CODE
   ds_error_ds_callable_iface_init));
 
 static DsError*
-_callable_new(gpointer null_)
+_callable_new()
 {
   return (DsError*)
   g_object_new
@@ -55,11 +55,11 @@ static void
 _callable_check(DsError* self, lua_State* L)
 {
   if G_UNLIKELY
-    (self->error != NULL
-     && L != NULL)
+    (self->error != NULL)
   {
     GError* error =
     g_steal_pointer(&(self->error));
+    g_assert(L != NULL);
 
     lua_pushfstring
     (L,
@@ -92,8 +92,8 @@ void ds_error_ds_callable_iface_init(DsCallableIface* iface) {
    "ref",
    DS_CLOSURE_FLAGS_NONE,
    G_CALLBACK(_callable_ref),
-   ds_cclosure_marshal_POINTER__VOID,
-   ds_cclosure_marshal_POINTER__VOIDv,
+   ds_cclosure_marshal_POINTER__INSTANCE,
+   ds_cclosure_marshal_POINTER__INSTANCEv,
    G_TYPE_POINTER,
    0,
    G_TYPE_NONE);

@@ -15,12 +15,4 @@
 # along with deusexmakina2. If not, see <http://www.gnu.org/licenses/>.
 #
 
-#
-# Minilua comes from LuaJIT
-# source, so we won't list it
-# as our own code
-#
-minilua.c
-minilua
-
 pipeline_x86_64.c

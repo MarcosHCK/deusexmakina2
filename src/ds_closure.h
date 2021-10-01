@@ -84,6 +84,9 @@ typedef enum {
   DS_CLOSURE_CONSTRUCTOR,
 } DsClosureFlags;
 
+#define ds_closure_ref(closure)   (g_closure_ref((GClosure*) ((closure))))
+#define ds_closure_unref(closure) (g_closure_unref((GClosure*) ((closure))))
+
 typedef struct _DsClosure DsClosure;
 
 #if __cplusplus
@@ -104,6 +107,16 @@ struct _DsClosure
   GType* params;
 };
 
+DsClosure*
+ds_closure_new(DsClosureFlags flags,
+               GCallback callback,
+               GClosureMarshal marshal,
+               GVaClosureMarshal vmarshal,
+               GType return_type,
+               guint n_params,
+               const GType* params);
+DsClosure*
+ds_closure_ref_sink(DsClosure* closure);
 gboolean
 ds_closure_check_values(DsClosure  *closure,
                         GValue     *return_value,
