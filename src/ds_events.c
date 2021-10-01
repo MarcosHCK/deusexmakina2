@@ -18,17 +18,127 @@
 #include <config.h>
 #include <ds_application.h>
 #include <ds_events.h>
+#include <ds_looper.h>
 #include <ds_macros.h>
 #include <SDL.h>
 
-G_GNUC_INTERNAL
-gboolean
-_ds_events_poll(DsRendererData* data)
-{
-  DsApplication* self =
-  (DsApplication*)
-  g_application_get_default();
+#define EVENT_PUSH "__DS_EVENT_PUSH"
 
+static void
+ds_events_g_initable_iface_init(GInitableIface* iface);
+
+/*
+ * Object definition
+ *
+ */
+
+struct _DsEvents
+{
+  DsLooper parent_instance;
+
+  /*<private>*/
+  lua_State* L;
+};
+
+struct _DsEventsClass
+{
+  DsLooperClass parent_class;
+};
+
+enum
+{
+  prop_0,
+  prop_engine,
+  prop_number,
+};
+
+static
+GParamSpec* properties[prop_number] = {0};
+
+G_DEFINE_TYPE_WITH_CODE
+(DsEvents,
+ ds_events,
+ DS_TYPE_LOOPER,
+ G_IMPLEMENT_INTERFACE
+ (G_TYPE_INITABLE,
+  ds_events_g_initable_iface_init));
+
+static int
+ticks(lua_State* L) {
+  lua_pushnumber
+  (L,
+   (lua_Number)
+   SDL_GetTicks());
+return 1;
+}
+
+static gboolean
+ds_events_g_initable_iface_init_sync(GInitable* pself, GCancellable* cancellable, GError** error)
+{
+  DsEvents* self = DS_EVENTS(pself);
+  lua_State* L = self->L;
+  gboolean success = TRUE;
+  GError* tmp_err = NULL;
+
+/*
+ * local event = require('event')
+ *
+ */
+
+  lua_getglobal(L, "require");
+  lua_pushstring(L, "event");
+
+  success =
+  luaD_xpcall(L, 1, 1, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+/*
+ * event.ticks = C(ticks)
+ *
+ */
+
+  lua_pushstring(L, "ticks");
+  lua_pushcfunction(L, ticks);
+  lua_settable(L, -3);
+
+/*
+ * _R['__DS_EVENT_PUSH'] = event.push
+ *
+ */
+
+  lua_pushstring(L, "push");
+  lua_gettable(L, -2);
+
+  lua_setfield(L, LUA_REGISTRYINDEX, EVENT_PUSH);
+_error_:
+return success;
+}
+
+static void
+ds_events_g_initable_iface_init(GInitableIface* iface)
+{
+  iface->init = ds_events_g_initable_iface_init_sync;
+}
+
+static gboolean
+push_event(lua_State* L, int argc, GError** error)
+{
+  int top = lua_gettop(L);
+  int func = top - argc + 1;
+
+  lua_getfield(L, LUA_REGISTRYINDEX, EVENT_PUSH);
+  lua_insert(L, func);
+return luaD_xpcall(L, argc, 0, error);
+}
+
+static gboolean
+ds_events_class_loop_step(DsLooper* pself)
+{
+  DsEvents* self = DS_EVENTS(pself);
   lua_State* L = self->L;
   int top = lua_gettop(L);
 
@@ -37,7 +147,7 @@ _ds_events_poll(DsRendererData* data)
   switch(event.type)
   {
   case SDL_QUIT:
-    g_application_quit(G_APPLICATION(self));
+    g_application_quit(g_application_get_default());
     break;
   case SDL_MOUSEMOTION:
     lua_pushstring(L, "mouse_motion");
@@ -45,13 +155,6 @@ _ds_events_poll(DsRendererData* data)
     lua_pushnumber(L, event.motion.y);
     lua_pushnumber(L, event.motion.xrel);
     lua_pushnumber(L, event.motion.yrel);
-
-    ds_renderer_data_look
-    (data,
-     (gfloat) event.motion.x,
-     (gfloat) event.motion.y,
-     (gfloat) event.motion.xrel,
-     (gfloat) event.motion.yrel);
     break;
   case SDL_MOUSEWHEEL:
     lua_pushstring(L, "mouse_wheel");
@@ -91,7 +194,8 @@ _ds_events_poll(DsRendererData* data)
   if G_LIKELY(argc > 0)
   {
     GError* tmp_err = NULL;
-    ds_events_push(L, argc, &tmp_err);
+
+    push_event(L, argc, &tmp_err);
     if G_UNLIKELY(tmp_err != NULL)
     {
       g_critical(tmp_err->message);
@@ -104,84 +208,72 @@ _ds_events_poll(DsRendererData* data)
 return G_SOURCE_CONTINUE;
 }
 
-/*
- * init / fini
- *
- */
-
-#define EVENT_PUSH "__DS_EVENT_PUSH"
-
-static int
-ticks(lua_State* L) {
-  lua_pushnumber
-  (L,
-   (lua_Number)
-   SDL_GetTicks());
-return 1;
-}
-
-G_GNUC_INTERNAL
-gboolean
-_ds_events_init(lua_State      *L,
-                GSettings      *gsettings,
-                GCancellable   *cancellable,
-                GError        **error)
+static void
+ds_events_class_set_property(GObject* pself, guint prop_id, const GValue* value, GParamSpec* pspec)
 {
-  gboolean success = TRUE;
-  GError* tmp_err = NULL;
-  int top = lua_gettop(L);
-
-/*
- * local event = require('event')
- *
- */
-
-  lua_getglobal(L, "require");
-  lua_pushstring(L, "event");
-
-  success =
-  luaD_xpcall(L, 1, 1, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
+  DsEvents* self = DS_EVENTS(pself);
+  switch(prop_id)
   {
-    g_propagate_error(error, tmp_err);
-    goto_error();
+  case prop_engine:
+    self->L = g_value_get_pointer(value);
+    break;
+  default:
+    G_OBJECT_WARN_INVALID_PROPERTY_ID(pself, prop_id, pspec);
+    break;
   }
-
-/*
- * event.ticks = C(ticks)
- *
- */
-
-  lua_pushstring(L, "ticks");
-  lua_pushcfunction(L, ticks);
-  lua_settable(L, -3);
-
-/*
- * _R['__DS_EVENT_PUSH'] = event.push
- *
- */
-
-  lua_pushstring(L, "push");
-  lua_gettable(L, -2);
-
-  lua_setfield(L, LUA_REGISTRYINDEX, EVENT_PUSH);
-
-_error_:
-  lua_settop(L, top);
-return success;
 }
 
-G_GNUC_INTERNAL
-gboolean
-ds_events_push(lua_State  *L,
-               int         argc,
-               GError    **error)
+static void
+ds_events_class_dispose(GObject* pself)
 {
-  int top = lua_gettop(L);
-  int func = top - argc + 1;
+  DsEvents* self = DS_EVENTS(pself);
+G_OBJECT_CLASS(ds_events_parent_class)->dispose(pself);
+}
 
-  lua_getfield(L, LUA_REGISTRYINDEX, EVENT_PUSH);
-  lua_insert(L, func);
+static void
+ds_events_class_init(DsEventsClass* klass)
+{
+  GObjectClass* oclass = G_OBJECT_CLASS(klass);
+  DsLooperClass* lclass = DS_LOOPER_CLASS(klass);
 
-return luaD_xpcall(L, argc, 0, error);
+  lclass->loop_step = ds_events_class_loop_step;
+
+  oclass->set_property = ds_events_class_set_property;
+  oclass->dispose = ds_events_class_dispose;
+
+  properties[prop_engine] =
+    g_param_spec_pointer
+    (_TRIPLET("engine"),
+     G_PARAM_WRITABLE
+     | G_PARAM_CONSTRUCT_ONLY
+     | G_PARAM_STATIC_STRINGS);
+
+  g_object_class_install_properties
+  (oclass,
+   prop_number,
+   properties);
+}
+
+static void
+ds_events_init(DsEvents* self)
+{
+}
+
+/*
+ * Object methods
+ *
+ */
+
+DsEvents*
+ds_events_new(gpointer        engine,
+              GCancellable   *cancellable,
+              GError        **error)
+{
+  return (DsEvents*)
+  g_initable_new
+  (DS_TYPE_EVENTS,
+   cancellable,
+   error,
+   "engine", engine,
+   NULL);
 }

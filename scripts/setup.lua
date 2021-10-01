@@ -140,6 +140,10 @@ do
 
   pipeline:update(cancellable, tmp_err:ref());
   tmp_err:check();
+
+  event.listen('mouse_motion', function(_, x, y, xrel, yrel)
+    application.renderer:look(xrel, yrel);
+  end);
 end
 
 -- Register default event tmp_err handler

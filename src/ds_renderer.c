@@ -17,53 +17,191 @@
  */
 #include <config.h>
 #include <ds_application.h>
+#include <ds_callable.h>
 #include <ds_gl.h>
+#include <ds_looper.h>
 #include <ds_macros.h>
+#include <ds_pipeline.h>
 #include <ds_renderer.h>
 #include <SDL.h>
 
-G_GNUC_INTERNAL
-gboolean
-_ds_renderer_step(DsRendererData* data)
+static void
+ds_renderer_g_initable_iface_init(GInitableIface* iface);
+static void
+ds_renderer_ds_callable_iface_init(DsCallableIface* iface);
+
+enum {
+  conn_width,
+  conn_height,
+  conn_framelimit,
+  conn_sensitivity,
+  conn_fov,
+  conn_fullscreen,
+  conn_borderless,
+  conn_number,
+};
+
+#define d self
+
+static void update_view(DsRenderer* self, gfloat xrel, gfloat yrel);
+static void update_projection(DsRenderer* self);
+
+/*
+ * Object definition
+ *
+ */
+
+struct _DsRenderer
 {
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  DsLooper parent_instance;
 
-/*
- * Frame timing
- *
- */
+  /*<private>*/
+  GSettings* gsettings;
+  DsPipeline* pipeline;
+  SDL_Window* window;
+  gulong connections[conn_number];
 
-  static
-  GLfloat deltaTime = 0.f;
-  static
-  GLfloat frameTime = 0.f;
+  /*<private>*/
+  gfloat fov;
+  gboolean framelimit;
+  gint width;
+  gint height;
+  gint viewport_w;
+  gint viewport_h;
+  vec3 position;
+  vec3 worldup;
+  vec3 front_;
+  gfloat yaw;
+  gfloat pitch;
+  gfloat sensitivity;
 
-  deltaTime = SDL_GetTicks() - frameTime;
-  frameTime = SDL_GetTicks();
+  /*<private>*/
+  gfloat deltaTime;
+  gfloat frameTime;
+};
 
-/*
- * Execute rendering pipeline
- *
- */
+struct _DsRendererClass
+{
+  DsLooperClass parent_class;
+};
 
-  DsApplication* self =
-  (DsApplication*)
-  g_application_get_default();
-  ds_pipeline_execute(self->pipeline);
+enum {
+  sig_update_view,
+  sig_update_projection,
+  sig_number,
+};
 
-/*
- * Present display
- *
- */
+static
+guint signals[sig_number] = {0};
 
-  SDL_GL_SwapWindow(SDL_GL_GetCurrentWindow());
-return G_SOURCE_CONTINUE;
+enum {
+  prop_0,
+  prop_gsettings,
+  prop_pipeline,
+  prop_window,
+  prop_number,
+};
+
+static
+GParamSpec* properties[prop_number] = {0};
+
+G_DEFINE_TYPE_WITH_CODE
+(DsRenderer,
+ ds_renderer,
+ DS_TYPE_LOOPER,
+ G_IMPLEMENT_INTERFACE
+ (G_TYPE_INITABLE,
+  ds_renderer_g_initable_iface_init)
+ G_IMPLEMENT_INTERFACE
+ (DS_TYPE_CALLABLE,
+  ds_renderer_ds_callable_iface_init));
+
+static void
+on_width_changed(GSettings       *gsettings,
+                 const gchar     *key,
+                 DsRenderer      *self)
+{
+  g_settings_get(gsettings, key, "i", &(self->width));
+
+  SDL_SetWindowSize(d->window, d->width, self->height);
+  SDL_GL_GetDrawableSize(d->window, &(d->viewport_w), &(d->viewport_h));
+  update_projection(self);
 }
 
-/*
- * init / fini
- *
- */
+static void
+on_height_changed(GSettings      *gsettings,
+                  const gchar    *key,
+                  DsRenderer     *self)
+{
+  g_settings_get(gsettings, key, "i", &(d->height));
+
+  SDL_SetWindowSize(d->window, d->width, d->height);
+  SDL_GL_GetDrawableSize(d->window, &(d->viewport_w), &(d->viewport_h));
+  update_projection(self);
+}
+
+static void
+on_framelimit_changed(GSettings      *gsettings,
+                      const gchar    *key,
+                      DsRenderer     *self)
+{
+  g_settings_get(gsettings, key, "b", &(d->framelimit));
+}
+
+static void
+on_sensitivity_changed(GSettings       *gsettings,
+                       const gchar     *key,
+                       DsRenderer      *self)
+{
+  gdouble sensitivity;
+  g_settings_get(gsettings, key, "d", &sensitivity);
+  d->sensitivity = (gfloat) sensitivity;
+}
+
+static void
+on_fov_changed(GSettings       *gsettings,
+               const gchar     *key,
+               DsRenderer      *self)
+{
+  gdouble fov;
+  g_settings_get(gsettings, key, "d", &fov);
+  d->fov = (gfloat) fov;
+
+  update_projection(self);
+}
+
+static void
+on_fullscreen_changed(GSettings     *gsettings,
+                      const gchar   *key,
+                      DsApplication *self)
+{
+  gboolean flag;
+  g_settings_get(gsettings, key, "b", &flag);
+
+  SDL_Window* window =
+  SDL_GL_GetCurrentWindow();
+
+  Uint32 flags =
+  SDL_GetWindowFlags(window);
+
+  if(g_strcmp0(key, "fullscreen") == 0)
+  {
+    g_settings_set(gsettings, "borderless", "b", FALSE);
+    flags &= ~(SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS);
+    flags |= (flag) ? SDL_WINDOW_FULLSCREEN : 0;
+  } else
+  if(g_strcmp0(key, "borderless") == 0)
+  {
+    g_settings_set(gsettings, "fullscreen", "b", FALSE);
+    flags &= ~(SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS);
+    flags |= (flag) ? SDL_WINDOW_BORDERLESS : 0;
+  } else
+  {
+    g_assert_not_reached();
+  }
+
+  SDL_SetWindowFullscreen(window, flags);
+}
 
 static void
 on_gl_debug_message(GLenum          source,
@@ -174,55 +312,108 @@ on_gl_debug_message(GLenum          source,
    message);
 }
 
-static void
-on_fullscreen_changed(GSettings     *gsettings,
-                      const gchar   *key,
-                      DsApplication *self)
+static gboolean
+ds_renderer_g_initable_iface_init_sync(GInitable* pself, GCancellable* cancellable, GError** error)
 {
-  gboolean flag;
-  g_settings_get(gsettings, key, "b", &flag);
-
-  SDL_Window* window =
-  SDL_GL_GetCurrentWindow();
-
-  Uint32 flags =
-  SDL_GetWindowFlags(window);
-
-  if(g_strcmp0(key, "fullscreen") == 0)
-  {
-    g_settings_set(gsettings, "borderless", "b", FALSE);
-    flags &= ~(SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS);
-    flags |= (flag) ? SDL_WINDOW_FULLSCREEN : 0;
-  } else
-  if(g_strcmp0(key, "borderless") == 0)
-  {
-    g_settings_set(gsettings, "fullscreen", "b", FALSE);
-    flags &= ~(SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS);
-    flags |= (flag) ? SDL_WINDOW_BORDERLESS : 0;
-  } else
-  {
-    g_assert_not_reached();
-  }
-
-  SDL_SetWindowFullscreen(window, flags);
-}
-
-G_GNUC_INTERNAL
-gboolean
-_ds_renderer_init(DsApplication  *self,
-                  GSettings      *gsettings,
-                  GCancellable   *cancellable,
-                  GError        **error)
-{
+  DsRenderer* self = DS_RENDERER(pself);
   gboolean success = TRUE;
   GError* tmp_err = NULL;
 
+  gdouble fov, sensitivity;
+
 /*
- * OpenGL initialization
+ * Initialize values
  *
  */
 
-  /* activate things */
+  glm_vec3_fill(d->position, 0.f);
+  glm_vec3_fill(d->worldup, 0.f);
+  glm_vec3_fill(d->front_, 0.f);
+
+  d->worldup[1] = 1.f;
+  d->front_[2] = -1.f;
+  d->yaw = -90.f;
+  d->pitch = 0.f;
+
+/*
+ * Get configuration values
+ *
+ */
+
+  g_settings_get(d->gsettings, "fov", "d", &fov);
+  g_settings_get(d->gsettings, "sensitivity", "d", &sensitivity);
+  g_settings_get(d->gsettings, "framelimit", "b", &(self->framelimit));
+
+  d->fov = (gfloat) fov;
+  d->sensitivity = (gfloat) sensitivity;
+
+/*
+ * Get window metrics
+ *
+ */
+
+  SDL_GetWindowSize(d->window, &(d->width), &(d->height));
+  SDL_GL_GetDrawableSize(d->window, &(d->viewport_w), &(d->viewport_h));
+
+/*
+ * Subscribe to configuration changes
+ *
+ */
+
+  d->connections[conn_width] =
+  g_signal_connect
+  (d->gsettings,
+   "changed::width",
+   G_CALLBACK(on_width_changed),
+   self);
+
+  d->connections[conn_height] =
+  g_signal_connect
+  (d->gsettings,
+   "changed::height",
+   G_CALLBACK(on_height_changed),
+   self);
+
+  d->connections[conn_framelimit] =
+  g_signal_connect
+  (d->gsettings,
+   "changed::framelimit",
+   G_CALLBACK(on_framelimit_changed),
+   self);
+
+  d->connections[conn_sensitivity] =
+  g_signal_connect
+  (d->gsettings,
+   "changed::sensitivity",
+   G_CALLBACK(on_sensitivity_changed),
+   self);
+
+  d->connections[conn_fov] =
+  g_signal_connect
+  (d->gsettings,
+   "changed::fov",
+   G_CALLBACK(on_fov_changed),
+   self);
+
+  d->connections[conn_fullscreen] =
+  g_signal_connect
+  (d->gsettings,
+   "changed::fullscreen",
+   G_CALLBACK(on_fullscreen_changed),
+   self);
+
+  d->connections[conn_borderless] =
+  g_signal_connect
+  (d->gsettings,
+   "changed::borderless",
+   G_CALLBACK(on_fullscreen_changed),
+   self);
+
+/*
+ * Perform some tweaks on GL
+ *
+ */
+
   __gl_try_catch(
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -266,24 +457,360 @@ _ds_renderer_init(DsApplication  *self,
   }
 
 /*
- * Connect signals
- * to settings holding
- * rendering parameters
+ * Finish by updating things
  *
  */
 
-  g_signal_connect
-  (gsettings,
-   "changed::fullscreen",
-   G_CALLBACK(on_fullscreen_changed),
-   self);
-
-  g_signal_connect
-  (gsettings,
-   "changed::borderless",
-   G_CALLBACK(on_fullscreen_changed),
-   self);
-
+  ds_renderer_force_update(self);
 _error_:
 return success;
+}
+
+static void
+ds_renderer_g_initable_iface_init(GInitableIface* iface)
+{
+  iface->init = ds_renderer_g_initable_iface_init_sync;
+}
+
+static void
+ds_renderer_ds_callable_iface_init(DsCallableIface* iface)
+{
+  ds_callable_iface_add_method
+  (iface,
+   "look",
+   DS_CLOSURE_FLAGS_NONE,
+   G_CALLBACK(ds_renderer_look),
+   ds_cclosure_marshal_VOID__FLOAT_FLOAT,
+   ds_cclosure_marshal_VOID__FLOAT_FLOATv,
+   G_TYPE_NONE,
+   2,
+   G_TYPE_FLOAT,
+   G_TYPE_FLOAT);
+
+  ds_callable_iface_add_method
+  (iface,
+   "move",
+   DS_CLOSURE_FLAGS_NONE,
+   G_CALLBACK(ds_renderer_move),
+   ds_cclosure_marshal_VOID__FLOAT_FLOAT_FLOAT,
+   ds_cclosure_marshal_VOID__FLOAT_FLOAT_FLOATv,
+   G_TYPE_NONE,
+   3,
+   G_TYPE_FLOAT,
+   G_TYPE_FLOAT,
+   G_TYPE_FLOAT);
+}
+
+static gboolean
+ds_renderer_class_loop_step(DsLooper* pself)
+{
+  DsRenderer* self =  ((DsRenderer*) pself);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+/*
+ * Frame timing
+ *
+ */
+
+  self->deltaTime = SDL_GetTicks()- self->frameTime;
+  self->frameTime = SDL_GetTicks();
+
+/*
+ * Execute rendering pipeline
+ *
+ */
+
+  ds_pipeline_execute(self->pipeline);
+
+/*
+ * Present display
+ *
+ */
+
+  SDL_GL_SwapWindow(self->window);
+return G_SOURCE_CONTINUE;
+}
+
+static void
+ds_renderer_class_set_property(GObject* pself, guint prop_id, const GValue* value, GParamSpec* pspec)
+{
+  DsRenderer* self = DS_RENDERER(pself);
+  switch(prop_id)
+  {
+  case prop_gsettings:
+    g_set_object(&(self->gsettings), g_value_get_object(value));
+    break;
+  case prop_pipeline:
+    g_set_object(&(self->pipeline), g_value_get_object(value));
+    break;
+  case prop_window:
+    self->window = g_value_get_pointer(value);
+    break;
+  default:
+    G_OBJECT_WARN_INVALID_PROPERTY_ID(pself, prop_id, pspec);
+    break;
+  }
+}
+
+static void
+ds_renderer_class_dispose(GObject* pself)
+{
+  DsRenderer* self = DS_RENDERER(pself);
+  guint i;
+
+  for(i = 0;
+      i < conn_number;
+      i++)
+  if(d->connections[i] != 0)
+  {
+    g_signal_handler_disconnect(d->gsettings, d->connections[i]);
+    d->connections[i] = 0;
+  }
+
+  g_clear_object(&(d->gsettings));
+  g_clear_object(&(d->pipeline));
+G_OBJECT_CLASS(ds_renderer_parent_class)->dispose(pself);
+}
+
+static void
+ds_renderer_class_init(DsRendererClass* klass)
+{
+  GObjectClass* oclass = G_OBJECT_CLASS(klass);
+  DsLooperClass* lclass = DS_LOOPER_CLASS(klass);
+
+  lclass->loop_step = ds_renderer_class_loop_step;
+
+  oclass->set_property = ds_renderer_class_set_property;
+  oclass->dispose = ds_renderer_class_dispose;
+
+  signals[sig_update_view] =
+    g_signal_new
+    ("update-view",
+     G_TYPE_FROM_CLASS(klass),
+     G_SIGNAL_ACTION,
+     0,
+     NULL,
+     NULL,
+     g_cclosure_marshal_VOID__POINTER,
+     G_TYPE_NONE,
+     1,
+     G_TYPE_POINTER,
+     G_TYPE_NONE);
+
+  signals[sig_update_projection] =
+    g_signal_new
+    ("update-projection",
+     G_TYPE_FROM_CLASS(klass),
+     G_SIGNAL_ACTION,
+     0,
+     NULL,
+     NULL,
+     g_cclosure_marshal_VOID__POINTER,
+     G_TYPE_NONE,
+     1,
+     G_TYPE_POINTER,
+     G_TYPE_NONE);
+
+  properties[prop_gsettings] =
+    g_param_spec_object
+    (_TRIPLET("gsettings"),
+     G_TYPE_SETTINGS,
+     G_PARAM_WRITABLE
+     | G_PARAM_CONSTRUCT_ONLY
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_pipeline] =
+    g_param_spec_object
+    (_TRIPLET("pipeline"),
+     DS_TYPE_PIPELINE,
+     G_PARAM_WRITABLE
+     | G_PARAM_CONSTRUCT_ONLY
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_window] =
+    g_param_spec_pointer
+    (_TRIPLET("window"),
+     G_PARAM_WRITABLE
+     | G_PARAM_CONSTRUCT_ONLY
+     | G_PARAM_STATIC_STRINGS);
+
+  g_object_class_install_properties
+  (oclass,
+   prop_number,
+   properties);
+}
+
+static void
+ds_renderer_init(DsRenderer* self)
+{
+}
+
+/*
+ * Object methods
+ *
+ */
+
+#define position    self->position
+#define worldup     self->worldup
+#define front       self->front_
+#define yaw         self->yaw
+#define pitch       self->pitch
+#define sensitivity self->sensitivity
+
+static void
+update_view(DsRenderer     *self,
+            gfloat          xrel,
+            gfloat          yrel)
+{
+  yaw = yaw + (xrel * sensitivity);
+  pitch = pitch - (yrel * sensitivity);
+
+  if(pitch > 89.f)
+    pitch = 89.f;
+  else
+  if(pitch < -89.f)
+    pitch = -89.f;
+
+  gfloat yaw_r = glm_rad(yaw);
+  gfloat pitch_r = glm_rad(pitch);
+
+  front[0] = cos(yaw_r) * cos(pitch_r);
+  front[1] = sin(pitch_r);
+  front[2] = sin(yaw_r) * cos(pitch_r);
+
+  vec3 right;
+  vec3 up;
+  vec3 center;
+  mat4 camera;
+
+  glm_vec3_cross(front, worldup, right);
+  glm_vec3_cross(right, front, up);
+  glm_vec3_add(position, front, center);
+  glm_lookat(position, center, up, camera);
+
+/*
+ * Emit signal
+ *
+ */
+
+  GValue values[2] = {0};
+  g_value_init(&(values[0]), G_TYPE_OBJECT);
+  g_value_set_object(&(values[0]), self);
+  g_value_init(&(values[1]), G_TYPE_POINTER);
+  g_value_set_pointer(&(values[1]), camera);
+
+  g_signal_emitv
+  (values,
+   signals[sig_update_view],
+   0,
+   NULL);
+
+  g_value_unset(&(values[1]));
+  g_value_unset(&(values[0]));
+}
+
+static void
+update_projection(DsRenderer* self)
+{
+  mat4 projection;
+  glm_perspective
+  (glm_rad(d->fov),
+     ((gfloat) d->width)
+   / ((gfloat) d->height),
+   0.1f,
+   100.0f,
+   projection);
+
+  __gl_try_catch(
+    glViewport(0, 0, d->viewport_w, d->viewport_h);
+  ,
+    g_critical
+    ("(%s: %i): %s: %i: %s\r\n",
+     G_STRFUNC,
+     __LINE__,
+     g_quark_to_string(glerror->domain),
+     glerror->code,
+     glerror->message);
+    g_error_free(glerror);
+    g_assert_not_reached();
+  );
+
+/*
+ * Emit signal
+ *
+ */
+
+  GValue values[2] = {0};
+  g_value_init(&(values[0]), G_TYPE_OBJECT);
+  g_value_set_object(&(values[0]), self);
+  g_value_init(&(values[1]), G_TYPE_POINTER);
+  g_value_set_pointer(&(values[1]), projection);
+
+  g_signal_emitv
+  (values,
+   signals[sig_update_projection],
+   0,
+   NULL);
+
+  g_value_unset(&(values[1]));
+  g_value_unset(&(values[0]));
+}
+
+#undef sensitivity
+#undef pitch
+#undef yaw
+#undef front
+#undef worldup
+#undef position
+
+#undef d
+#define d renderer
+
+DsRenderer*
+ds_renderer_new(GSettings      *gsettings,
+                gpointer        pipeline,
+                gpointer        window,
+                GCancellable   *cancellable,
+                GError        **error)
+{
+  return (DsRenderer*)
+  g_initable_new
+  (DS_TYPE_RENDERER,
+   cancellable,
+   error,
+   "gsettings", gsettings,
+   "pipeline", pipeline,
+   "window", window,
+   NULL);
+}
+
+void
+ds_renderer_force_update(DsRenderer* renderer)
+{
+  g_return_if_fail(DS_IS_RENDERER(renderer));
+
+  update_projection(renderer);
+  update_view(renderer, 0, 0);
+}
+
+void
+ds_renderer_look(DsRenderer  *renderer,
+                 gfloat       xrel,
+                 gfloat       yrel)
+{
+  g_return_if_fail(DS_IS_RENDERER(renderer));
+  update_view(renderer, xrel, yrel);
+}
+
+void
+ds_renderer_move(DsRenderer  *renderer,
+                 gfloat       xrel,
+                 gfloat       yrel,
+                 gfloat       zrel)
+{
+  g_return_if_fail(DS_IS_RENDERER(renderer));
+
+  vec3 vec_ = {xrel, yrel, zrel};
+  glm_vec3_add(d->position, vec_, d->position);
+  update_view(renderer, 0, 0);
 }

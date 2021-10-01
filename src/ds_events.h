@@ -18,28 +18,28 @@
 #ifndef __DS_EVENTS_INCLUDED__
 #define __DS_EVENTS_INCLUDED__
 #include <gio/gio.h>
-#include <ds_application.h>
-#include <ds_lua.h>
-#include <ds_renderer_data.h>
+
+#define DS_TYPE_EVENTS            (ds_events_get_type())
+#define DS_EVENTS(object)         (G_TYPE_CHECK_INSTANCE_CAST((object), DS_TYPE_EVENTS, DsEvents))
+#define DS_EVENTS_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST((klass), DS_TYPE_EVENTS, DsEventsClass))
+#define DS_IS_EVENTS(object)      (G_TYPE_CHECK_INSTANCE_TYPE((object), DS_TYPE_EVENTS))
+#define DS_IS_EVENTS_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE((klass), DS_TYPE_EVENTS))
+#define DS_EVENTS_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS((obj), DS_TYPE_EVENTS, DsEventsClass))
+
+typedef struct _DsEvents      DsEvents;
+typedef struct _DsEventsClass DsEventsClass;
 
 #if __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-G_GNUC_INTERNAL
-gboolean
-_ds_events_init(lua_State      *L,
-                GSettings      *settings,
-                GCancellable   *cancellable,
-                GError        **error);
-G_GNUC_INTERNAL
-gboolean
-_ds_events_poll(DsRendererData* data);
-G_GNUC_INTERNAL
-gboolean
-ds_events_push(lua_State  *L,
-               int         argc,
-               GError    **error);
+GType
+ds_events_get_type();
+
+DsEvents*
+ds_events_new(gpointer        engine,
+              GCancellable   *cancellable,
+              GError        **error);
 
 #if __cplusplus
 }

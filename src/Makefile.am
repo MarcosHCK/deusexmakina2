@@ -135,6 +135,7 @@ deusexmakina2_SOURCES=\
 	ds_font_cache.c \
 	ds_gl.c \
 	ds_icu.cpp \
+	ds_looper.vala \
 	ds_lua.c \
 	ds_luaboxed.c \
 	ds_luaclass.c \
@@ -147,7 +148,6 @@ deusexmakina2_SOURCES=\
 	ds_pipeline.c \
 	ds_renderable.c \
 	ds_renderer.c \
-	ds_renderer_data.c \
 	ds_saves.vala \
 	ds_settings.vala \
 	ds_shader.c \

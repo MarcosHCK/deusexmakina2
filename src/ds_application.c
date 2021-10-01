@@ -17,13 +17,11 @@
  */
 #include <config.h>
 #include <ds_application.h>
-#include <ds_events.h>
 #include <ds_folder_provider.h>
+#include <ds_looper.h>
 #include <ds_luaobj.h>
 #include <ds_macros.h>
 #include <ds_mvpholder.h>
-#include <ds_renderer.h>
-#include <ds_renderer_data.h>
 #include <ds_settings.h>
 #include <GL/glew.h>
 #include <SDL.h>
@@ -86,9 +84,6 @@ struct _DsApplicationPrivate
   SDL_Window* window;
   SDL_GLContext* glctx;
   guint glew_init;
-  DsRendererData* renderer_data;
-  guint source_renderer;
-  guint source_events;
 };
 
 enum {
@@ -102,6 +97,8 @@ enum {
 
   prop_lua_state,
   prop_pipeline,
+  prop_renderer,
+  prop_events,
 
 /*
  * Property number, a convenience way
@@ -145,7 +142,8 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   GSettings* gsettings = NULL;
   SDL_Window* window = NULL;
   SDL_GLContext* glctx = NULL;
-  DsRendererData* renderer_data = NULL;
+  DsRenderer* renderer = NULL;
+  DsEvents* events = NULL;
 
 /*
  * Debug flag
@@ -280,12 +278,17 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
-  success =
-  _ds_events_init(L, gsettings, cancellable, &tmp_err);
+  events =
+  ds_events_new(L, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
+    _g_object_unref0(events);
     goto_error();
+  }
+  else
+  {
+    self->events = events;
   }
 
 /*
@@ -404,30 +407,6 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   }
 
 /*
- * Renderer data
- *
- */
-
-  success =
-  _ds_renderer_init(self, gsettings, cancellable, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-  renderer_data =
-  ds_renderer_data_new(gsettings, window, cancellable, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    _g_object_unref0(renderer_data);
-    goto_error();
-  }
-
-  self->priv->renderer_data = renderer_data;
-
-/*
  * Pipeline
  *
  */
@@ -440,20 +419,38 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
+/*
+ * Renderer
+ *
+ */
+
+  renderer =
+  ds_renderer_new(gsettings, pipeline, window, cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    _g_object_unref0(renderer);
+    goto_error();
+  }
+  else
+  {
+    self->renderer = renderer;
+  }
+
   g_signal_connect_swapped
-  (renderer_data,
+  (renderer,
    "update-projection",
    G_CALLBACK(ds_mvp_holder_set_projection),
    pipeline);
 
   g_signal_connect_swapped
-  (renderer_data,
+  (renderer,
    "update-view",
    G_CALLBACK(ds_mvp_holder_set_view),
    pipeline);
 
-   /* force matrix update */
-   ds_renderer_data_force_update(renderer_data);
+  /* force matrix update */
+  ds_renderer_force_update(renderer);
 
 /*
  * Execute setup script
@@ -522,6 +519,12 @@ void ds_application_class_get_property(GObject* pself, guint prop_id, GValue* va
   case prop_pipeline:
     g_value_set_object(value, self->pipeline);
     break;
+  case prop_renderer:
+    g_value_set_object(value, self->renderer);
+    break;
+  case prop_events:
+    g_value_set_object(value, self->events);
+    break;
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID(pself, prop_id, pspec);
     break;
@@ -554,10 +557,9 @@ G_OBJECT_CLASS(ds_application_parent_class)->finalize(pself);
 static
 void ds_application_class_dispose(GObject* pself) {
   DsApplication* self = DS_APPLICATION(pself);
-  g_clear_handle_id(&(self->priv->source_renderer), g_source_remove);
-  g_clear_handle_id(&(self->priv->source_events), g_source_remove);
+  g_clear_object(&(self->events));
+  g_clear_object(&(self->renderer));
   g_clear_object(&(self->pipeline));
-  g_clear_object(&(self->priv->renderer_data));
   g_clear_object(&(self->priv->cache_provider));
   g_clear_object(&(self->priv->data_provider));
   g_clear_object(&(self->priv->gsettings));
@@ -569,25 +571,10 @@ static
 void ds_application_class_init(DsApplicationClass* klass) {
   GObjectClass* oclass = G_OBJECT_CLASS(klass);
 
-/*
- * vtable
- *
- */
-
   oclass->get_property = ds_application_class_get_property;
   oclass->set_property = ds_application_class_set_property;
   oclass->finalize = ds_application_class_finalize;
   oclass->dispose = ds_application_class_dispose;
-
-/*
- * properties
- *
- */
-
-  /*
-   * Initialization
-   *
-   */
 
   properties[prop_lua_state] =
     g_param_spec_pointer
@@ -602,10 +589,19 @@ void ds_application_class_init(DsApplicationClass* klass) {
      G_PARAM_READABLE
      | G_PARAM_STATIC_STRINGS);
 
-  /*
-   * Finish
-   *
-   */
+  properties[prop_renderer] =
+    g_param_spec_object
+    (_TRIPLET("renderer"),
+     DS_TYPE_RENDERER,
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_events] =
+    g_param_spec_object
+    (_TRIPLET("events"),
+     DS_TYPE_EVENTS,
+     G_PARAM_READABLE
+     | G_PARAM_STATIC_STRINGS);
 
   g_object_class_install_properties
   (oclass,
@@ -630,48 +626,12 @@ void on_activate(DsApplication* self) {
   GSource* source = NULL;
 
 /*
- * Attach renderer source
+ * Start loopers
  *
  */
 
-  source =
-  g_idle_source_new();
-
-  g_source_set_callback
-  (source,
-   (GSourceFunc)
-   _ds_renderer_step,
-   self->priv->renderer_data,
-   NULL);
-
-  g_source_set_priority(source, G_PRIORITY_DEFAULT_IDLE);
-  g_source_set_name(source, "Renderer source");
-
-  self->priv->source_renderer =
-  g_source_attach(source, context);
-  g_source_unref(source);
-
-/*
- * Attach events source
- *
- */
-
-  source =
-  g_idle_source_new();
-
-  g_source_set_callback
-  (source,
-   (GSourceFunc)
-   _ds_events_poll,
-   self->priv->renderer_data,
-   NULL);
-
-  g_source_set_priority(source, G_PRIORITY_DEFAULT_IDLE);
-  g_source_set_name(source, "Events poll source");
-
-  self->priv->source_events =
-  g_source_attach(source, context);
-  g_source_unref(source);
+  ds_looper_start(DS_LOOPER(self->renderer));
+  ds_looper_start(DS_LOOPER(self->events));
 
 /*
  * Increase hold count

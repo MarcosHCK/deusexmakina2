@@ -17,8 +17,10 @@
  */
 #ifndef __DS_APPLICATION_INCLUDED__
 #define __DS_APPLICATION_INCLUDED__ 1
+#include <ds_events.h>
 #include <ds_lua.h>
 #include <ds_pipeline.h>
+#include <ds_renderer.h>
 #include <gio/gio.h>
 
 /**
@@ -82,6 +84,8 @@ struct _DsApplication
   DsApplicationPrivate* priv;
   lua_State* L;
   DsPipeline* pipeline;
+  DsRenderer* renderer;
+  DsEvents* events;
 };
 
 struct _DsApplicationClass

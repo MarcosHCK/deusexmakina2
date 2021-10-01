@@ -16,24 +16,43 @@
  *
  */
 #ifndef __DS_RENDERER_INCLUDED__
-#define __DS_RENDERER_INCLUDED__
-#include <ds_application.h>
-#include <ds_renderer_data.h>
-#include <ds_gl.h>
+#define __DS_RENDERER_INCLUDED__ 1
+#include <gio/gio.h>
+
+#define DS_TYPE_RENDERER            (ds_renderer_get_type())
+#define DS_RENDERER(object)         (G_TYPE_CHECK_INSTANCE_CAST((object), DS_TYPE_RENDERER, DsRenderer))
+#define DS_RENDERER_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST((klass), DS_TYPE_RENDERER, DsRendererClass))
+#define DS_IS_RENDERER(object)      (G_TYPE_CHECK_INSTANCE_TYPE((object), DS_TYPE_RENDERER))
+#define DS_IS_RENDERER_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE((klass), DS_TYPE_RENDERER))
+#define DS_RENDERER_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS((obj), DS_TYPE_RENDERER, DsRendererClass))
+
+typedef struct _DsRenderer      DsRenderer;
+typedef struct _DsRendererClass DsRendererClass;
 
 #if __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-G_GNUC_INTERNAL
-gboolean
-_ds_renderer_init(DsApplication  *self,
-                  GSettings      *gsettings,
-                  GCancellable   *cancellable,
-                  GError        **error);
-G_GNUC_INTERNAL
-gboolean
-_ds_renderer_step(DsRendererData* self);
+GType
+ds_renderer_get_type();
+
+DsRenderer*
+ds_renderer_new(GSettings      *gsettings,
+                gpointer        pipeline,
+                gpointer        window,
+                GCancellable   *cancellable,
+                GError        **error);
+void
+ds_renderer_force_update(DsRenderer* self);
+void
+ds_renderer_look(DsRenderer  *data,
+                 gfloat       xrel,
+                 gfloat       yrel);
+void
+ds_renderer_move(DsRenderer  *data,
+                 gfloat       xrel,
+                 gfloat       yrel,
+                 gfloat       zrel);
 
 #if __cplusplus
 }
