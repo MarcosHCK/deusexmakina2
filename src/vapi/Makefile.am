@@ -15,8 +15,27 @@
 # along with deusexmakina2. If not, see <http://www.gnu.org/licenses/>.
 #
 
+#
+# Some variables
+#
+
+PACKAGE_NAME=@PACKAGE_NAME@
+PACKAGE_RELEASE=@PACKAGE_RELEASE@
+PACKAGE_VERSION_MAYOR=@PACKAGE_VERSION_MAYOR@
+PACKAGE_VERSION_MINOR=@PACKAGE_VERSION_MINOR@
+PACKAGE_VERSION_MICRO=@PACKAGE_VERSION_MICRO@
+PACKAGE_VERSION_BUILD=@PACKAGE_VERSION_BUILD@
+
+EXTRA_DIST=
 VOID=
-EXTRA_DIST=\
+
+#
+# vapis
+#
+
+EXTRA_DIST+=\
+  closure.vapi \
   config.vapi \
   luad.vapi \
+  model.vapi \
   $(VOID)

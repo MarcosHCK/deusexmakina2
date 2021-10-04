@@ -28,7 +28,7 @@ do
 
   local arg = arg or args or {...};
   if(arg and arg[0]) then
-    prefix = arg[0]:match('^(.*[/\\])');
+    prefix = arg[0]:match('^(.*[/\\])') or './';
     if(package and prefix) then
       package.path = prefix .. '?.lua;' .. package.path;
     end
@@ -38,9 +38,12 @@ end
 local gtypes = require('gtypes');
 local lapp = require('lapp');
 
-local prologue = [[
+local h_prologue = [[
 #include <glib-object.h>
 
+]]
+
+local c_prologue = h_prologue .. [[
 #ifdef DEBUG
 #define g_marshal_value_peek_boolean(v)  g_value_get_boolean (v)
 #define g_marshal_value_peek_char(v)     g_value_get_schar (v)
@@ -88,7 +91,7 @@ local prologue = [[
 #define g_marshal_value_peek_variant(v)  (v)->data[0].v_pointer
 #endif // DEBUG
 
-]];
+]]
 
 local function functionname(app, args, return_, va_list)
   local name = '';
@@ -101,7 +104,7 @@ local function functionname(app, args, return_, va_list)
   name = name .. 'void\r\n';
 
   local prefix = app:getopt('prefix');
-  chuck = chuck .. ((prefix and prefix .. '_' or 'ds_dsclosure_marshal_') .. return_ .. '_');
+  chuck = chuck .. ((prefix and prefix .. '_' or 'ds_cclosure_marshal_') .. return_ .. '_');
   for _, arg in ipairs(args) do
     chuck = chuck .. '_' .. arg;
   end
@@ -302,6 +305,79 @@ local function mkvamarshal(app, output, args, return_, proto, body)
   output:write('\r\n');
 end
 
+local function mkmarshalv(app, output, args, return_, valist)
+  local namespaces = {};
+  local prefix = app:getopt('prefix');
+  prefix = (prefix and prefix .. '_' or 'ds_cclosure_marshal_'):gsub('_$', '');
+
+  local next_, last = 1, 0;
+  local opens = 0;
+
+  repeat
+    prefix = prefix:sub(last + 1, #prefix);
+    next_ = prefix:find('%_', last);
+    table.insert(namespaces, prefix:sub(1, next_ and next_ - 1 or #prefix));
+    last = next_;
+  until(last == nil);
+
+  local function printfunc()
+    local function arguments()
+      local str = '';
+      for _, arg in ipairs(args) do
+        str = string.format('%s_%s', str, arg);
+      end
+    return str;
+    end
+
+    local header = app:getopt('include-header');
+    if(header ~= nil) then
+      output:write(
+        string.format(
+          '%s[CCode (cheader_filename = "%s")]\r\n',
+          string.rep(' ', opens * 2),
+          header
+        )
+      )
+    end
+
+    local invoke_list = 'GLib.Closure closure, GLib.Value? return_value, [CCode (array_length_cname = "n_param_values", array_length_pos = 2.5, array_length_type = "guint")] GLib.Value[] param_values, void* invocation_hint, void* marshal_data';
+    local invoke_listv = 'GLib.Closure closure, GLib.Value? return_value, GLib.TypeInstance instance, va_list args, void* marshal_data, [CCode (array_length_cname = "n_params", array_length_pos = 5.5)] GLib.Type[] param_types'
+    local internal = app:getopt('internal');
+
+    output:write(
+      string.format(
+        '%s%s static void %s_%s%s (%s);\r\n',
+        string.rep(' ', opens * 2),
+        (internal and 'internal' or 'public'),
+        return_,
+        arguments(),
+        (valist and 'v' or ''),
+        (valist and invoke_listv or invoke_list)
+      )
+    )
+  end
+
+  for i, namespace in ipairs(namespaces) do
+    namespace = namespace:gsub('^.', function(c) return string.upper(c); end);
+
+    output:write(
+      string.format(
+        '%snamespace %s\r\n%s{\r\n',
+        string.rep(' ', opens * 2),
+        namespace,
+        string.rep(' ', opens * 2)
+      )
+    )
+    opens = opens + 1;
+  end
+
+  printfunc();
+
+  for i = 1, opens, 1 do
+    output:write((' '):rep((opens - i) * 2) .. '}\r\n');
+  end
+end
+
 local function process(app, input, output, name)
   local i = 0;
   repeat
@@ -320,13 +396,21 @@ local function process(app, input, output, name)
           if(app:getopt('v') == true) then
             io.stdout:write(string.format('generation marshal for \'%s\'\r\n', line));
           end
-          mkmarshal(app, output, args, return_, app:getopt('H') or app:getopt('prototypes'), app:getopt('C'));
+          if(app:getopt('vapi') ~= true) then
+            mkmarshal(app, output, args, return_, app:getopt('H') or app:getopt('prototypes'), app:getopt('C'));
+          else
+            mkmarshalv(app, output, args, return_, false);
+          end
 
           if(app:getopt('valist-marshallers') == true) then
             if(app:getopt('v') == true) then
               io.stdout:write(string.format('generation va_list marshal for \'%s\'\r\n', line));
             end
-            mkvamarshal(app, output, args, return_, app:getopt('H') or app:getopt('prototypes'), app:getopt('C'));
+            if(app:getopt('vapi') ~= true) then
+              mkvamarshal(app, output, args, return_, app:getopt('H') or app:getopt('prototypes'), app:getopt('C'));
+            else
+              mkmarshalv(app, output, args, return_, true);
+            end
           end
         else
           error(string.format('Malformed line %i: \'%s\'', i, line));
@@ -340,16 +424,45 @@ local function process(app, input, output, name)
   io.stdout:write('info: processed file \'' .. name .. '\'\r\n');
 end
 
-local app = lapp.new('mkmershal', function(app, files)
+local app = lapp.new('mkmarshal', function(app, files)
   app:assert(#files >= 1, 'no input file');
 
+  -- Query output file
   local outfile = app:getopt('output');
   app:assert(outfile ~= nil, 'Specify an output file');
   local output = io.open(outfile, 'w');
   app:assert(output ~= nil, string.format('Can\'t open file \'%s\'', outfile));
 
-  app:assert(app:getopt('C') or app:getopt('H'), 'Use code or header flags');
-  app:assert(app:getopt('C') ~= app:getopt('H'), 'Use code or header flags, not both');
+  do -- Check for code generation flags
+    local some = false;
+    local allowed = 'CHV';
+
+    local function usemsg()
+      local prev = 'Use one of ';
+      local msg = '';
+
+      allowed:gsub('.', function(c)
+        msg = msg .. string.format('%s-%s', prev, c);
+        prev = ', ';
+      end);
+
+      app:assert(nil, msg);
+    end
+
+    allowed:gsub('.', function(c)
+      if(app:getopt(c) == true) then
+        if(some == false) then
+          some = true;
+        else
+          usemsg();
+        end
+      end
+    end);
+
+    if(some == false) then
+      usemsg();
+    end
+  end
 
   output:write([[
 /*
@@ -363,11 +476,15 @@ local app = lapp.new('mkmershal', function(app, files)
   if(app:getopt('include-header') ~= nil and app:getopt('C') ~= nil) then
     output:write('#include <' .. app:getopt('include-header') .. '>\r\n');
   end
-  if(app:getopt('valist-marshallers')~= nil) then
+  if(app:getopt('valist-marshallers') ~= nil and app:getopt('C') ~= nil) then
     output:write('#include <string.h>\r\n');
   end
 
-  output:write(prologue);
+  if(app:getopt('C') == true) then
+    output:write(c_prologue);
+  elseif(app:getopt('H') == true) then
+    output:write(h_prologue);
+  end
 
   for _, file in pairs(files) do
     local input;
@@ -388,6 +505,7 @@ end);
 app:add_options({
   {'C', 'body', 'Generate C code'},
   {'H', 'header', 'Generate C header'},
+  {'V', 'vapi', 'Generate Vala API file'},
   {nil, 'prefix', 'Specify marshaller prefix', 'string'},
   {'o', 'output', 'Write output into the specified file', 'string'},
   {nil, 'internal', 'Mark generated marshallers as internal'},
@@ -399,7 +517,7 @@ app:add_options({
   {nil, 'prototypes', 'Generate the marshellers prototypes along with C code'},
   {'q', 'quiet', 'Only print warning an errors', nil},
   {'v', 'verbose', 'Print verbose messages', nil},
-  {'V', 'version', 'Print version information', nil},
+  {nil, 'version', 'Print version information', nil},
 });
 
 app:run_s(...);

@@ -37,32 +37,41 @@ extern "C" {
 GType
 ds_renderable_get_type();
 
+/**
+ * _DsRenderableIface:
+ * @parent_iface: parent type data.
+ * @compile: compiles every code needed to render this object.
+ * @query_mvp_step: tells object to update MVP matrix if is marked as modified.
+ * @query_mvp_reset: tells object to mark MVP matrix as updated.
+ * @query_mvp_data: custom pointer to pass to query_mvp_* functions
+ *
+ */
 struct _DsRenderableIface
 {
   GTypeInterface parent_iface;
-  gboolean (*compile) (DsRenderable* renderable, DsRenderState* state, GLuint program, GCancellable* cancellable, GError** error);
+  gboolean (*compile) (DsRenderable* renderable, DsRenderState* state, GCancellable* cancellable, GError** error);
+  void (*query_mvp_step) (DsRenderable* renderable, DsRenderState* state);
+  void (*query_mvp_reset) (DsRenderable* renderable);
+  gpointer query_mvp_data;
 };
 
 gboolean
-ds_renderable_compile(DsRenderable         *renderable,
-                      DsRenderState        *state,
-                      GLuint                program,
-                      GCancellable         *cancellable,
-                      GError              **error);
-void
-ds_render_state_model(DsRenderState  *state,
-                      gfloat         *mvp_model);
-
-void
-ds_render_state_pcall(DsRenderState  *state,
-                      GCallback       callback,
-                      guint           n_params,
-                      ...);
+ds_renderable_compile(DsRenderable   *renderable,
+                      DsRenderState  *state,
+                      GCancellable   *cancellable,
+                      GError        **error);
+GLuint
+ds_render_state_get_current_program(DsRenderState* state);
 void
 ds_render_state_call(DsRenderState  *state,
                      GCallback       callback,
                      guint           n_params,
                      ...);
+void
+ds_render_state_pcall(DsRenderState  *state,
+                      GCallback       callback,
+                      guint           n_params,
+                      ...);
 
 #if __cplusplus
 }

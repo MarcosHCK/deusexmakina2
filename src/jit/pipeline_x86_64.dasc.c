@@ -310,34 +310,3 @@ _ds_jit_compile_call(JitState  *ctx,
   _ds_jit_compile_call_valist(ctx, callback, protected_, n_params, l);
   va_end(l);
 }
-
-G_GNUC_INTERNAL
-void
-_ds_jit_compile_mvps_jvp(JitState *ctx)
-{
-  if(ctx->mvps.l_jvp != (-1))
-  {
-    GLuint uloc = ctx->mvps.l_jvp;
-    | mov arg1, uloc
-    | mov arg2, 1
-    | mov arg3, GL_FALSE
-    | mov arg4, mvps
-    | add arg4, G_STRUCT_OFFSET(JitMvps, jvp)
-    | invoke glUniformMatrix4fv
-  }
-}
-
-G_GNUC_INTERNAL
-void
-_ds_jit_compile_mvps_mvp(JitState *ctx)
-{
-  if(ctx->mvps.l_mvp != (-1))
-  {
-    GLuint uloc = ctx->mvps.l_mvp;
-    | movu uloc
-    | mov arg2, 1
-    | mov arg3, GL_FALSE
-    | mov arg4, mvps
-    | invoke glUniformMatrix4fv
-  }
-}

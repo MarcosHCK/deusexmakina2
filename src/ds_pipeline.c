@@ -192,7 +192,6 @@ static void
 ds_pipeline_ds_mvp_holder_iface_notify(DsMvpHolder* pself)
 {
   DsPipeline* self = ((DsPipeline*) pself);
-  _ds_jit_helper_update_mvps(&(self->ctx.mvps));
   self->notified = TRUE;
 }
 
@@ -486,20 +485,25 @@ ds_pipeline_remove_object(DsPipeline   *pipeline,
 }
 
 static void
-jvp_query_start(GLuint uloc, gboolean* pnotified, const GLfloat* mat4_)
+mvps_query_start(DsPipeline* self, GLuint uloc_jvp, GLuint uloc_mvp)
 {
   if G_UNLIKELY
-    (*pnotified == TRUE
-     && uloc != (-1))
+    (self->notified == TRUE)
   {
-    glUniformMatrix4fv(uloc, 1, FALSE, mat4_);
+    JitMvps* mvps = &(self->ctx.mvps);
+    _ds_jit_helper_update_mvps(mvps);
+
+    if(uloc_jvp != (-1))
+      glUniformMatrix4fv(uloc_jvp, 1, FALSE, (GLfloat*) mvps->jvp);
+    if(uloc_mvp != (-1))
+      glUniformMatrix4fv(uloc_mvp, 1, FALSE, (GLfloat*) mvps->mvp);
   }
 }
 
 static void
-jvp_query_end(gboolean* pnotified)
+mvps_query_end(DsPipeline* self)
 {
-  *pnotified = FALSE;
+  self->notified = FALSE;
 }
 
 gboolean
@@ -533,6 +537,7 @@ ds_pipeline_update(DsPipeline    *pipeline,
 
     program =
     _ds_shader_get_pid(entry->shader);
+    ctx->pid = program;
 
   /*
    * Prepare mvps
@@ -576,47 +581,78 @@ ds_pipeline_update(DsPipeline    *pipeline,
     /* check if jvp must be updated */
     _ds_jit_compile_call
     (ctx,
-     G_CALLBACK(jvp_query_start),
+     G_CALLBACK(mvps_query_start),
      TRUE,
      3,
+     (guintptr) pipeline,
      (guintptr) ctx->mvps.l_jvp,
-     (guintptr) &(pipeline->notified),
-     (guintptr) ctx->mvps.jvp);
+     (guintptr) ctx->mvps.l_mvp);
 
     /* propagate compile */
     for(olist = entry->objects;
         olist != NULL;
         olist = olist->next)
     {
-      success =
-      ds_renderable_compile
-      (olist->object,
-       (DsRenderState*)
-       ctx,
-       program,
-       cancellable,
-       &tmp_err);
+      DsRenderable* obj = olist->object;
+      DsRenderableIface* iface =
+      DS_RENDERABLE_GET_IFACE(obj);
 
+      _ds_jit_compile_call
+      (ctx,
+       G_CALLBACK(iface->query_mvp_step),
+       TRUE,
+       4,
+       (guintptr) obj,
+       (guintptr) ctx,
+       (guintptr) ctx->mvps.l_jvp,
+       (guintptr) ctx->mvps.l_mvp);
+
+      success =
+      ds_renderable_compile(obj, (DsRenderState*) ctx, cancellable, &tmp_err);
       if G_UNLIKELY(tmp_err != NULL)
       {
         g_propagate_error(error, tmp_err);
         goto_error();
       }
     }
-
-    /* reset jvp update flag */
-    _ds_jit_compile_call
-    (ctx,
-     G_CALLBACK(jvp_query_end),
-     FALSE,
-     1,
-     (guintptr) &(pipeline->notified));
   }
 
-  /* finalize code */
-  _ds_jit_compile_end(ctx);
+  /* reset jvp update flag */
+  _ds_jit_compile_call
+  (ctx,
+   G_CALLBACK(mvps_query_end),
+   FALSE,
+   1,
+   (guintptr) pipeline);
+
+  for(slist = pipeline->shaders;
+      slist != NULL;
+      slist = slist->next)
+  {
+    entry = slist->e;
+    if(entry->n_objects < 1)
+      continue;
+
+    for(olist = entry->objects;
+        olist != NULL;
+        olist = olist->next)
+    {
+      DsRenderable* obj = olist->object;
+      DsRenderableIface* iface =
+      DS_RENDERABLE_GET_IFACE(obj);
+
+      _ds_jit_compile_call
+      (ctx,
+       G_CALLBACK(iface->query_mvp_reset),
+       TRUE,
+       1,
+       (guintptr) obj);
+    }
+  }
 
 _error_:
+  /* finalize code */
+  _ds_jit_compile_end(ctx);
   if G_LIKELY(success == TRUE)
   {
     pipeline->main = jitmain;
@@ -640,7 +676,9 @@ ds_pipeline_execute(DsPipeline* pipeline)
     if G_UNLIKELY(tmp_err != NULL)
     {
       g_critical
-      ("%s: %i: %s\r\n",
+      ("(%s: %i): %s: %i: %s\r\n",
+       G_STRFUNC,
+       __LINE__,
        g_quark_to_string(tmp_err->domain),
        tmp_err->code,
        tmp_err->message);
@@ -654,7 +692,9 @@ ds_pipeline_execute(DsPipeline* pipeline)
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_critical
-    ("%s: %i: %s\r\n",
+    ("(%s: %i): %s: %i: %s\r\n",
+     G_STRFUNC,
+       __LINE__,
      g_quark_to_string(tmp_err->domain),
      tmp_err->code,
      tmp_err->message);

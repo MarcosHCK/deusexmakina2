@@ -19,6 +19,8 @@
 #include <ds_renderable.h>
 #include <jit/jit.h>
 
+typedef DsRenderableIface DsRenderableInterface;
+
 static
 void ds_renderable_default_init(DsRenderableIface* iface);
 
@@ -27,44 +29,16 @@ void ds_renderable_default_init(DsRenderableIface* iface);
  *
  */
 
-GType
-ds_renderable_get_type (void)
-{
-  static
-  GType renderable_type = 0;
-
-  if G_UNLIKELY(renderable_type == 0)
-  {
-    const
-    GTypeInfo type_info = {
-      sizeof(DsRenderableIface),
-      NULL,
-      NULL,
-      (GClassInitFunc)
-      ds_renderable_default_init,
-      NULL,
-      NULL,
-      0,
-      0,
-      NULL
-    };
-
-    renderable_type =
-    g_type_register_static
-    (G_TYPE_INTERFACE,
-     "DsRenderable",
-     &type_info,
-     0);
-  }
-return renderable_type;
-}
+G_DEFINE_INTERFACE
+(DsRenderable,
+ ds_renderable,
+ G_TYPE_OBJECT);
 
 static gboolean
-ds_renderable_default_compile(DsRenderable         *renderable,
-                              DsRenderState        *state,
-                              GLuint                program,
-                              GCancellable         *cancellable,
-                              GError              **error)
+ds_renderable_default_compile(DsRenderable   *renderable,
+                              DsRenderState  *state,
+                              GCancellable   *cancellable,
+                              GError        **error)
 {
   g_warning
   ("DsRenderable::compile not implemented for '%s'\r\n",
@@ -72,9 +46,21 @@ ds_renderable_default_compile(DsRenderable         *renderable,
 return FALSE;
 }
 
+static void
+ds_renderable_default_query_mvp_step(DsRenderable* renderable, DsRenderState* state)
+{
+}
+
+static void
+ds_renderable_default_query_mvp_reset(DsRenderable* renderable)
+{
+}
+
 static
 void ds_renderable_default_init(DsRenderableIface* iface) {
   iface->compile = ds_renderable_default_compile;
+  iface->query_mvp_step = ds_renderable_default_query_mvp_step;
+  iface->query_mvp_reset = ds_renderable_default_query_mvp_reset;
 }
 
 /*
@@ -85,7 +71,6 @@ void ds_renderable_default_init(DsRenderableIface* iface) {
 gboolean
 ds_renderable_compile(DsRenderable         *renderable,
                       DsRenderState        *state,
-                      GLuint                program,
                       GCancellable         *cancellable,
                       GError              **error)
 {
@@ -96,27 +81,14 @@ ds_renderable_compile(DsRenderable         *renderable,
 
   DsRenderableIface* iface =
   DS_RENDERABLE_GET_IFACE(renderable);
-return iface->compile(renderable, state, program, cancellable, error);
+return iface->compile(renderable, state, cancellable, error);
 }
 
-void
-ds_render_state_pcall(DsRenderState  *state,
-                      GCallback       callback,
-                      guint           n_params,
-                      ...)
+GLuint
+ds_render_state_get_current_program(DsRenderState* state)
 {
-  va_list l;
-  va_start(l, n_params);
-
-  _ds_jit_compile_call_valist
-  ((JitState*)
-   state,
-   callback,
-   TRUE,
-   n_params,
-   l);
-
-  va_end(l);
+  g_return_val_if_fail(state != NULL, 0);
+return ((JitState*) state)->pid;
 }
 
 void
@@ -125,6 +97,10 @@ ds_render_state_call(DsRenderState  *state,
                      guint           n_params,
                      ...)
 {
+  g_return_if_fail(state != NULL);
+  g_return_if_fail(callback != NULL);
+  g_return_if_fail(n_params > 0);
+
   va_list l;
   va_start(l, n_params);
 
@@ -140,13 +116,25 @@ ds_render_state_call(DsRenderState  *state,
 }
 
 void
-ds_render_state_model(DsRenderState  *state,
-                      gfloat         *mvp_model)
+ds_render_state_pcall(DsRenderState  *state,
+                      GCallback       callback,
+                      guint           n_params,
+                      ...)
 {
-  JitState* ctx = (JitState*) state;
-  JitMvps* mvps = (JitMvps*) &(ctx->mvps);
+  g_return_if_fail(state != NULL);
+  g_return_if_fail(callback != NULL);
+  g_return_if_fail(n_params > 0);
 
-  _ds_jit_helper_update_model(mvps, (gpointer) mvp_model);
-  _ds_jit_helper_update_mvps(mvps);
-  _ds_jit_compile_mvps_mvp(ctx);
+  va_list l;
+  va_start(l, n_params);
+
+  _ds_jit_compile_call_valist
+  ((JitState*)
+   state,
+   callback,
+   TRUE,
+   n_params,
+   l);
+
+  va_end(l);
 }

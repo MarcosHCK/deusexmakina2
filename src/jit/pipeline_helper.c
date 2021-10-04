@@ -21,21 +21,10 @@
 
 #define DEBUG_MVP (0)
 
-G_GNUC_INTERNAL
-void
-_ds_jit_helper_update_model(JitMvps* mvps, mat4 model)
-{
-  glm_mat4_copy(model, mvps->model);
-}
-
-G_GNUC_INTERNAL
-void
-_ds_jit_helper_update_mvps(JitMvps* mvps)
-{
-  glm_mat4_mul(mvps->projection, mvps->view, mvps->jvp);
-  glm_mat4_mul(mvps->jvp, mvps->model, mvps->mvp);
-
 #if DEBUG_MVP
+static void
+debug_mvps(JitMvps* mvps)
+{
 # define F "%02.08f "
 # define v mvps->model
 
@@ -108,5 +97,43 @@ _ds_jit_helper_update_mvps(JitMvps* mvps)
 
 # undef F
 # undef v
+}
+#endif // DEBUG_MVP
+
+G_GNUC_INTERNAL
+void
+_ds_jit_helper_update_model(JitMvps* mvps, mat4 model)
+{
+  glm_mat4_copy(model, mvps->model);
+}
+
+G_GNUC_INTERNAL
+void
+_ds_jit_helper_update_jvp(JitMvps* mvps)
+{
+  glm_mat4_mul(mvps->projection, mvps->view, mvps->jvp);
+#if DEBUG_MVP
+  debug_mvps(mvps);
+#endif // DEBUG_MVP
+}
+
+G_GNUC_INTERNAL
+void
+_ds_jit_helper_update_mvp(JitMvps* mvps)
+{
+  glm_mat4_mul(mvps->jvp, mvps->model, mvps->mvp);
+#if DEBUG_MVP
+  debug_mvps(mvps);
+#endif // DEBUG_MVP
+}
+
+G_GNUC_INTERNAL
+void
+_ds_jit_helper_update_mvps(JitMvps* mvps)
+{
+  glm_mat4_mul(mvps->projection, mvps->view, mvps->jvp);
+  glm_mat4_mul(mvps->jvp, mvps->model, mvps->mvp);
+#if DEBUG_MVP
+  debug_mvps(mvps);
 #endif // DEBUG_MVP
 }

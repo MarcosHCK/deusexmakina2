@@ -148,7 +148,7 @@ glDrawArrays_s(GLenum mode, GLint first, GLsizei* pcount)
 }
 
 static gboolean
-ds_text_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, GLuint program, GCancellable* cancellable, GError** error)
+ds_text_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, GCancellable* cancellable, GError** error)
 {
   DsText* self = DS_TEXT(pself);
   gboolean success = TRUE;
@@ -161,6 +161,9 @@ ds_text_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, G
  * Fill uniforms
  *
  */
+
+  GLuint program =
+  ds_render_state_get_current_program(state);
 
   /* get uniform */
   __gl_try_catch(
@@ -245,8 +248,6 @@ ds_text_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, G
  * Compile calls
  *
  */
-
-  ds_render_state_model(state, (gfloat*) scale);
 
   /* activate texture */
   ds_render_state_pcall

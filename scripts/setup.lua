@@ -49,6 +49,7 @@ do
   ds.type.DsShader.new_from_files(
     GFile.new_for_path(ds.GFXDIR .. '/model_vs.glsl'),
     GFile.new_for_path(ds.GFXDIR .. '/model_fs.glsl'),
+    --GFile.new_for_path(ds.GFXDIR .. '/debug_gs.glsl'),
     nil,
     nil,
     cancellable,
@@ -134,6 +135,15 @@ do
   text:print(nil, require('build').PACKAGE_STRING, 2, 600 - 12 - 2, cancellable, tmp_err:ref());
   tmp_err:check();
 
+  local model = ds.type.DsModelSingle.new(
+    GFile.new_for_path(ds.ASSETSDIR),
+    'backpack.obj',
+    cancellable,
+    tmp_err:ref());
+  tmp_err:check();
+
+  pipeline:append_object('model', ds.priority.default, model);
+
 --[[
 --
 -- Update pipeline
@@ -142,6 +152,12 @@ do
 
   pipeline:update(cancellable, tmp_err:ref());
   tmp_err:check();
+
+--[[
+--
+-- Listen for events
+--
+--]]
 
   event.listen('mouse_motion', function(_, x, y, xrel, yrel)
     renderer:look(xrel, yrel);

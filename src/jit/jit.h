@@ -59,6 +59,7 @@ typedef struct {
   guint n_main;
   gpointer block;
   gsize blocksz;
+  GLuint pid;
   JitMvps mvps;
 } JitState;
 
@@ -98,13 +99,6 @@ _ds_jit_compile_call(JitState  *ctx,
                      guint      n_params,
                      ...);
 
-G_GNUC_INTERNAL
-void
-_ds_jit_compile_mvps_jvp(JitState *ctx);
-G_GNUC_INTERNAL
-void
-_ds_jit_compile_mvps_mvp(JitState *ctx);
-
 /*
  * Helpers
  *
@@ -114,6 +108,12 @@ G_GNUC_INTERNAL
 void
 _ds_jit_helper_update_model(JitMvps* mvps,
                             mat4 model);
+G_GNUC_INTERNAL
+void
+_ds_jit_helper_update_jvp(JitMvps* mvps);
+G_GNUC_INTERNAL
+void
+_ds_jit_helper_update_mvp(JitMvps* mvps);
 G_GNUC_INTERNAL
 void
 _ds_jit_helper_update_mvps(JitMvps* mvps);

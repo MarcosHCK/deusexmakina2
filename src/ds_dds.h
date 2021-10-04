@@ -30,8 +30,10 @@
 /**
  * DsDdsError:
  * @DS_DDS_ERROR_FAILED: generic error condition.
- * @DS_DDS_ERROR_INVALID_HEADER: invalid header value (should be 'DDSx').
+ * @DS_DDS_ERROR_INVALID_MAGIC: invalid header value (should be 'DDSx').
+ * @DS_DDS_ERROR_INVALID_HEADER: invalid header structure.
  * @DS_DDS_ERROR_INVALID_FOURCC: invalid four character code (should be 'DXTx').
+ * @DS_DDS_ERROR_UNSUPPORTED_FORMAT: unsupported format.
  *
  * Error code returned by #ds_dds_load_image() function.
  * Note that %DS_DDS_ERROR_FAILED is here only for compatibility with
@@ -39,10 +41,21 @@
  */
 typedef enum {
   DS_DDS_ERROR_FAILED,
+  DS_DDS_ERROR_INVALID_MAGIC,
   DS_DDS_ERROR_INVALID_HEADER,
   DS_DDS_ERROR_INVALID_FOURCC,
   DS_DDS_ERROR_UNSUPPORTED_FORMAT,
 } DsDdsError;
+
+#define DS_TYPE_DDS             (ds_dds_get_type ())
+#define DS_DDS(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), DS_TYPE_DDS, DsDds))
+#define DS_DDS_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), DS_TYPE_DDS, DsDdsClass))
+#define DS_IS_DDS(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), DS_TYPE_DDS))
+#define DS_IS_DDS_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), DS_TYPE_DDS))
+#define DS_DDS_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), DS_TYPE_DDS, DsDdsClass))
+
+typedef struct _DsDds       DsDds;
+typedef struct _DsDdsClass  DsDdsClass;
 
 #if __cplusplus
 extern "C" {
@@ -50,10 +63,36 @@ extern "C" {
 
 GQuark
 ds_dds_error_quark();
+GType
+ds_dds_get_type();
+
+DsDds*
+ds_dds_new (GFile          *source,
+            GCancellable   *cancellable,
+            GError        **error);
+guint
+ds_dds_get_width (DsDds* self);
+guint
+ds_dds_get_height (DsDds* self);
+guint
+ds_dds_get_n_mipmap (DsDds* self);
+guint
+ds_dds_get_gl_internal_format (DsDds* self);
+gboolean
+ds_dds_load_into_texture_2d (DsDds* self,
+                             gboolean create,
+                             guint gl_type,
+                             GError** error);
+gboolean
+ds_dds_load_into_texture_3d (DsDds* self,
+                             gboolean create,
+                             guint gl_type,
+                             guint depth,
+                             GError** error);
 
 gboolean
 ds_dds_load_image(GFile          *file,
-                  guint           gltype,
+                  guint           gl_type,
                   GCancellable   *cancellable,
                   GError        **error);
 

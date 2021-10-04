@@ -53,6 +53,7 @@ SUBDIRS=\
 #
 
 ENUM_FILES=\
+	ds_dds_fmt.h \
 	ds_gl.h \
 	$(VOID)
 
@@ -79,6 +80,9 @@ ds_marshals.c: ds_marshals.list ds_marshals.h
 
 ds_marshals.h: ds_marshals.list
 	$(MKMARSHAL) --header $(MARSHAL_CFLAGS) --output=$@ ds_marshals.list
+
+ds_marshals.vapi: ds_marshals.list ds_marshals.h ds_marshals.c
+	$(MKMARSHAL) --vapi --include-header=ds_marshals.h $(MARSHAL_CFLAGS) --output=$@ ds_marshals.list
 
 #
 # C headers
@@ -107,6 +111,7 @@ EXTRA_DIST+=\
 	ds_macros.h \
 	ds_marshals.h \
 	ds_model.h \
+	ds_model_private.h \
 	ds_mvpholder.h \
 	ds_pipeline.h \
 	ds_renderable.h \
@@ -128,7 +133,7 @@ deusexmakina2_SOURCES=\
 	ds_basedirs.vala \
 	ds_callable.c \
 	ds_closure.c \
-	ds_dds.c \
+	ds_dds.vala \
 	ds_enums.c \
 	ds_error.c \
 	ds_events.c \
@@ -147,7 +152,12 @@ deusexmakina2_SOURCES=\
 	ds_luaobj.c \
 	ds_luaqdata.c \
 	ds_marshals.c \
+	ds_marshals.vapi \
 	ds_model.c \
+	ds_model_buf.c \
+	ds_model_imp.c \
+	ds_model_tex.c \
+	ds_model_single.c \
 	ds_mvpholder.c \
 	ds_pipeline.c \
 	ds_renderable.c \
@@ -222,19 +232,25 @@ deusexmakina2_LDADD=\
 #
 
 VALA_PKG=\
-	closure \
-	config \
 	gio-2.0 \
 	glib-2.0 \
 	gmodule-2.0 \
 	gobject-2.0 \
 	gobject-introspection-1.0 \
+	$(VOID)
+
+VALA_VAPIS=\
+	closure \
+	config \
+	dds \
 	lua \
 	luad \
+	model \
 	$(VOID)
 
 AM_VALAFLAGS=\
 	--vapidir=vapi/ \
 	--hide-internal \
 	$(addprefix --pkg , ${VALA_PKG}) \
+	$(addprefix --pkg , ${VALA_VAPIS}) \
 	$(VOID)

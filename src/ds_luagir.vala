@@ -171,6 +171,23 @@ namespace Ds
     return closure;
     }
 
+    private Ds.Closure? get_method_from_descend(GLib.Type g_type, GLib.Type descend, string name) throws GLib.Error
+    {
+      Ds.Closure? closure = null;
+      try
+      {
+        closure = this.get_method(descend, name);
+      }
+      catch(Ds.GirHubError e)
+      {
+        if(e.code == GirHubError.UNKNOWN_TYPE)
+          throw new GirHubError.UNKNOWN_TYPE(@"Unknown type '$(g_type.name())'");
+        else
+          throw e;
+      }
+    return closure;
+    }
+
     public Ds.Closure? get_method(GLib.Type g_type, string name) throws GLib.Error
     {
       var cname = @"$(g_type.name())::$name";
@@ -185,7 +202,7 @@ namespace Ds
         {
           var repo = GI.Repository.get_default();
           base_ = repo.find_by_gtype(g_type);
-//throw new GirHubError.UNKNOWN_TYPE(@"Unknown type '$(g_type.name())'");
+
           if(likely(base_ != null))
             itypes.insert(g_type.name(), base_);
           else
@@ -193,7 +210,7 @@ namespace Ds
             foreach(var iface in g_type.interfaces())
             {
               closure =
-              this.get_method(iface, name);
+              this.get_method_from_descend(g_type, iface, name);
               if(unlikely(closure != null))
               {
                 return closure;
@@ -202,7 +219,9 @@ namespace Ds
 
             var parent = g_type.parent();
             if(parent != GLib.Type.INVALID && parent != GLib.Type.INTERFACE)
-              closure = this.get_method(parent, name);
+              closure = this.get_method_from_descend(g_type, parent, name);
+            else
+              throw new GirHubError.UNKNOWN_TYPE(@"Unknown type '$(g_type.name())'");
           }
         }
 

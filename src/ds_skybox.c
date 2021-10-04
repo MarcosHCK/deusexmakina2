@@ -512,11 +512,7 @@ void ds_skybox_ds_callable_iface_init(DsCallableIface* iface) {
 }
 
 static gboolean
-ds_skybox_ds_renderable_iface_compile(DsRenderable   *pself,
-                                      DsRenderState  *state,
-                                      GLuint          program,
-                                      GCancellable   *cancellable,
-                                      GError        **error)
+ds_skybox_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, GCancellable* cancellable, GError** error)
 {
   DsSkybox* self = DS_SKYBOX(pself);
   gboolean success = TRUE;
@@ -527,6 +523,9 @@ ds_skybox_ds_renderable_iface_compile(DsRenderable   *pself,
  * Fill uniform
  *
  */
+
+  GLuint program =
+  ds_render_state_get_current_program(state);
 
   /* get uniform */
   __gl_try_catch(

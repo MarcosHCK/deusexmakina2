@@ -17,12 +17,14 @@
  */
 #version 330 core
 out vec4 FragColor;
+in vec3 TexCoords;
 
-in vec2 TexCoords;
-
-uniform sampler2D texture_diffuse1;
+uniform sampler2DArray a_Diffuse;
+uniform sampler2DArray a_Specular;
+uniform sampler2DArray a_Normal;
+uniform sampler2DArray a_Height;
 
 void main()
 {    
-  FragColor = texture(texture_diffuse1, TexCoords);
+  FragColor = texture(a_Diffuse, TexCoords);
 }

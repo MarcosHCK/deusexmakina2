@@ -16,130 +16,114 @@
  *
  */
 #include <config.h>
-#include <assimp/cimport.h>
-#include <assimp/cfileio.h>
-#include <assimp/material.h>
-#include <assimp/postprocess.h>
-#include <assimp/scene.h>
-#include <assimp/vector2.h>
-#include <assimp/vector3.h>
-#include <cglm/cglm.h>
-#include <ds_callable.h>
 #include <ds_dds.h>
-#include <ds_macros.h>
-#include <ds_model.h>
+#include <ds_model_private.h>
 #include <ds_mvpholder.h>
-#include <ds_renderable.h>
-#include <SDL.h>
+#include <jit/jit.h>
 
 G_DEFINE_QUARK(ds-model-error-quark,
                ds_model_error);
 
-#define TEXTURE_DIRECT_PICK (0)
+static void
+ds_model_base_class_init(DsModelClass* klass);
+static void
+ds_model_base_class_fini(DsModelClass* klass);
+static void
+ds_model_class_init(DsModelClass* klass);
+static void
+ds_model_init(DsModel* self);
+static void
+ds_model_ds_mvp_holder_iface_init(DsMvpHolderIface* iface);
+static void
+ds_model_ds_renderable_iface_init(DsRenderableIface* iface);
+static void
+ds_model_g_initable_iface_init(GInitableIface* iface);
+static
+gpointer ds_model_parent_class = NULL;
+static
+gint DsModel_private_offset;
 
-static
-void ds_model_g_initable_iface_init(GInitableIface* iface);
-static
-void ds_model_ds_callable_iface_init(DsCallableIface* iface);
-static
-void ds_model_ds_mvp_holder_iface_init(DsMvpHolderIface* iface);
-static
-void ds_model_ds_renderable_iface_init(DsRenderableIface* iface);
+typedef union  _DsModelTioArray   DsModelTioArray;
+typedef union  _DsModelMeshArray  DsModelMeshArray;
+typedef struct _DsModelTio        DsModelTio;
 
-typedef union  _MeshList      MeshList;
-typedef struct _MeshEntry     MeshEntry;
-typedef union  _VertexArray   VertexArray;
-typedef struct _Vertex        Vertex;
-typedef union  _IndexArray    IndexArray;
-typedef unsigned int          Index;
-typedef union  _TextureArray  TextureArray;
-typedef struct _Texture       Texture;
+/* type safety */
+#if defined(glib_typeof) && GLIB_VERSION_MAX_ALLOWED >= GLIB_VERSION_2_58 && (!defined(glib_typeof_2_68) || GLIB_VERSION_MIN_REQUIRED >= GLIB_VERSION_2_68)
+# define ds_array_ref(var) ((glib_typeof (var)) (ds_array_ref) (var))
+#else  /* __GNUC__ */
+/* This version does not depend on gcc extensions, but gcc does not warn
+ * about incompatible-pointer-types: */
+#define ds_array_ref(var) \
+  ((var == NULL) ? NULL : (var = ((ds_array_ref) (var))))
+#endif /* __GNUC__ */
 
-/* keep sync with ds_gl.h */
-const gint gl2ai[] = {
-  aiTextureType_NONE,       // DS_GL_TEXTURE_TYPE_NONE
-  aiTextureType_DIFFUSE,    // DS_GL_TEXTURE_TYPE_DIFFUSE
-  aiTextureType_SPECULAR,   // DS_GL_TEXTURE_TYPE_SPECULAR
-  aiTextureType_NORMALS,    // DS_GL_TEXTURE_TYPE_NORMALS
-  aiTextureType_HEIGHT,     // DS_GL_TEXTURE_TYPE_HEIGHT
+#define ds_array_unref(var) \
+  ((var == NULL) ? NULL : (var = ((ds_array_unref) (var), NULL)))
+#define ds_list_free(var) \
+  ((var == NULL) ? NULL : (var = ((ds_list_free) (var), NULL)))
+
+G_STATIC_ASSERT(sizeof(guint) >= sizeof(GLuint));
+G_STATIC_ASSERT(sizeof(DsModelIndex) == sizeof(GLuint));
+
+static const
+gchar* tex_uniforms[] =
+{
+  "a_Diffuse",
+  "a_Specular",
+  "a_Normal",
+  "a_Height",
 };
 
-#define _texture_unref0(var) ((var == NULL) ? NULL : (var = (texture_unref (var), NULL)))
-#define _aiReleaseImport0(var) ((var == NULL) ? NULL : (var = (aiReleaseImport (var), NULL)))
+G_STATIC_ASSERT(G_N_ELEMENTS(tex_uniforms) == G_N_ELEMENTS(gl2ai));
 
 /*
  * Object definition
  *
  */
 
-struct _DsModel
+struct _DsModelPrivate
 {
-  GObject parent_instance;
-
-  /*<private>*/
   GFile* source;
-  gchar* name;
-  GHashTable* textures;
-  union _MeshList
+  gchar* filename;
+
+  gboolean notified;
+  mat4 model;
+
+  union _DsModelTioArray
+  {
+    GArray array_;
+    struct
+    {
+      DsModelTio* a;
+      guint len;
+    };
+  } *tios;
+
+  union _DsModelMeshArray
+  {
+    GArray array_;
+    struct
+    {
+      DsModelMesh* a;
+      guint len;
+    };
+  } *meshes;
+
+};
+
+struct _DsModelTio
+{
+  DsModelTexture* tex;
+  union _DsModelMeshList
   {
     GList list_;
     struct
     {
-      struct _MeshEntry
-      {
-        VertexArray* vertexes;
-        IndexArray* indices;
-        TextureArray* textures;
-      } *d;
-
-      MeshList* next;
-      MeshList* prev;
+      DsModelMesh* mesh;
+      union _DsModelMeshList* next;
+      union _DsModelMeshList* prev;
     };
   } *meshes;
-
-  mat4 model;
-};
-
-union _VertexArray
-{
-  GArray array_;
-  struct
-  {
-    struct _Vertex
-    {
-      vec3 position;
-      vec3 normal;
-      union
-      {
-        vec3 uvw;
-        vec2 uv;
-      };
-      vec3 tangent;
-      vec3 bitangent;
-    } *a;
-
-    guint len;
-  };
-};
-
-union _IndexArray
-{
-  GArray array_;
-  struct
-  {
-    Index* a;
-    guint len;
-  };
-};
-
-union _TextureArray
-{
-  GPtrArray array_;
-  struct
-  {
-    Texture* a;
-    guint len;
-  };
 };
 
 enum {
@@ -152,239 +136,519 @@ enum {
 static
 GParamSpec* properties[prop_number] = {0};
 
-G_DEFINE_TYPE_WITH_CODE
-(DsModel,
- ds_model,
- G_TYPE_OBJECT,
- G_IMPLEMENT_INTERFACE
- (G_TYPE_INITABLE,
-  ds_model_g_initable_iface_init)
- G_IMPLEMENT_INTERFACE
- (DS_TYPE_CALLABLE,
-  ds_model_ds_callable_iface_init)
- G_IMPLEMENT_INTERFACE
- (DS_TYPE_MVP_HOLDER,
-  ds_model_ds_mvp_holder_iface_init)
- G_IMPLEMENT_INTERFACE
- (DS_TYPE_RENDERABLE,
-  ds_model_ds_renderable_iface_init));
+_G_DEFINE_TYPE_EXTENDED_CLASS_INIT(DsModel, ds_model);
 
-struct _Texture
+GType
+ds_model_get_type()
 {
-  grefcount refs;
-  DsGLTextureType type;
-  GLuint tio;
-};
+  static
+  GType g_type = 0;
+  if G_UNLIKELY(g_type == 0)
+  {
+    const GTypeInfo
+    type_info =
+    {
+      sizeof(DsModelClass),
+      (GBaseInitFunc)
+      ds_model_base_class_init,
+      (GBaseFinalizeFunc)
+      ds_model_base_class_fini,
+      (GClassInitFunc)
+      ds_model_class_intern_init,
+      NULL,
+      NULL,
+      sizeof(DsModel),
+      0,
+      (GInstanceInitFunc)
+      ds_model_init,
+      NULL,
+    };
 
-static Texture*
-texture_new()
-{
-  Texture* texture =
-  g_slice_new(Texture);
-  g_ref_count_init(&(texture->refs));
-  glGenTextures(1, &(texture->tio));
-  texture->type = DS_GL_TEXTURE_TYPE_NONE;
-return texture;
+    g_type =
+    g_type_register_static(G_TYPE_OBJECT, g_intern_static_string("DsModel"), &type_info, G_TYPE_FLAG_ABSTRACT);
+
+#define g_define_type_id g_type
+
+    G_IMPLEMENT_INTERFACE(G_TYPE_INITABLE, ds_model_g_initable_iface_init)
+    G_IMPLEMENT_INTERFACE(DS_TYPE_MVP_HOLDER, ds_model_ds_mvp_holder_iface_init)
+    G_IMPLEMENT_INTERFACE(DS_TYPE_RENDERABLE, ds_model_ds_renderable_iface_init)
+
+    G_ADD_PRIVATE(DsModel);
+
+#undef g_define_type_id
+  }
+return g_type;
 }
 
-static Texture*
-texture_ref(Texture* texture)
+static gpointer
+(ds_array_ref)(gpointer g_array)
 {
-  g_ref_count_inc(&(texture->refs));
-return texture;
+  return g_array_ref(g_array);
 }
 
 static void
-texture_unref(Texture* texture)
+(ds_array_unref)(gpointer g_array)
 {
-  gboolean zero =
-  g_ref_count_dec(&(texture->refs));
-  if(zero == TRUE)
-  {
-    glDeleteTextures(1, &(texture->tio));
-    g_slice_free(Texture, texture);
-  }
-}
-
-G_DEFINE_BOXED_TYPE
-(Texture,
- texture,
- texture_ref,
- texture_unref);
-
-static void
-_mesh_entry_free0(MeshEntry* entry)
-{
-  if G_LIKELY(entry != NULL)
-  {
-    g_array_unref(&(entry->vertexes->array_));
-    g_array_unref(&(entry->indices->array_));
-    g_ptr_array_unref(&(entry->textures->array_));
-    g_slice_free(MeshEntry, entry);
-  }
-}
-
-typedef struct _FioData FioData;
-
-struct _FioData
-{
-  FioData* chain;
-
-  union
-  {
-    GFile* source;
-    GInputStream* stream;
-    GSeekable* seekable;
-    GObject* object;
-  };
-
-  GCancellable* cancellable;
-  GError* error;
-};
-
-static void
-push_error0(FioData* data, GError* src)
-{
-  if G_UNLIKELY
-    (data->error != NULL)
-  {
-    GError* dst = data->error;
-
-    g_critical
-    ("Setting a new error over a previous one\r\n"
-     "Previous was %s: %i: %s\r\n",
-     "New is %s: %i: %s\r\n",
-     g_quark_to_string(dst->domain),
-     dst->code,
-     dst->message,
-     g_quark_to_string(src->domain),
-     src->code,
-     src->message);
-    g_error_free(dst);
-    data->error = src;
-  }
-  else
-  {
-    data->error = src;
-  }
+  g_array_unref(g_array);
 }
 
 static void
-push_error(FioData* data, GError* src)
+(ds_list_free)(gpointer g_list)
 {
-  g_return_if_fail(src != NULL);
-  if(data->chain != NULL)
-    push_error0(data->chain, src);
-  else
-    push_error0(data, src);
+  g_list_free(g_list);
 }
 
-static GError*
-pop_error(FioData* data)
+static void
+_tio_clear0(DsModelTio* tio)
 {
-  if(data->chain != NULL)
-    return g_steal_pointer(&(data->chain->error));
-  else
-    return g_steal_pointer(&(data->error));
-return NULL;
+  g_clear_pointer(&(tio->meshes), ds_list_free);
+  g_clear_pointer(&(tio->tex), ds_model_texture_unref);
+}
+
+static void
+_mesh_clear0(DsModelMesh* mesh)
+{
+}
+
+static inline void
+copy_vertex(DsModel                *self,
+            const C_STRUCT aiMesh  *mesh,
+            guint                   i,
+            DsModelVertex          *v)
+{
+  /* position */
+  v->position[0] = mesh->mVertices[i].x;
+  v->position[1] = mesh->mVertices[i].y;
+  v->position[2] = mesh->mVertices[i].z;
+
+  /* normal */
+  if(mesh->mNormals != NULL)
+  {
+    v->normal[0] = mesh->mNormals[i].x;
+    v->normal[1] = mesh->mNormals[i].y;
+    v->normal[2] = mesh->mNormals[i].z;
+  }
+
+  /* textures */
+  if(mesh->mTextureCoords != NULL)
+  {
+    /* uvw */
+    switch(mesh->mNumUVComponents[0])
+    {
+    case 3:
+      v->uvw[2] = mesh->mTextureCoords[0][i].z;
+      G_GNUC_FALLTHROUGH;
+    case 2:
+      v->uvw[1] = mesh->mTextureCoords[0][i].y;
+      G_GNUC_FALLTHROUGH;
+    case 1:
+      v->uvw[0] = mesh->mTextureCoords[0][i].x;
+      break;
+    default:
+      g_critical
+      ("(%s: %i): mesh->mNumUVComponents[i] = %u\r\n",
+       G_STRFUNC, __LINE__, mesh->mNumUVComponents[i]);
+      g_assert_not_reached();
+      break;
+    }
+
+    if(mesh->mTangents != NULL)
+    {
+      v->tangent[0] = mesh->mTangents[i].x;
+      v->tangent[1] = mesh->mTangents[i].y;
+      v->tangent[2] = mesh->mTangents[i].z;
+    }
+
+    if(mesh->mBitangents != NULL)
+    {
+      v->bitangent[0] = mesh->mBitangents[i].x;
+      v->bitangent[1] = mesh->mBitangents[i].y;
+      v->bitangent[2] = mesh->mBitangents[i].z;
+    }
+  }
 }
 
 static gboolean
-scene_import_texture(DsModel                   *self,
-                     MeshEntry                 *entry,
-                     const C_STRUCT aiScene    *scene,
-                     const C_STRUCT aiMaterial *material,
-                     DsGLTextureType            type,
-                     GCancellable              *cancellable,
-                     GError                   **error)
+translate_material(DsModel* self, C_STRUCT aiMaterial* material, C_ENUM aiTextureType type, GCancellable* cancellable, GError** error)
 {
   gboolean success = TRUE;
   GError* tmp_err = NULL;
+  C_STRUCT aiString name = {0};
+  GFile* child = NULL;
+  guint i;
 
-  C_ENUM aiTextureType aitype = gl2ai[type];
-  guint i, count = aiGetMaterialTextureCount(material, aitype);
-  TextureArray* textures = entry->textures;
-  Texture* texture = NULL;
-  GFile* file = NULL;
+  guint n_images = aiGetMaterialTextureCount(material, type);
+  if(n_images == 0) return success;
 
+  guint b_images = sizeof(DsDds*) * n_images;
+  DsDds** images = g_alloca(b_images);
+#if HAVE_MEMSET == 1
+  memset(images, 0, b_images);
+#else
   for(i = 0;
-      i < count;
+      i < n_images;
       i++)
   {
-    C_STRUCT aiString name;
-    memset(&name, 0, sizeof(name));
+    images[i] = NULL;
+  }
+#endif // HAVE_MEMSET
 
-    aiGetMaterialTexture(material, aitype, i, &name, NULL, NULL, NULL, NULL, NULL, NULL);
+  guint width = 0;
+  guint height = 0;
+  guint n_mipmap = 0;
+
+  for(i = 0;
+      i < n_images;
+      i++)
+  {
+  /*
+   * Get image file path
+   *
+   */
+
+    aiGetMaterialTexture(material, type, i, &name, NULL, NULL, NULL, NULL, NULL, NULL);
     g_assert(name.length > 0);
 
-    gboolean has =
-    g_hash_table_lookup_extended
-    (self->textures,
-     name.data,
-     NULL,
-     (gpointer*)
-     &texture);
-    if G_LIKELY(has == TRUE)
+    _g_object_unref0(child);
+    child = g_file_get_child(self->priv->source, name.data);
+
+  /*
+   * Actually load image
+   *
+   */
+
+    images[i] =
+    ds_dds_new(child, cancellable, &tmp_err);
+    if G_UNLIKELY(tmp_err != NULL)
     {
-      g_ptr_array_add
-      (&(textures->array_),
-       texture_ref(texture));
-      texture = NULL;
+      g_propagate_error(error, tmp_err);
+      goto_error();
     }
+
+  /*
+   * Check consistency across images
+   *
+   */
+
+    if G_UNLIKELY(width == 0)
+      width = ds_dds_get_width(images[i]);
     else
+    if G_UNLIKELY(width != ds_dds_get_width(images[i]))
     {
-      /*
-       * Load texture
-       *
-       */
-      texture =
-      texture_new();
+      g_set_error_literal
+      (error,
+       DS_MODEL_ERROR,
+       DS_MODEL_ERROR_TEXTURE_LOAD,
+       "Incompatible width values for multi-layer texture\r\n");
+      goto_error();
+    }
 
-      /* Bind texture object */
-      __gl_try_catch(
-        glBindTexture(GL_TEXTURE_2D, texture->tio);
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-      ,
-        g_propagate_error(error, glerror);
-        goto_error();
-      );
+    if G_UNLIKELY(height == 0)
+      height = ds_dds_get_height(images[i]);
+    else
+    if G_UNLIKELY(height != ds_dds_get_height(images[i]))
+    {
+      g_set_error_literal
+      (error,
+       DS_MODEL_ERROR,
+       DS_MODEL_ERROR_TEXTURE_LOAD,
+       "Incompatible height values for multi-layer texture\r\n");
+      goto_error();
+    }
 
-      /* create file */
-      _g_object_unref0(file);
-      file = g_file_get_child(self->source, name.data);
+    if G_UNLIKELY(n_mipmap == 0)
+      n_mipmap = ds_dds_get_n_mipmap(images[i]);
+    else
+    if G_UNLIKELY(n_mipmap != ds_dds_get_n_mipmap(images[i]))
+    {
+      g_set_error_literal
+      (error,
+       DS_MODEL_ERROR,
+       DS_MODEL_ERROR_TEXTURE_LOAD,
+       "Incompatible mipmap levels for multi-layer texture\r\n");
+      goto_error();
+    }
+  }
 
-      success =
-      ds_dds_load_image(file, GL_TEXTURE_2D, cancellable, &tmp_err);
+  __gl_try_catch(
+    glTexStorage3D(GL_TEXTURE_2D_ARRAY, n_mipmap, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, width, height, n_images);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+  for(i = 0;
+      i < n_images;
+      i++)
+  {
+    success =
+    ds_dds_load_into_texture_3d(images[i], FALSE, GL_TEXTURE_2D_ARRAY, i, &tmp_err);
+    if G_UNLIKELY(tmp_err != NULL)
+    {
+      g_propagate_error(error, tmp_err);
+      goto_error();
+    }
+  }
+
+  __gl_try_catch(
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error()
+  );
+
+_error_:
+  _g_object_unref0(child);
+  for(i = 0;
+      i < n_images;
+      i++)
+  {
+    _g_object_unref0(images[i]);
+  }
+return success;
+}
+
+static inline DsModelTexture*
+load_texture_file(DsModel* self, C_STRUCT aiMaterial* material, GCancellable* cancellable, GError** error)
+{
+  gboolean success = TRUE;
+  GError* tmp_err = NULL;
+  DsModelTexture* tex = NULL;
+  guint i;
+
+  tex =
+  ds_model_texture_new(&tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+  for(i = 0;
+      i < G_N_ELEMENTS(gl2ai);
+      i++)
+  {
+    __gl_try_catch
+    (
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(GL_TEXTURE_2D_ARRAY, tex->tios[i]);
+    ,
+      g_propagate_error(error, glerror);
+      goto_error();
+    );
+
+    success =
+    translate_material(self, material, gl2ai[i], cancellable, &tmp_err);
+    if G_UNLIKELY(tmp_err != NULL)
+    {
+      g_propagate_error(error, tmp_err);
+      goto_error();
+    }
+
+    __gl_try_catch
+    (
+      glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+      glActiveTexture(GL_TEXTURE0);
+    ,
+      g_propagate_error(error, glerror);
+      goto_error();
+    );
+  }
+
+_error_:
+  if G_UNLIKELY(success == FALSE)
+    g_clear_pointer(&tex, ds_model_texture_unref);
+return tex;
+}
+
+static inline gboolean
+load_object_file(DsModel* self, GCancellable* cancellable, GError** error)
+{
+  gboolean success = TRUE;
+  GError* tmp_err = NULL;
+  const C_STRUCT aiScene* scene = NULL;
+  guint i, j, k, _v, _i;
+
+  GLuint vbo = 0, ibo = 0;
+  DsModelTioArray* tios = NULL;
+  DsModelMeshArray* meshes = NULL;
+  C_STRUCT aiMesh* mesh = NULL;
+  C_STRUCT aiFace* face = NULL;
+  DsModelVertex* vertices = NULL;
+  DsModelIndex* indices = NULL;
+
+/*
+ * Load scene
+ *
+ */
+
+  scene =
+  _ds_model_import_new(self, self->priv->source, self->priv->filename, cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
+/*
+ * Prepare buffers
+ *
+ */
+
+  /* create buffers object */
+  __gl_try_catch(
+    glCreateBuffers(1, &vbo);
+    glCreateBuffers(1, &ibo);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+  /* calculate buffers size */
+  gsize n_vertices = 0;
+  gsize n_indices = 0;
+
+  for(i = 0;
+      i < scene->mNumMeshes;
+      i++)
+  {
+    n_vertices += scene->mMeshes[i]->mNumVertices;
+
+    for(j = 0;
+        j < scene->mMeshes[i]->mNumFaces;
+        j++)
+    {
+      n_indices += scene->mMeshes[i]->mFaces[j].mNumIndices;
+    }
+  }
+
+  /* allocate buffers */
+  __gl_try_catch(
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, n_vertices * sizeof(DsModelVertex), NULL, GL_STATIC_DRAW);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+  __gl_try_catch(
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, n_indices * sizeof(DsModelIndex), NULL, GL_STATIC_DRAW);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+  tios = (DsModelTioArray*) g_array_new(FALSE, TRUE, sizeof(DsModelTio));
+  g_array_set_size(&(tios->array_), scene->mNumMaterials);
+  g_array_set_clear_func(&(tios->array_), (GDestroyNotify) _tio_clear0);
+  meshes = (DsModelMeshArray*) g_array_new(FALSE, TRUE, sizeof(DsModelMesh));
+  g_array_set_size(&(meshes->array_), scene->mNumMeshes);
+  g_array_set_clear_func(&(meshes->array_), (GDestroyNotify) _mesh_clear0);
+
+  /* map buffers */
+  __gl_try_catch(
+    vertices = (DsModelVertex*) glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+    indices = (DsModelIndex*) glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+/*
+ * Load onto buffers
+ *
+ */
+
+  for(i = 0, _v = 0, _i = 0;
+      i < scene->mNumMeshes;
+      i++)
+  {
+    mesh = scene->mMeshes[i];
+    meshes->a[i].base_vertex = _v;
+    meshes->a[i].index_offset = _i;
+    meshes->a[i].indices = 0;
+
+    /* copy vertices */
+    for(j = 0;
+        j < mesh->mNumVertices;
+        j++)
+    {
+      copy_vertex(self, mesh, j, &(vertices[_v++]));
+    }
+
+    /* copy indices */
+    for(j = 0;
+        j < mesh->mNumFaces;
+        j++)
+    {
+      face = &(mesh->mFaces[j]);
+      G_STATIC_ASSERT(sizeof(face->mIndices[0]) == sizeof(DsModelIndex));
+
+#if HAVE_MEMCPY
+      memcpy(&(indices[_i]), face->mIndices, sizeof(DsModelIndex) * face->mNumIndices);
+#else
+      for(k = 0;
+          k < face->mNumIndices;
+          k++)
+      {
+        indices[_i + k] = face->mIndices[k];
+      }
+#endif // HAVE_MEMCPY
+      meshes->a[i].indices += face->mNumIndices;
+      _i += face->mNumIndices;
+    }
+
+    /* load textures */
+    guint tid = mesh->mMaterialIndex;
+    if G_UNLIKELY
+      (tios->a[tid].tex == NULL)
+    {
+      tios->a[tid].tex =
+      load_texture_file(self, scene->mMaterials[tid], cancellable, &tmp_err);
       if G_UNLIKELY(tmp_err != NULL)
       {
         g_propagate_error(error, tmp_err);
         goto_error();
       }
-
-      __gl_try_catch(
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glBindTexture(GL_TEXTURE_2D, 0);
-      ,
-        g_propagate_error(error, glerror);
-        goto_error()
-      );
-
-      g_hash_table_insert(self->textures, g_strdup(name.data), texture);
-      g_ptr_array_add(&(textures->array_), texture_ref(texture));
-      texture = NULL;
     }
+
+    tios->a[tid].meshes =
+    (union _DsModelMeshList*)
+    g_list_append
+    (&(tios->a[tid].meshes->list_),
+     &(meshes->a[i]));
   }
 
-_error_:
-  _texture_unref0(texture);
-  _g_object_unref0(file);
+/*
+ * Finish
+ *
+ */
 
+  self->priv->tios = ds_array_ref(tios);
+  self->priv->meshes = ds_array_ref(meshes);
+  self->vbo = ds_steal_handle_id(&vbo);
+  self->ibo = ds_steal_handle_id(&ibo);
+
+_error_:
   __gl_try_catch(
-    glBindTexture(GL_TEXTURE_2D, 0);
+    if G_UNLIKELY(indices != NULL)
+      glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
+    if G_UNLIKELY(vertices != NULL)
+      glUnmapBuffer(GL_ARRAY_BUFFER);
+    if G_UNLIKELY(ibo != 0)
+      glDeleteBuffers(1, &ibo);
+    if G_UNLIKELY(vbo != 0)
+      glDeleteBuffers(1, &vbo);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
   ,
     g_warning
-    ("(%s:%i): %s: %i: %s\r\n",
+    ("(%s: %i): %s: %i: %s\r\n",
      G_STRFUNC,
      __LINE__,
      g_quark_to_string(glerror->domain),
@@ -392,452 +656,14 @@ _error_:
      glerror->message);
     g_error_free(glerror);
   );
+
+  ds_array_unref(tios);
+  ds_array_unref(meshes);
+
+  _ds_model_import_free(self, scene);
+  g_clear_object(&(self->priv->source));
+  g_clear_pointer(&(self->priv->filename), g_free);
 return success;
-}
-
-static gboolean
-scene_import_mesh(DsModel                *self,
-                  const C_STRUCT aiScene *scene,
-                  const C_STRUCT aiMesh  *mesh,
-                  GCancellable           *cancellable,
-                  GError                **error)
-{
-  MeshEntry* entry = NULL;
-  gboolean success = TRUE;
-  GError* tmp_err = NULL;
-  guint i, j;
-
-  VertexArray* vertexes = NULL;
-  IndexArray* indices = NULL;
-  TextureArray* textures = NULL;
-
-/*
- * Prepare arrays
- *
- */
-
-  entry =
-  g_slice_new0(MeshEntry);
-  vertexes =
-  entry->vertexes = (VertexArray*)
-  g_array_new(0, 1, sizeof(Vertex));
-  indices =
-  entry->indices = (IndexArray*)
-  g_array_new(0, 1, sizeof(Index));
-  textures =
-  entry->textures = (TextureArray*)
-  g_ptr_array_new_full
-  (0,
-   (GDestroyNotify)
-   texture_unref);
-
-/*
- * Load vertices
- *
- */
-
-  g_array_set_size
-  (&(vertexes->array_),
-   mesh->mNumVertices);
-
-  for(i = 0;
-      i < mesh->mNumVertices;
-      i++)
-  {
-    Vertex* v = &(vertexes->a[i]);
-
-    /* position */
-    v->position[0] = mesh->mVertices[i].x;
-    v->position[1] = mesh->mVertices[i].y;
-    v->position[2] = mesh->mVertices[i].z;
-
-    /* normal */
-    if G_LIKELY(mesh->mNormals != NULL)
-    {
-      v->normal[0] = mesh->mNormals[i].x;
-      v->normal[1] = mesh->mNormals[i].y;
-      v->normal[2] = mesh->mNormals[i].z;
-    }
-
-    /* texture */
-    if G_LIKELY(mesh->mTextureCoords != NULL)
-    {
-      /* uv */
-      switch(mesh->mNumUVComponents[0])
-      {
-      case 3:
-        v->uvw[2] = mesh->mTextureCoords[0][i].z;
-      case 2:
-        v->uvw[1] = mesh->mTextureCoords[0][i].y;
-      case 1:
-        v->uvw[0] = mesh->mTextureCoords[0][i].x;
-      case 0:
-        break;
-      default:
-        g_critical
-        ("mesh->mNumUVComponents[i] = %u\r\n",
-         mesh->mNumUVComponents[i]);
-        g_assert_not_reached();
-        break;
-      }
-
-      /* tangent */
-      if G_LIKELY(v->tangent != NULL)
-      {
-        v->tangent[0] = mesh->mTangents[i].x;
-        v->tangent[1] = mesh->mTangents[i].y;
-        v->tangent[2] = mesh->mTangents[i].z;
-      }
-
-      /* bitangent */
-      if G_LIKELY(v->bitangent != NULL)
-      {
-        v->bitangent[0] = mesh->mBitangents[i].x;
-        v->bitangent[1] = mesh->mBitangents[i].y;
-        v->bitangent[2] = mesh->mBitangents[i].z;
-      }
-    }
-  }
-
-/*
- * Load indices
- *
- */
-
-  for(i = 0;
-      i < mesh->mNumFaces;
-      i++)
-  {
-    g_array_append_vals
-    (&(indices->array_),
-     mesh->mFaces[i].mIndices,
-     mesh->mFaces[i].mNumIndices);
-  }
-
-/*
- * Load textures
- *
- */
-
-  C_STRUCT aiMaterial* material =
-  scene->mMaterials[mesh->mMaterialIndex];
-
-#if TEXTURE_DIRECT_PICK
-# define scene_import_texture(type) \
-  G_STMT_START { \
-    success = \
-    scene_import_texture(self, entry, scene, material, (type), cancellable, &tmp_err); \
-    if G_UNLIKELY(tmp_err != NULL) \
-    { \
-      g_propagate_error(error, tmp_err); \
-      goto_error(); \
-    } \
-  } G_STMT_END
-
-  scene_import_texture(TEXTURE_TYPE_DIFFUSE);
-  scene_import_texture(TEXTURE_TYPE_SPECULAR);
-  scene_import_texture(TEXTURE_TYPE_NORMAL);
-  scene_import_texture(TEXTURE_TYPE_HEIGHT);
-
-# undef scene_import_texture
-#else // TEXTURE_DIRECT_PICK
-  GType etype =
-  ds_gl_texture_type_get_type();
-  GEnumClass* klass =
-  g_type_class_ref(etype);
-  GEnumValue* values = klass->values;
-
-  for(i = 0;
-      i < klass->n_values;
-      i++)
-  {
-    success =
-    scene_import_texture(self, entry, scene, material, values[i].value, cancellable, &tmp_err);
-    if G_UNLIKELY(tmp_err != NULL)
-    {
-      g_propagate_error(error, tmp_err);
-      g_type_class_unref(klass);
-      goto_error();
-    }
-  }
-
-  g_type_class_unref(klass);
-#endif // TEXTURE_DIRECT_PICK
-
-/*
- * Finish by appending mesh data
- *
- */
-
-  self->meshes = (MeshList*)
-  g_list_append
-  (&(self->meshes->list_),
-   g_steal_pointer(&entry));
-
-_error_:
-  _mesh_entry_free0(entry);
-return success;
-}
-
-static gboolean
-scene_import_node(DsModel                *self,
-                  const C_STRUCT aiScene *scene,
-                  const C_STRUCT aiNode  *node,
-                  GCancellable           *cancellable,
-                  GError                **error)
-{
-  gboolean success = TRUE;
-  GError* tmp_err = NULL;
-  guint i;
-
-  for(i = 0;
-      i < node->mNumMeshes;
-      i++)
-  {
-    C_STRUCT aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-
-    success =
-    scene_import_mesh(self, scene, mesh, cancellable, &tmp_err);
-    if G_UNLIKELY(tmp_err != NULL)
-    {
-      g_propagate_error(error, tmp_err);
-      goto_error();
-    }
-  }
-
-  for(i = 0;
-      i < node->mNumChildren;
-      i++)
-  {
-    success =
-    scene_import_node(self, scene, node->mChildren[i], cancellable, &tmp_err);
-    if G_UNLIKELY(tmp_err != NULL)
-    {
-      g_propagate_error(error, tmp_err);
-      goto_error();
-    }
-  }
-
-_error_:
-return success;
-}
-
-static void
-_fio_data_free0(FioData* data)
-{
-  if G_LIKELY(data != NULL)
-  {
-    g_clear_object(&(data->object));
-    g_clear_object(&(data->cancellable));
-
-    if G_UNLIKELY(data->error != NULL)
-    {
-      GError* tmp_err = data->error;
-
-      g_critical
-      ("Uncaught error: %s: %i: %s\r\n",
-       g_quark_to_string(tmp_err->domain),
-       tmp_err->code,
-       tmp_err->message);
-    }
-
-    g_slice_free(FioData, data);
-  }
-}
-
-static size_t
-ai_read_proc(C_STRUCT aiFile* ifile, char* buffer, size_t size, size_t count)
-{
-  FioData* data = (FioData*) ifile->UserData;
-  gboolean success = TRUE;
-  GError* tmp_err = NULL;
-  gsize read = -1;
-
-  g_input_stream_read_all
-  (data->stream,
-   buffer,
-   (gsize)
-   (size * count),
-   &read,
-   data->cancellable,
-   &tmp_err);
-
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    push_error(data, tmp_err);
-    goto_error();
-  }
-
-_error_:
-  if G_UNLIKELY(success == FALSE)
-    return (size_t) (-1);
-return (size_t) read;
-}
-
-static size_t
-ai_tell_proc(C_STRUCT aiFile* ifile)
-{
-  FioData* data = (FioData*) ifile->UserData;
-return (size_t) g_seekable_tell(data->seekable);
-}
-
-static size_t
-ai_file_size_proc(C_STRUCT aiFile* ifile)
-{
-  FioData* data = (FioData*) ifile->UserData;
-  gboolean success = TRUE;
-  GError* tmp_err = NULL;
-  GFileInfo* info = NULL;
-  gsize size = -1;
-
-  info =
-  g_file_input_stream_query_info
-  (G_FILE_INPUT_STREAM(data->stream),
-   G_FILE_ATTRIBUTE_STANDARD_SIZE,
-   data->cancellable,
-   &tmp_err);
-
-  size =
-  g_file_info_get_attribute_uint64
-  (info,
-   G_FILE_ATTRIBUTE_STANDARD_SIZE);
-
-_error_:
-  _g_object_unref0(info);
-return (size_t) size;
-}
-
-static C_ENUM aiReturn
-ai_seek_proc(C_STRUCT aiFile* ifile, size_t offset, C_ENUM aiOrigin from)
-{
-  FioData* data = (FioData*) ifile->UserData;
-  gboolean success = TRUE;
-  GError* tmp_err = NULL;
-  GSeekType type = 0;
-
-  switch(from)
-  {
-  case aiOrigin_SET:
-    type = G_SEEK_SET;
-    break;
-  case aiOrigin_CUR:
-    type = G_SEEK_CUR;
-    break;
-  case aiOrigin_END:
-    type = G_SEEK_END;
-    break;
-  default:
-    g_assert_not_reached();
-    break;
-  }
-
-  g_seekable_seek
-  (data->seekable,
-   offset,
-   type,
-   data->cancellable,
-   &tmp_err);
-
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    push_error(data, tmp_err);
-    goto_error();
-  }
-
-_error_:
-return success ? aiReturn_SUCCESS : aiReturn_FAILURE;
-}
-
-static C_STRUCT aiFile*
-ai_open_proc(C_STRUCT aiFileIO* fio, const gchar* path, const gchar* mode)
-{
-  FioData* data = (FioData*) fio->UserData;
-  C_STRUCT aiFile* ifile = NULL;
-  GInputStream* stream = NULL;
-  gboolean success = TRUE;
-  GError* tmp_err = NULL;
-
-  g_assert(mode[0] == 'r');
-
-/*
- * Open file
- *
- */
-
-  GFile* file =
-  g_file_get_child(data->source, path);
-
-  stream = (GInputStream*)
-  g_file_read(file, data->cancellable, &tmp_err);
-  g_object_unref(file);
-
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    push_error(data, tmp_err);
-    goto_error();
-  }
-
-/*
- * Prepare aiFile structure
- *
- */
-
-  FioData* data2 = g_slice_new(FioData);
-  ifile = g_slice_new(C_STRUCT aiFile);
-  ifile->UserData = (aiUserData) data2;
-
-  data2->chain = data;
-  data2->stream = g_steal_pointer(&stream);
-  data2->cancellable = _g_object_ref0(data->cancellable);
-  data2->error = NULL;
-
-  ifile->ReadProc = ai_read_proc;
-  ifile->WriteProc = NULL;
-  ifile->TellProc = ai_tell_proc;
-  ifile->FileSizeProc = ai_file_size_proc;
-  ifile->SeekProc = ai_seek_proc;
-  ifile->FlushProc = NULL;
-
-_error_:
-  g_clear_object(&stream);
-  if G_UNLIKELY(success == FALSE)
-  {
-    if(ifile != NULL)
-    {
-      if(ifile->UserData)
-      {
-        g_clear_pointer
-        ((FioData**)
-         &(ifile->UserData),
-         _fio_data_free0);
-      }
-
-      g_slice_free
-      (C_STRUCT aiFile,
-       ifile);
-      ifile = NULL;
-    }
-  }
-return ifile;
-}
-
-void
-aio_close_proc(C_STRUCT aiFileIO* fio, C_STRUCT aiFile* ifile)
-{
-  FioData* data = (FioData*) fio->UserData;
-  FioData* data2 = (FioData*) ifile->UserData;
-  gboolean success = TRUE;
-  GError* tmp_err = NULL;
-
-  g_input_stream_close
-  (data2->stream,
-   data2->cancellable,
-   &tmp_err);
-
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    push_error(data2, tmp_err);
-  }
 }
 
 static gboolean
@@ -846,51 +672,31 @@ ds_model_g_initable_iface_init_sync(GInitable    *pself,
                                     GError      **error)
 {
   DsModel* self = (DsModel*) pself;
-  const C_STRUCT aiScene* scene = NULL;
   gboolean success = TRUE;
   GError* tmp_err = NULL;
-  FioData* data = NULL;
 
-  C_STRUCT aiFileIO fio = {0};
-  data = g_slice_new0(FioData);
+  g_assert(self->priv->source);
 
-  data->source = g_object_ref(self->source);
-  data->cancellable = _g_object_ref0(cancellable);
+/*
+ * Class vertex array lazy load
+ *
+ */
 
-  fio.OpenProc = ai_open_proc;
-  fio.CloseProc = aio_close_proc;
-  fio.UserData = (aiUserData) data;
-
-  scene =
-  aiImportFileEx
-  (self->name,
-   aiProcess_Triangulate
-   | aiProcess_GenSmoothNormals
-   | aiProcess_CalcTangentSpace,
-   &fio);
-
-  tmp_err = pop_error(data);
+  success =
+  _ds_model_make_vao(self, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
     goto_error();
   }
 
-  if G_UNLIKELY
-    (scene == NULL
-     || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE)
-     || (scene->mRootNode == NULL))
-  {
-    g_set_error_literal
-    (error,
-     DS_MODEL_ERROR,
-     DS_MODEL_ERROR_INCOMPLETE_IMPORT,
-     "Incomplete import\r\n");
-    goto_error();
-  }
+/*
+ * Load object
+ *
+ */
 
   success =
-  scene_import_node(self, scene, scene->mRootNode, cancellable, &tmp_err);
+  load_object_file(self, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -898,129 +704,149 @@ ds_model_g_initable_iface_init_sync(GInitable    *pself,
   }
 
 _error_:
-  g_clear_object(&(self->source));
-  g_clear_pointer(&(self->name), g_free);
-  _aiReleaseImport0(scene);
-  _fio_data_free0(data);
 return success;
 }
 
-static
-void ds_model_g_initable_iface_init(GInitableIface* iface) {
+static void
+ds_model_g_initable_iface_init(GInitableIface* iface) {
   iface->init = ds_model_g_initable_iface_init_sync;
 }
 
-static DsModel*
-_callable_new(gpointer      null_,
-              GFile        *source,
-              const gchar  *name,
-              GCancellable *cancellable,
-              GError      **error)
+static void
+ds_model_ds_mvp_holder_iface_notify_model(DsMvpHolder* pself)
 {
-  return
-  ds_model_new
-  (source,
-   name,
-   cancellable,
-   error);
+  DS_MODEL(pself)->priv->notified = TRUE;
 }
 
-static DsModel*
-_callable_new_simple(gpointer      null_,
-                     const gchar  *source,
-                     const gchar  *name,
-                     GCancellable *cancellable,
-                     GError      **error)
-{
-  GFile *source_ = NULL;
-  source_ = g_file_new_for_path(source);
-
-  DsModel* model =
-  ds_model_new(source_, name, cancellable, error);
-
-  g_object_unref(source_);
-return model;
-}
-
-static
-void ds_model_ds_callable_iface_init(DsCallableIface* iface) {
-  ds_callable_iface_add_method
-  (iface,
-   "new",
-   DS_CLOSURE_CONSTRUCTOR,
-   G_CALLBACK(_callable_new),
-   ds_cclosure_marshal_OBJECT__OBJECT_STRING_OBJECT_POINTER,
-   ds_cclosure_marshal_OBJECT__OBJECT_STRING_OBJECT_POINTERv,
-   DS_TYPE_MODEL,
-   4,
-   G_TYPE_FILE,
-   G_TYPE_STRING,
-   G_TYPE_CANCELLABLE,
-   G_TYPE_POINTER);
-
-  ds_callable_iface_add_method
-  (iface,
-   "new_simple",
-   DS_CLOSURE_CONSTRUCTOR,
-   G_CALLBACK(_callable_new_simple),
-   ds_cclosure_marshal_OBJECT__STRING_STRING_OBJECT_POINTER,
-   ds_cclosure_marshal_OBJECT__STRING_STRING_OBJECT_POINTERv,
-   DS_TYPE_MODEL,
-   4,
-   G_TYPE_STRING,
-   G_TYPE_STRING,
-   G_TYPE_CANCELLABLE,
-   G_TYPE_POINTER);
-}
-
-static
-void ds_model_ds_mvp_holder_iface_set_position(DsMvpHolder* pself, gfloat* dst)
+static void
+ds_model_ds_mvp_holder_iface_set_position(DsMvpHolder* pself, gfloat* dst)
 {
 }
 
-static
-void ds_model_ds_mvp_holder_iface_get_position(DsMvpHolder* pself, gfloat* dst)
+static void
+ds_model_ds_mvp_holder_iface_get_position(DsMvpHolder* pself, gfloat* dst)
 {
 }
 
-static
-void ds_model_ds_mvp_holder_iface_init(DsMvpHolderIface* iface) {
-  iface->p_model = G_STRUCT_OFFSET(DsModel, model);
+static void
+ds_model_ds_mvp_holder_iface_init(DsMvpHolderIface* iface)
+{
+  iface->p_model = G_PRIVATE_OFFSET(DsModel, model);
+  iface->notify_model = ds_model_ds_mvp_holder_iface_notify_model;
   iface->set_position = ds_model_ds_mvp_holder_iface_set_position;
   iface->get_position = ds_model_ds_mvp_holder_iface_get_position;
 }
 
 static gboolean
-ds_model_ds_renderable_iface_compile(DsRenderable        *pself,
-                                     DsRenderState       *state,
-                                     GLuint               program,
-                                     GCancellable        *cancellable,
-                                     GError             **error)
+ds_model_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, GCancellable* cancellable, GError** error)
 {
   gboolean success = TRUE;
   GError* tmp_err = NULL;
+  DsModelClass* klass =
+  DS_MODEL_GET_CLASS(pself);
 
-  g_assert_not_reached();
+  GLuint program;
+  GLuint uloc;
+  guint i;
+
+  program = ds_render_state_get_current_program(state);
+
+/*
+ * VAO switching
+ *
+ */
+
+  ds_render_state_pcall
+  (state,
+   G_CALLBACK(glBindVertexArray),
+   1,
+   (guintptr) klass->vao);
+
+/*
+ * Texture binding
+ *
+ */
+
+  for(i = 0;
+      i < G_N_ELEMENTS(tex_uniforms);
+      i++)
+  {
+    __gl_try_catch(
+      uloc = glGetUniformLocation(program, tex_uniforms[i]);
+    ,
+      g_propagate_error(error, tmp_err);
+      goto_error();
+    );
+
+    if G_UNLIKELY(uloc == (-1))
+      continue;
+
+    __gl_try_catch(
+      glUniform1i(uloc, i);
+    ,
+      g_propagate_error(error, tmp_err);
+      goto_error();
+    );
+  }
+
+/*
+ * Chain-up implementations
+ *
+ */
+
+  success =
+  klass->compile((DsModel*) pself, state, cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+
 _error_:
 return success;
 }
 
-static
-void ds_model_ds_renderable_iface_init(DsRenderableIface* iface) {
-  iface->compile = ds_model_ds_renderable_iface_compile;
+static void
+ds_model_ds_renderable_iface_query_mvp_step(DsModel* self, JitState* ctx, GLuint uloc_jvp, GLuint l_mvp)
+{
+  if G_UNLIKELY
+    (self->priv->notified == TRUE)
+  {
+    JitMvps* mvps = &(ctx->mvps);
+    _ds_jit_helper_update_model(&(ctx->mvps), self->priv->model);
+    _ds_jit_helper_update_mvp(&(ctx->mvps));
+
+    if(l_mvp != (-1))
+      glUniformMatrix4fv(l_mvp, 1, FALSE, (GLfloat*) mvps->mvp);
+  }
 }
 
-static
-void ds_model_class_set_property(GObject* pself, guint prop_id, const GValue* value, GParamSpec* pspec) {
+static void
+ds_model_ds_renderable_iface_query_mvp_reset(DsModel* self)
+{
+  self->priv->notified = FALSE;
+}
+
+static void
+ds_model_ds_renderable_iface_init(DsRenderableIface* iface)
+{
+  iface->compile = ds_model_ds_renderable_iface_compile;
+  iface->query_mvp_step = (void(*)(DsRenderable*,DsRenderState*)) ds_model_ds_renderable_iface_query_mvp_step;
+  iface->query_mvp_reset = (void(*)(DsRenderable*)) ds_model_ds_renderable_iface_query_mvp_reset;
+}
+
+static void
+ds_model_class_set_property(GObject* pself, guint prop_id, const GValue* value, GParamSpec* pspec)
+{
   DsModel* self = DS_MODEL(pself);
   switch(prop_id)
   {
   case prop_source:
-    g_set_object(&(self->source), g_value_get_object(value));
+    g_set_object(&(self->priv->source), g_value_get_object(value));
     break;
   case prop_name:
-    g_clear_pointer(&(self->name), g_free);
-    self->name = g_value_dup_string(value);
+    g_clear_pointer(&(self->priv->filename), g_free);
+    self->priv->filename = g_value_dup_string(value);
     break;
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID(pself, prop_id, pspec);
@@ -1028,39 +854,84 @@ void ds_model_class_set_property(GObject* pself, guint prop_id, const GValue* va
   }
 }
 
-static
-void ds_model_class_finalize(GObject* pself) {
+static void
+ds_model_base_class_init(DsModelClass* klass)
+{
+  klass->vao = 0;
+}
+
+static void
+ds_model_base_class_fini(DsModelClass* klass)
+{
+  GLuint* pvao = &(klass->vao);
+  if G_LIKELY((*pvao) != 0)
+  {
+    __gl_try_catch(
+      glDeleteVertexArrays(1, pvao);
+      *pvao = 0;
+    ,
+      g_warning
+      ("(%s: %i): %s: %i: %s\r\n",
+       G_STRFUNC,
+       __LINE__,
+       g_quark_to_string(glerror->domain),
+       glerror->code,
+       glerror->message);
+      g_error_free(glerror);
+    );
+  }
+}
+
+static gboolean
+ds_model_class_compile(DsModel* self, DsRenderState* state, GCancellable* cancellable, GError** error)
+{
+  g_warning
+  ("DsModel::compile not implemented for '%s'\r\n",
+   g_type_name(G_TYPE_FROM_INSTANCE(self)));
+return FALSE;
+}
+
+static void
+ds_model_class_finalize(GObject* pself)
+{
   DsModel* self = DS_MODEL(pself);
-  g_hash_table_remove_all(self->textures);
-  g_hash_table_unref(self->textures);
-  _g_free0(self->name);
+  ds_array_unref(self->priv->tios);
+  ds_array_unref(self->priv->meshes);
+  g_clear_pointer(&(self->priv->filename), g_free);
+
+  __gl_try_catch(
+    glDeleteBuffers(2, self->bos);
+  ,
+    g_warning
+    ("(%s: %i): %s: %i: %s\r\n",
+     G_STRFUNC,
+     __LINE__,
+     g_quark_to_string(glerror->domain),
+     glerror->code,
+     glerror->message);
+    g_error_free(glerror);
+  );
+
 G_OBJECT_CLASS(ds_model_parent_class)->finalize(pself);
 }
 
-static
-void ds_model_class_dispose(GObject* pself) {
+static void
+ds_model_class_dispose(GObject* pself) {
   DsModel* self = DS_MODEL(pself);
-  g_clear_object(&(self->source));
+  g_clear_object(&(self->priv->source));
 G_OBJECT_CLASS(ds_model_parent_class)->dispose(pself);
 }
 
-static
-void ds_model_class_init(DsModelClass* klass) {
+static void
+ds_model_class_init(DsModelClass* klass)
+{
   GObjectClass* oclass = G_OBJECT_CLASS(klass);
 
-/*
- * vtable
- *
- */
+  klass->compile = ds_model_class_compile;
 
   oclass->set_property = ds_model_class_set_property;
   oclass->finalize = ds_model_class_finalize;
   oclass->dispose = ds_model_class_dispose;
-
-/*
- * Properties
- *
- */
 
   properties[prop_source] =
     g_param_spec_object
@@ -1088,17 +959,36 @@ void ds_model_class_init(DsModelClass* klass) {
    properties);
 }
 
-static
-void ds_model_init(DsModel* self) {
-  self->textures =
-  g_hash_table_new_full
-  (g_str_hash,
-   g_str_equal,
-   (GDestroyNotify)
-   g_free,
-   (GDestroyNotify)
-   texture_unref);
-  self->meshes = NULL;
+static void
+ds_model_class_fini(DsModelClass* klass)
+{
+}
+
+static gboolean
+cycle_(DsModel* self)
+{
+  mat4 from;
+  glm_mat4_copy(self->priv->model, from);
+  glm_rotate_y(from, glm_rad(1.5f), self->priv->model);
+  self->priv->notified = TRUE;
+return G_SOURCE_CONTINUE;
+}
+
+static void
+ds_model_init(DsModel* self)
+{
+  self->priv = G_STRUCT_MEMBER_P(self, DsModel_private_offset);
+  self->priv->notified = TRUE;
+
+  vec3 s;
+  vec3 t = {0.f, 0.f, -0.4f};
+  glm_vec3_fill(s, .05f);
+
+  glm_mat4_identity(self->priv->model);
+  glm_translate(self->priv->model, t);
+  glm_scale(self->priv->model, s);
+
+  g_timeout_add(20, G_SOURCE_FUNC(cycle_), self);
 }
 
 /*
@@ -1106,18 +996,25 @@ void ds_model_init(DsModel* self) {
  *
  */
 
-DsModel*
-ds_model_new(GFile         *source,
-             const gchar   *name,
-             GCancellable  *cancellable,
-             GError       **error)
+G_GNUC_INTERNAL
+void
+_ds_model_iterate_tio_groups(DsModel* self,
+                             DsModelTioIterator foreach_tio,
+                             gpointer user_data)
 {
-  return (DsModel*)
-  g_initable_new
-  (DS_TYPE_MODEL,
-   cancellable,
-   error,
-   "source", source,
-   "name", name,
-   NULL);
+  DsModelTioArray* tios = self->priv->tios;
+  union _DsModelMeshList* meshes = NULL;
+  gboolean continue_;
+  guint i;
+
+  for(i = 0;
+      i < tios->len;
+      i++)
+  if G_LIKELY(tios->a[i].meshes != NULL)
+  {
+    continue_ =
+    foreach_tio(self, tios->a[i].tex, (GList*) tios->a[i].meshes, user_data);
+    if(continue_ == G_SOURCE_REMOVE)
+      return;
+  }
 }

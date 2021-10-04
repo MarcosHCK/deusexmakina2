@@ -73,7 +73,7 @@ do
   else
     text = {
       padRight = function(value, spaces)
-        return value .. string.rep(' ', spaces - value:len());
+        return value .. string.rep(' ', spaces - #value);
       end,
     };
   end
@@ -108,20 +108,30 @@ local help_opt = {
     end
 
     io.write('\r\n');
+    local paddmax = 1;
+    for _, option in ipairs(options) do
+      local names = table.concat({option.short or '', option.long or ''}, ', ');
+      local len = #names;
+      if(len > paddmax) then
+        paddmax = len;
+      end
+    end
+
+    paddmax = paddmax + (10 - paddmax % 10);
 
     for _, option in ipairs(options) do
       io.stdout:write(text.padRight('', 10));
 
       if(option.short) then
         local names = table.concat({option.short, option.long}, ', ');
-        io.stdout:write(text.padRight(names, 20));
+        io.stdout:write(text.padRight(names, paddmax));
       else
-        io.stdout:write(text.padRight(string.rep(' ', 4) .. option.long, 20));
+        io.stdout:write(text.padRight(string.rep(' ', 4) .. option.long, paddmax));
       end
 
       local description = option.description;
       if(description) then
-        io.stdout:write(text.padRight(description, 20))
+        io.stdout:write(text.padRight(description, paddmax))
       end
 
         io.stdout:write('\n');
@@ -319,7 +329,7 @@ function lapp.run(app, ...)
             return ret, reason;
           end
         else
-          for i = 2, option_name:len(), 1 do
+          for i = 2, #option_name, 1 do
             local bit = option_name:sub(i, i);
             local ret, reason = parse_option('-' .. bit);
             if(ret ~= true) then
