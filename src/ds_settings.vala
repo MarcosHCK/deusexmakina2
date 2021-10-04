@@ -73,7 +73,7 @@ namespace Ds
 
     public Settings(string directory, GLib.Cancellable? cancellable = null) throws GLib.Error
     {
-      Object(schemas_directory: directory);
+      GLib.Object(schemas_directory: directory);
 
       try {
         this.init(cancellable);

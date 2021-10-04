@@ -66,7 +66,7 @@ namespace Ds
 
     public DataProvider(GLib.Cancellable? cancellable = null) throws GLib.Error
     {
-      Object();
+      GLib.Object();
       this.init(cancellable);
       __default__ = this;
     }
@@ -87,7 +87,7 @@ namespace Ds
 
     public CacheProvider(GLib.Cancellable? cancellable = null) throws GLib.Error
     {
-      Object();
+      GLib.Object();
       this.init(cancellable);
       __default__ = this;
     }

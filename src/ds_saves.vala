@@ -46,7 +46,7 @@ namespace Ds
 
     public Saves(string name, GLib.File savesdir, GLib.Cancellable? cancellable = null) throws GLib.Error
     {
-      Object(name: name);
+      GLib.Object(name: name);
       this.savesdir = savesdir;
       this.init(cancellable);
     }

@@ -236,6 +236,7 @@ fi
 
 AC_C_INLINE
 AC_TYPE_SIZE_T
+AC_TYPE_UINT8_T
 
 if test "x$MINILUA" != "xno"; then
   AC_CHECK_TYPES([ptrdiff_t])
@@ -248,6 +249,7 @@ fi
 AC_FUNC_MMAP
 AC_CHECK_FUNCS([memcpy])
 AC_CHECK_FUNCS([memset])
+AC_CHECK_FUNCS([munmap])
 
 if test "x$MINILUA" != "xno"; then
   AC_CHECK_FUNCS([memchr])

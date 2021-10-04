@@ -248,7 +248,7 @@ namespace Ds
 
     public GirHub()
     {
-      Object();
+      GLib.Object();
       closures = new GLib.HashTable<string,Ds.Closure>(GLib.str_hash, GLib.str_equal);
       itypes = new GLib.HashTable<string,GI.BaseInfo>(GLib.str_hash, GLib.str_equal);
       __default__ = this;
