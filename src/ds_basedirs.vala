@@ -133,8 +133,9 @@ namespace _Ds
         warning("Using legacy configuration path '%s'\r\n" +
                 "Please move this to '%s'\r\n",
                 baseDir, preferred);
-      if(unlikely(Config.DEBUG) == true)
+#if DEVELOPER == 1
         print("basedata: %s\r\n", baseDir);
+#endif // DEVELOPER
 
       check_dir(baseDir, cancellable);
     return GLib.File.new_for_path(baseDir);
@@ -184,8 +185,9 @@ namespace _Ds
         warning("Using legacy cache path '%s'\r\n" +
                 "Please move this to '%s'\r\n",
                 baseDir, preferred);
-      if(unlikely(Config.DEBUG) == true)
+#if DEVELOPER == 1
         print("basecache: %s\r\n", baseDir);
+#endif // DEVELOPER
 
       check_dir(baseDir, cancellable);
     return GLib.File.new_for_path(baseDir);

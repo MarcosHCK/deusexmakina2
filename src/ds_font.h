@@ -18,6 +18,7 @@
 #ifndef __DS_FONT_INCLUDED__
 #define __DS_FONT_INCLUDED__ 1
 #include <ds_folder_provider.h>
+#include <ds_export.h>
 #include <gio/gio.h>
 
 /**
@@ -66,11 +67,14 @@ typedef struct _DsFontClass DsFontClass;
 extern "C" {
 #endif // __cplusplus
 
+DEUSEXMAKINA2_API
 GQuark
 ds_font_error_quark();
+DEUSEXMAKINA2_API
 GType
 ds_font_get_type();
 
+DEUSEXMAKINA2_API
 DsFont*
 ds_font_new(GFile            *font_file,
             gint              font_size,
@@ -81,9 +85,9 @@ ds_font_new(GFile            *font_file,
 /* Internal API */
 G_GNUC_INTERNAL
 gboolean
-_ds_icu_get_charset(gchar         **pcharset,
-                    GCancellable   *cancellable,
-                    GError        **error);
+_ds_libi18n_get_charset(gchar         **pcharset,
+                        GCancellable   *cancellable,
+                        GError        **error);
 
 #if __cplusplus
 }

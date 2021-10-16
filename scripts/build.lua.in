@@ -20,6 +20,7 @@ local build = {};
 -- Generic variables
 
 build.DEBUG = @DEBUG@
+build.DEVELOPER = @DEVELOPER@
 build.PACKAGE = "@PACKAGE@"
 build.PACKAGE_BUGREPORT = "@PACKAGE_BUGREPORT@"
 build.PACKAGE_NAME = "@PACKAGE_NAME@"

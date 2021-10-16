@@ -17,6 +17,7 @@
  */
 #ifndef __DS_PIPELINE_INCLUDED__
 #define __DS_PIPELINE_INCLUDED__ 1
+#include <ds_export.h>
 #include <ds_renderable.h>
 #include <ds_shader.h>
 #include <gio/gio.h>
@@ -35,40 +36,55 @@ typedef struct _DsPipelineClass DsPipelineClass;
 extern "C" {
 #endif // __cplusplus
 
-GType
-ds_pipeline_get_type();
+DEUSEXMAKINA2_API
 GQuark
 ds_pipeline_error_quark();
+DEUSEXMAKINA2_API
+GType
+ds_pipeline_get_type();
 
 struct _DsPipelineClass
 {
   GObjectClass parent_class;
 };
 
+DEUSEXMAKINA2_API
 DsPipeline*
 ds_pipeline_new(GCancellable   *cancellable,
                 GError        **error);
+
+DEUSEXMAKINA2_API
 void
 ds_pipeline_register_shader(DsPipeline   *pipeline,
                             const gchar  *shader_name,
                             int           priority,
                             DsShader     *shader);
+
+DEUSEXMAKINA2_API
 void
 ds_pipeline_unregister_shader(DsPipeline   *pipeline,
                               const gchar  *shader_name);
+
+DEUSEXMAKINA2_API
 void
 ds_pipeline_append_object(DsPipeline   *pipeline,
                           const gchar  *shader_name,
                           int           priority,
                           DsRenderable *object);
+
+DEUSEXMAKINA2_API
 void
 ds_pipeline_remove_object(DsPipeline   *pipeline,
                           const gchar  *shader_name,
                           DsRenderable *object);
+
+DEUSEXMAKINA2_API
 gboolean
 ds_pipeline_update(DsPipeline    *pipeline,
                    GCancellable  *cancellable,
                    GError       **error);
+
+DEUSEXMAKINA2_API
 void
 ds_pipeline_execute(DsPipeline   *pipeline);
 

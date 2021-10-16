@@ -15,14 +15,17 @@
 # along with deusexmakina2. If not, see <http://www.gnu.org/licenses/>.
 #
 
-# Keep sync with settings/Makefile.am
-schemasdir=${pkgdatadir}/schemas/
+# Where assets goes (data comes in a different package)
+assetsdir=${pkgdatadir}/assets/
 
 # Keep sync with gfx/Makefile.am
 gfxdir=${pkgdatadir}/gfx/
 
-# Where assets goes (data comes in a different package)
-assetsdir=${pkgdatadir}/assets/
+# Keep sync with gir/Makefile.am
+girdir=${pkgdatadir}/gir/
+
+# Keep sync with settings/Makefile.am
+schemasdir=${pkgdatadir}/schemas/
 
 #
 # Some variables
@@ -93,19 +96,19 @@ EXTRA_DIST+=\
 	ds_callable.h \
 	ds_closure.h \
 	ds_dds.h \
+	ds_dds_fmt.h \
 	ds_error.h \
 	ds_events.h \
+	ds_export.h \
 	ds_folder_provider.h \
 	ds_font.h \
 	ds_gl.h \
 	ds_looper.h \
 	ds_lua.h \
-	ds_luaboxed.h \
-	ds_luaclass.h \
 	ds_luaclosure.h \
-	ds_luaenum.h \
 	ds_luagir.h \
-	ds_luaobj.h \
+	ds_luagtype.h \
+	ds_luagtype_private.h \
 	ds_luaqdata.h \
 	ds_luavala.h \
 	ds_macros.h \
@@ -127,8 +130,8 @@ EXTRA_DIST+=\
 # Binaries and libraries
 #
 
-bin_PROGRAMS=deusexmakina2
-deusexmakina2_SOURCES=\
+pkglib_LTLIBRARIES=libdeus2.la
+libdeus2_la_SOURCES=\
 	ds_application.c \
 	ds_basedirs.vala \
 	ds_callable.c \
@@ -141,16 +144,14 @@ deusexmakina2_SOURCES=\
 	ds_font.c \
 	ds_font_cache.c \
 	ds_gl.c \
-	ds_icu.cpp \
+	ds_i18n.c \
 	ds_looper.vala \
 	ds_lua.c \
-	ds_luaboxed.c \
-	ds_luaclass.c \
-	ds_luaenum.c \
 	ds_luagir.vala \
 	ds_lualib.c \
-	ds_luaobj.c \
 	ds_luaqdata.c \
+	ds_luagtype.c \
+	ds_luagtypes.c \
 	ds_marshals.c \
 	ds_marshals.vapi \
 	ds_model.c \
@@ -170,8 +171,7 @@ deusexmakina2_SOURCES=\
 	ds_text.c \
 	ds_utils.vala \
 	$(VOID)
-
-deusexmakina2_CFLAGS=\
+libdeus2_la_CFLAGS=\
 	$(ASSIMP_CFLAGS) \
 	$(CGLM_CFLAGS) \
 	$(FREETYPE_CFLAGS) \
@@ -182,31 +182,32 @@ deusexmakina2_CFLAGS=\
 	$(GMODULE_CFLAGS) \
 	$(GOBJECT_CFLAGS) \
 	$(LIBAKASHIC_CFLAGS) \
-	$(LIBICU_CFLAGS) \
 	$(LIBSOUP_CFLAGS) \
 	$(LIBWEBP_CFLAGS) \
 	$(LUA_CFLAGS) \
 	$(OPENGL_CFLAGS) \
 	$(SDL2_CFLAGS) \
+	$(CFLAG_VISIBILITY) \
 	-DASSETSDIR=\"${assetsdir}\" \
 	-DGFXDIR=\"${gfxdir}\" \
+	-DGIRDIR=\"${girdir}\" \
 	-DSCHEMASDIR=\"${schemasdir}\" \
 	-DPKGDATADIR=\"${pkgdatadir}\" \
 	-DPKGLIBEXECDIR=\"${pkglibexecdir}\" \
 	-DABSTOPBUILDDIR=\"${abs_top_builddir}\" \
 	-DGAPPNAME=\"org.hck.${PACKAGE_NAME}\" \
+	-D__DUESEXMAKINA_COMPILATION__=1 \
 	-fstack-protector-strong \
 	-funwind-tables \
 	-Winline \
 	-Wpacked \
-	$(STB_CFLAGS) \
 	$(VOID)
-
-deusexmakina2_CXXFLAGS= \
-	$(deusexmakina2_CFLAGS) \
+libdeus2_la_LDFLAGS=\
+	-rpath ${pkglibdir} \
+	-release ${PACKAGE_RELEASE} \
+	-version-info ${PACKAGE_VERSION_MAYOR}:${PACKAGE_VERSION_MINOR}:${PACKAGE_VERSION_MICRO} \
 	$(VOID)
-
-deusexmakina2_LDADD=\
+libdeus2_la_LIBADD=\
 	$(ASSIMP_LIBS) \
 	$(CGLM_LIBS) \
 	$(FREETYPE_LIBS) \
@@ -217,14 +218,24 @@ deusexmakina2_LDADD=\
 	$(GMODULE_LIBS) \
 	$(GOBJECT_LIBS) \
 	$(LIBAKASHIC_LIBS) \
-	$(LIBICU_LIBS) \
 	$(LIBSOUP_LIBS) \
 	$(LIBWEBP_LIBS) \
 	$(LUA_LIBS) \
 	$(OPENGL_LIBS) \
 	$(SDL2_LIBS) \
 	jit/libjit.la \
-	$(STB_LIBS) \
+	$(VOID)
+
+bin_PROGRAMS=deusexmakina2
+deusexmakina2_SOURCES=\
+	ds_main.c \
+	$(VOID)
+deusexmakina2_CFLAGS=\
+	$(libdeus2_la_CFLAGS) \
+	$(VOID)
+deusexmakina2_LDADD=\
+	$(libdeus2_la_LIBADD) \
+	libdeus2.la \
 	$(VOID)
 
 #
@@ -251,6 +262,8 @@ VALA_VAPIS=\
 AM_VALAFLAGS=\
 	--vapidir=vapi/ \
 	--hide-internal \
+	-D DEBUG=${DEBUG} \
+	-D DEVELOPER=${DEVELOPER} \
 	$(addprefix --pkg , ${VALA_PKG}) \
 	$(addprefix --pkg , ${VALA_VAPIS}) \
 	$(VOID)

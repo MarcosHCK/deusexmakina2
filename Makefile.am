@@ -21,4 +21,5 @@ SUBDIRS=\
 	src \
 	settings \
 	scripts \
-	gfx
+	gfx \
+	gir

@@ -18,6 +18,7 @@
 #ifndef __DS_APPLICATION_INCLUDED__
 #define __DS_APPLICATION_INCLUDED__ 1
 #include <ds_events.h>
+#include <ds_export.h>
 #include <ds_lua.h>
 #include <ds_pipeline.h>
 #include <ds_renderer.h>
@@ -69,8 +70,10 @@ typedef struct _DsApplicationClass    DsApplicationClass;
 extern "C" {
 #endif // __cplusplus
 
+DEUSEXMAKINA2_API
 GQuark
 ds_application_error_quark();
+DEUSEXMAKINA2_API
 GType
 ds_application_get_type();
 

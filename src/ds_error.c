@@ -103,8 +103,8 @@ void ds_error_ds_callable_iface_init(DsCallableIface* iface) {
    "check",
    DS_CLOSURE_FLAGS_NONE,
    G_CALLBACK(_callable_check),
-   g_cclosure_marshal_VOID__VOID,
-   g_cclosure_marshal_VOID__VOIDv,
+   ds_cclosure_marshal_VOID__INSTANCE,
+   ds_cclosure_marshal_VOID__INSTANCEv,
    G_TYPE_NONE,
    0,
    G_TYPE_NONE);

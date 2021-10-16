@@ -17,6 +17,7 @@
  */
 #ifndef __DS_TEXT_INCLUDED__
 #define __DS_TEXT_INCLUDED__ 1
+#include <ds_export.h>
 #include <glib-object.h>
 
 /**
@@ -54,8 +55,10 @@ typedef         gpointer    DsTextHandle;
 extern "C" {
 #endif // __cplusplus
 
+DEUSEXMAKINA2_API
 GQuark
 ds_text_error_quark();
+DEUSEXMAKINA2_API
 GType
 ds_text_get_type();
 
@@ -64,8 +67,11 @@ struct _DsTextClass
   GObjectClass parent_class;
 };
 
+DEUSEXMAKINA2_API
 DsText*
 ds_text_new(DsFont* provider);
+
+DEUSEXMAKINA2_API
 DsTextHandle
 ds_text_print(DsText         *text,
               DsTextHandle    instance,
@@ -73,6 +79,8 @@ ds_text_print(DsText         *text,
               vec2            position,
               GCancellable   *cancellable,
               GError        **error);
+
+DEUSEXMAKINA2_API
 void
 ds_text_unprint(DsText         *text,
                 DsTextHandle    handle);

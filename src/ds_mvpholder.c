@@ -19,53 +19,33 @@
 #include <cglm/cglm.h>
 #include <ds_mvpholder.h>
 
-static
-void ds_mvp_holder_default_init(DsMvpHolderIface* iface);
+/**
+ * SECTION:dsmvpholder
+ * @Short_description: MVP matrix components holder
+ * @Title: DsMvpHolder
+ *
+ * DsMvpHolder is an interface to access standard MVP
+ * (model-view-projection) matrix components:
+ *
+ * - 'model': stores model-specific transformations.
+ * - 'view': stores camera (or eye) transformations.
+ * - 'projection': stores projection (or clip) transformations.
+ *
+ * DsMvpHolder also implements some other convenience functions
+ * for more abstract concepts, such as positions or scales.
+ *
+ */
 
 /*
  * Object definition
  *
  */
 
-GType
-ds_mvp_holder_get_type(void)
-{
-  static
-  GType holder_type = 0;
+typedef DsMvpHolderIface DsMvpHolderInterface;
+G_DEFINE_INTERFACE(DsMvpHolder, ds_mvp_holder, G_TYPE_OBJECT);
 
-  if G_UNLIKELY(holder_type == 0)
-  {
-    static const
-    GTypeInfo type_info = {
-      sizeof(DsMvpHolderIface),
-      NULL,
-      NULL,
-      (GClassInitFunc)
-      ds_mvp_holder_default_init,
-      NULL,
-      NULL,
-      0,
-      0,
-      NULL
-    };
-
-    holder_type =
-    g_type_register_static
-    (G_TYPE_INTERFACE,
-     g_intern_static_string
-     ("DsMvpHolder"),
-     &type_info,
-     0);
-
-    g_type_interface_add_prerequisite
-    (holder_type,
-     G_TYPE_OBJECT);
-  }
-return holder_type;
-}
-
-static
-void ds_mvp_holder_default_init(DsMvpHolderIface* iface)
+static void
+ds_mvp_holder_default_init(DsMvpHolderIface* iface)
 {
 }
 
@@ -74,6 +54,17 @@ void ds_mvp_holder_default_init(DsMvpHolderIface* iface)
  *
  */
 
+/**
+ * ds_mvp_holder_set_model:
+ * @holder: a #DsMvpHolder instance.
+ * @mat4_: an address to a 4x4 #gfloat matrix.
+ *
+ * Copies @mat4_ to @holder internal matrix store.
+ * Note that not all #DsMvpHolder may implement a
+ * all stores, and in case of @holder doesn't implements
+ * 'model' store this call has not effect.
+ *
+ */
 void
 ds_mvp_holder_set_model(DsMvpHolder* holder, gfloat* mat4_)
 {
@@ -100,6 +91,17 @@ ds_mvp_holder_set_model(DsMvpHolder* holder, gfloat* mat4_)
   }
 }
 
+/**
+ * ds_mvp_holder_get_model:
+ * @holder: a #DsMvpHolder instance.
+ * @mat4_: an address to a 4x4 #gfloat matrix.
+ *
+ * Copies @holder internal matrix store to @mat4_.
+ * Note that not all #DsMvpHolder may implement a
+ * all stores, and in case of @holder doesn't implements
+ * 'model' store this call has not effect.
+ *
+ */
 void
 ds_mvp_holder_get_model(DsMvpHolder* holder, gfloat* mat4_)
 {
@@ -121,6 +123,17 @@ ds_mvp_holder_get_model(DsMvpHolder* holder, gfloat* mat4_)
   glm_mat4_copy(ptr, (gpointer) mat4_);
 }
 
+/**
+ * ds_mvp_holder_set_view:
+ * @holder: a #DsMvpHolder instance.
+ * @mat4_: an address to a 4x4 #gfloat matrix.
+ *
+ * Copies @mat4_ to @holder internal matrix store.
+ * Note that not all #DsMvpHolder may implement a
+ * all stores, and in case of @holder doesn't implements
+ * 'view' store this call has not effect.
+ *
+ */
 void
 ds_mvp_holder_set_view(DsMvpHolder* holder, gfloat* mat4_)
 {
@@ -147,6 +160,17 @@ ds_mvp_holder_set_view(DsMvpHolder* holder, gfloat* mat4_)
   }
 }
 
+/**
+ * ds_mvp_holder_get_view:
+ * @holder: a #DsMvpHolder instance.
+ * @mat4_: an address to a 4x4 #gfloat matrix.
+ *
+ * Copies @holder internal matrix store to @mat4_.
+ * Note that not all #DsMvpHolder may implement a
+ * all stores, and in case of @holder doesn't implements
+ * 'view' store this call has not effect.
+ *
+ */
 void
 ds_mvp_holder_get_view(DsMvpHolder* holder, gfloat* mat4_)
 {
@@ -168,6 +192,17 @@ ds_mvp_holder_get_view(DsMvpHolder* holder, gfloat* mat4_)
   glm_mat4_copy(ptr, (gpointer) mat4_);
 }
 
+/**
+ * ds_mvp_holder_set_projection:
+ * @holder: a #DsMvpHolder instance.
+ * @mat4_: an address to a 4x4 #gfloat matrix.
+ *
+ * Copies @mat4_ to @holder internal matrix store.
+ * Note that not all #DsMvpHolder may implement a
+ * all stores, and in case of @holder doesn't implements
+ * 'projection' store this call has not effect.
+ *
+ */
 void
 ds_mvp_holder_set_projection(DsMvpHolder* holder, gfloat* mat4_)
 {
@@ -194,6 +229,17 @@ ds_mvp_holder_set_projection(DsMvpHolder* holder, gfloat* mat4_)
   }
 }
 
+/**
+ * ds_mvp_holder_get_projection:
+ * @holder: a #DsMvpHolder instance.
+ * @mat4_: an address to a 4x4 #gfloat matrix.
+ *
+ * Copies @holder internal matrix store to @mat4_.
+ * Note that not all #DsMvpHolder may implement a
+ * all stores, and in case of @holder doesn't implements
+ * 'projection' store this call has not effect.
+ *
+ */
 void
 ds_mvp_holder_get_projection(DsMvpHolder* holder, gfloat* mat4_)
 {
@@ -215,6 +261,16 @@ ds_mvp_holder_get_projection(DsMvpHolder* holder, gfloat* mat4_)
   glm_mat4_copy(ptr, (gpointer) mat4_);
 }
 
+/**
+ * ds_mvp_holder_set_position:
+ * @holder: a #DsMvpHolder instance.
+ * @vec3_: an address to a #gfloat 3-dimensions vector
+ *
+ * Sets @holder position if positions makes sense for it.
+ * Note: this feature is optional because not all objects
+ * understand the concept of position.
+ *
+ */
 void
 ds_mvp_holder_set_position(DsMvpHolder* holder, gfloat* vec3_)
 {
@@ -226,6 +282,16 @@ ds_mvp_holder_set_position(DsMvpHolder* holder, gfloat* vec3_)
   iface->set_position(holder, vec3_);
 }
 
+/**
+ * ds_mvp_holder_get_position:
+ * @holder: a #DsMvpHolder instance.
+ * @vec3_: an address to a #gfloat 3-dimensions vector
+ *
+ * Gets @holder position if positions makes sense for it.
+ * Note: this feature is optional because not all objects
+ * understand the concept of position.
+ *
+ */
 void
 ds_mvp_holder_get_position(DsMvpHolder* holder, gfloat* vec3_)
 {
@@ -235,4 +301,46 @@ ds_mvp_holder_get_position(DsMvpHolder* holder, gfloat* vec3_)
   DsMvpHolderIface* iface =
   DS_MVP_HOLDER_GET_INTERFACE(holder);
   iface->get_position(holder, vec3_);
+}
+
+/**
+ * ds_mvp_holder_set_scale:
+ * @holder: a #DsMvpHolder instance.
+ * @vec3_: an address to a #gfloat 3-dimensions vector
+ *
+ * Sets @holder scale if positions makes sense for it.
+ * Note: this feature is optional because not all objects
+ * understand the concept of scale.
+ *
+ */
+void
+ds_mvp_holder_set_scale(DsMvpHolder* holder, gfloat* vec3_)
+{
+  g_return_if_fail(DS_IS_MVP_HOLDER(holder));
+  g_return_if_fail(vec3_ != NULL);
+
+  DsMvpHolderIface* iface =
+  DS_MVP_HOLDER_GET_INTERFACE(holder);
+  iface->set_scale(holder, vec3_);
+}
+
+/**
+ * ds_mvp_holder_get_scale:
+ * @holder: a #DsMvpHolder instance.
+ * @vec3_: an address to a #gfloat 3-dimensions vector
+ *
+ * Gets @holder scale if positions makes sense for it.
+ * Note: this feature is optional because not all objects
+ * understand the concept of scale.
+ *
+ */
+void
+ds_mvp_holder_get_scale(DsMvpHolder* holder, gfloat* vec3_)
+{
+  g_return_if_fail(DS_IS_MVP_HOLDER(holder));
+  g_return_if_fail(vec3_ != NULL);
+
+  DsMvpHolderIface* iface =
+  DS_MVP_HOLDER_GET_INTERFACE(holder);
+  iface->get_scale(holder, vec3_);
 }

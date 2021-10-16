@@ -31,18 +31,18 @@ namespace Ds
     private GLib.HashTable<string,Ds.Closure> closures = null;
     private GLib.HashTable<string,GI.BaseInfo> itypes = null;
 
-    static GLib.Module __main__ = null;
-    private GLib.Callback? resolve_symbol(string name)
+    private GLib.Callback? resolve_symbol(GI.FunctionInfo func)
     {
       GLib.Callback callback = null;
-      if(unlikely(__main__ == null))
-        __main__ = GLib.Module.open(null, 0);
+      unowned var typelib = ((GI.BaseInfo) func).get_typelib();
+      unowned var name = func.get_symbol();
 
-      void* symbol;
-      if(__main__.symbol(name, out symbol))
-        callback = (GLib.Callback) symbol;
-      if(Config.DEBUG == true)
-        print(@"symbol '$name'\r\n");
+      void* symbol = null;
+      if(typelib.symbol(name, out symbol))
+        callback = ((GLib.Callback) symbol);
+#if DEBUG == 1
+        print("symbol '%s' %s\r\n", name, (callback != null) ? "found" : "not found");
+#endif
     return callback;
     }
 
@@ -158,7 +158,7 @@ namespace Ds
           return_ = type;
       }
 
-      var callback = resolve_symbol(func.get_symbol());
+      var callback = resolve_symbol(func);
       if(unlikely(callback == null))
         return closure;
 
@@ -171,19 +171,68 @@ namespace Ds
     return closure;
     }
 
-    private Ds.Closure? get_method_from_descend(GLib.Type g_type, GLib.Type descend, string name) throws GLib.Error
+    private GI.BaseInfo? get_base(GLib.Type g_type)
     {
-      Ds.Closure? closure = null;
-      try
+      var cname = g_type.name();
+      GI.BaseInfo base_ = null;
+
+      base_ =
+      itypes.lookup(cname);
+      if(unlikely(base_ == null))
       {
-        closure = this.get_method(descend, name);
+        var repo = GI.Repository.get_default();
+        base_ = repo.find_by_gtype(g_type);
+        if(likely(base_ != null))
+        {
+          itypes.insert(cname, base_);
+        }
       }
-      catch(Ds.GirHubError e)
+    return base_;
+    }
+
+    private Ds.Closure? get_method_from_type(GLib.Type g_type, string name) throws GLib.Error
+    {
+      GI.FunctionInfo func = null;
+      GI.BaseInfo base_ = null;
+      Ds.Closure closure = null;
+
+      base_ =
+      this.get_base(g_type);
+      if(likely(base_ != null))
       {
-        if(e.code == GirHubError.UNKNOWN_TYPE)
-          throw new GirHubError.UNKNOWN_TYPE(@"Unknown type '$(g_type.name())'");
-        else
-          throw e;
+        switch(base_.get_type())
+        {
+        case GI.InfoType.INTERFACE:
+          func = ((GI.InterfaceInfo) base_).find_method(name);
+          break;
+        case GI.InfoType.OBJECT:
+          func = ((GI.ObjectInfo) base_).find_method_using_interfaces(name, null);
+          break;
+        case GI.InfoType.STRUCT:
+          func = ((GI.StructInfo) base_).find_method(name);
+          break;
+        default:
+          throw new GirHubError.UNSUPPORTED_TYPE(@"Unsupported type '$(g_type.name())'");
+          break;
+        }
+
+        if(likely(func != null))
+        {
+          closure =
+          this.translate_closure(g_type, func);
+        }
+      }
+
+      if(unlikely(closure == null))
+      {
+        var parent = g_type.parent();
+        if(parent != GLib.Type.INVALID)
+        {
+          closure =
+          this.get_method_from_type(parent, name);
+          if(likely(closure == null))
+            return closure;
+        }
       }
     return closure;
     }
@@ -191,72 +240,25 @@ namespace Ds
     public Ds.Closure? get_method(GLib.Type g_type, string name) throws GLib.Error
     {
       var cname = @"$(g_type.name())::$name";
+      Ds.Closure closure = null;
 
-      Ds.Closure closure =
+      closure =
       closures.lookup(cname);
       if(unlikely(closure == null))
       {
-        GI.BaseInfo base_ =
-        itypes.lookup(g_type.name());
-        if(unlikely(base_ == null))
+        closure =
+        this.get_method_from_type(g_type, name);
+        if(likely(closure != null))
         {
-          var repo = GI.Repository.get_default();
-          base_ = repo.find_by_gtype(g_type);
-
-          if(likely(base_ != null))
-            itypes.insert(g_type.name(), base_);
-          else
-          {
-            foreach(var iface in g_type.interfaces())
-            {
-              closure =
-              this.get_method_from_descend(g_type, iface, name);
-              if(unlikely(closure != null))
-              {
-                return closure;
-              }
-            }
-
-            var parent = g_type.parent();
-            if(parent != GLib.Type.INVALID && parent != GLib.Type.INTERFACE)
-              closure = this.get_method_from_descend(g_type, parent, name);
-            else
-              throw new GirHubError.UNKNOWN_TYPE(@"Unknown type '$(g_type.name())'");
-          }
-        }
-
-        GI.FunctionInfo func = null;
-
-        switch(base_.get_type())
-        {
-        case GI.InfoType.OBJECT:
-          func = ((GI.ObjectInfo) base_).find_method_using_interfaces(name, null);
-          break;
-        case GI.InfoType.INTERFACE:
-          func = ((GI.InterfaceInfo) base_).find_method(name);
-          break;
-        default:
-          throw new GirHubError.UNSUPPORTED_TYPE(@"Unsupported type '$(g_type.name())'");
-          break;
-        }
-
-        if(unlikely(func != null))
-        {
-          closure =
-          translate_closure(g_type, func);
-          if(likely(closure != null))
-          {
-            closures.insert(cname, closure);
-          }
-        }
-        else
-        {
-          var parent = g_type.parent();
-          if(likely(parent != GLib.Type.INVALID && parent != GLib.Type.INTERFACE))
-            closure = this.get_method(parent, name);
+          closures.insert(cname, closure);
         }
       }
     return closure;
+    }
+
+    public bool get_field(GLib.Type g_type, string name, out GLib.Value value) throws GLib.Error
+    {
+    return true;
     }
 
     static weak Ds.GirHub __default__ = null;
@@ -295,6 +297,11 @@ namespace _Ds
     var repo = GI.Repository.get_default();
     repo.require("GObject", @"$(GLib.Version.MAJOR).0", 0);
     repo.require("Gio", @"$(GLib.Version.MAJOR).0", 0);
+
+    if(Config.DEBUG)
+      repo.require_private(Config.ABSTOPBUILDDIR + "/gir/", "Ds", @"$(Config.PACKAGE_VERSION_MAYOR).$(Config.PACKAGE_VERSION_MINOR)", 0);
+    else
+      repo.require_private(Config.GIRDIR, "Ds", @"$(Config.PACKAGE_VERSION_MAYOR).$(Config.PACKAGE_VERSION_MINOR)", 0);
   return true;
   }
 

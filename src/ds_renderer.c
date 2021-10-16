@@ -441,11 +441,13 @@ ds_renderer_g_initable_iface_init_sync(GInitable* pself, GCancellable* cancellab
   );
 
   /* activate all debug messages */
+#if !DEBUG
   if G_UNLIKELY
     (g_strcmp0
      (g_getenv("DS_DEBUG"),
       "true") == 0)
   {
+#endif // DEBUG
     __gl_try_catch(
       glEnable(GL_DEBUG_OUTPUT);
       glDebugMessageControl(_TRIPLET(GL_DONT_CARE), 0, NULL, TRUE);
@@ -454,7 +456,9 @@ ds_renderer_g_initable_iface_init_sync(GInitable* pself, GCancellable* cancellab
       g_propagate_error(error, glerror);
       goto_error();
     );
+#if !DEBUG
   }
+#endif // DEBUG
 
 /*
  * Finish by updating things

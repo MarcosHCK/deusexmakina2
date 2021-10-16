@@ -37,6 +37,6 @@ VOID=
 #
 
 gfx_DATA=\
-	skybox_vs.glsl \
-	skybox_fs.glsl \
-	$(VOID)
+  skybox_vs.glsl \
+  skybox_fs.glsl \
+  $(VOID)

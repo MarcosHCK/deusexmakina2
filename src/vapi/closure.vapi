@@ -55,5 +55,8 @@ namespace Ds
     public GLib.Type BYTE_ARRAY;
     public GLib.Type HASH_TABLE;
     public GLib.Type ERROR;
+
+    [CCode (cprefix = "DS_TYPE_", lower_case_cprefix = "DS_TYPE_")]
+    public GLib.Type CLOSURE;
   }
 }

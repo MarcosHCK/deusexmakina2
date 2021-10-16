@@ -17,11 +17,9 @@
  */
 #include <config.h>
 #include <cglm/cglm.h>
-#include <ds_callable.h>
 #include <ds_font.h>
 #include <ds_gl.h>
 #include <ds_macros.h>
-#include <ds_marshals.h>
 #include <SDL.h>
 
 G_DEFINE_QUARK(ds-font-error-quark,
@@ -110,8 +108,6 @@ static
 void ds_font_init(DsFont* self);
 static
 void ds_font_g_initable_iface_init(GInitableIface* iface);
-static
-void ds_font_ds_callable_iface_init(DsCallableIface* iface);
 static
 gpointer ds_font_parent_class = NULL;
 
@@ -212,10 +208,6 @@ ds_font_get_type()
     (G_TYPE_INITABLE,
      ds_font_g_initable_iface_init)
 
-    G_IMPLEMENT_INTERFACE
-    (DS_TYPE_CALLABLE,
-     ds_font_ds_callable_iface_init)
-
 #undef g_define_type_id
   }
 return font_type;
@@ -305,7 +297,7 @@ ds_font_class_base_init_(DsFontClass   *klass,
  */
 
   success =
-  _ds_icu_get_charset(&(klass->charset), NULL, &tmp_err);
+  _ds_libi18n_get_charset(&(klass->charset), NULL, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -331,6 +323,19 @@ ds_font_class_base_init_(DsFontClass   *klass,
 
   int n_display = 0;
   int return_;
+
+  return_ =
+  SDL_InitSubSystem(SDL_INIT_VIDEO);
+  if G_UNLIKELY(0 > return_)
+  {
+    g_set_error
+    (error,
+     DS_FONT_ERROR,
+     DS_FONT_ERROR_SDL,
+     "SDL_InitSubSystem(): failed!: %s\r\n",
+     SDL_GetError());
+    goto_error();
+  }
 
   return_ =
   SDL_GetDisplayDPI(n_display, &(klass->ddpi), &(klass->hdpi), &(klass->vdpi));
@@ -371,6 +376,7 @@ void ds_font_class_base_init(DsFontClass* klass) {
 
 static
 void ds_font_class_base_fini(DsFontClass* klass) {
+  SDL_QuitSubSystem(SDL_INIT_VIDEO);
   FT_Done_Library(klass->ft_library);
   klass->ft_library = NULL;
   _g_free0(klass->charset);
@@ -632,24 +638,6 @@ void ds_font_g_initable_iface_init(GInitableIface* iface) {
 }
 
 static
-void ds_font_ds_callable_iface_init(DsCallableIface* iface) {
-  ds_callable_iface_add_method
-  (iface,
-   "new",
-   DS_CLOSURE_CONSTRUCTOR,
-   G_CALLBACK(ds_font_new),
-   ds_cclosure_marshal_OBJECT__OBJECT_INT_OBJECT_OBJECT_POINTER,
-   ds_cclosure_marshal_OBJECT__OBJECT_INT_OBJECT_OBJECT_POINTERv,
-   DS_TYPE_FONT,
-   5,
-   G_TYPE_FILE,
-   G_TYPE_INT,
-   DS_TYPE_CACHE_PROVIDER,
-   G_TYPE_CANCELLABLE,
-   G_TYPE_POINTER);
-}
-
-static
 void ds_font_class_get_property(GObject* pself, guint prop_id, GValue* value, GParamSpec* pspec) {
   DsFont* self = DS_FONT(pself);
   switch(prop_id)
@@ -776,6 +764,19 @@ void ds_font_init(DsFont* self) {
  *
  */
 
+/**
+ * ds_font_new: (constructor):
+ * @font_file: source file from which load font data (usually a .ttf file).
+ * @font_size: font size (in 'pt' or points unit).
+ * @cache_provider: (nullable): cache provider object.
+ * @cancellable: (nullable): a %GCancellable
+ * @error: return location for a #GError
+ *
+ * Creates a brand-new instance of #DsFont which
+ * provides a FreeType-based font character map.
+ *
+ * Returns: (transfer full): see description.
+ */
 DsFont*
 ds_font_new(GFile            *font_file,
             gint              font_size,

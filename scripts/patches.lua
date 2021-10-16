@@ -111,3 +111,8 @@ do
     end,
   });
 end
+
+do
+  local build = require('build');
+  ds.debug = build or _ENV["DS_DEBUG"] == 'true';
+end

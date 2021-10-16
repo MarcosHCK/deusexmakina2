@@ -19,6 +19,7 @@
 #include <ds_closure.h>
 #include <ds_macros.h>
 #include <ds_luaclosure.h>
+#include <ds_luagtype.h>
 #include <gio/gio.h>
 
 G_DEFINE_QUARK(ds-closure-error-quark,

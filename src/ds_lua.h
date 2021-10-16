@@ -17,6 +17,7 @@
  */
 #ifndef __DS_LUA_INCLUDED__
 #define __DS_LUA_INCLUDED__ 1
+#include <ds_export.h>
 #include <glib-object.h>
 
 /**
@@ -39,7 +40,8 @@
  * Note that %DEUX_LUA_ERROR_FAILED is here only for compatibility with
  * error domain definition paradigm as defined on GLib documentation.
  */
-typedef enum {
+typedef enum
+{
   DS_LUA_ERROR_FAILED,
   DS_LUA_ERROR_RUNTIME,
   DS_LUA_ERROR_SYNTAX,
@@ -47,12 +49,39 @@ typedef enum {
   DS_LUA_ERROR_RECURSIVE,
 } DsLuaError;
 
+/**
+ * DS_VALUE_ERROR:
+ *
+ * Error domain for DEUX_LUA. Errors in this domain will be from the #DsValueError enumeration.
+ * See #GError for more information on error domains.
+ */
+#define DS_VALUE_ERROR (_ds_push_error_quark())
+
+/* Keep sync with ds_utils: PushError error domain */
+/**
+ * DsValueError:
+ * @DS_VALUE_ERROR_FAILED: generic error condition.
+ * @DS_VALUE_ERROR_UNKNOWN_TRANSLATION: unknown translation rule.
+ * @DS_VALUE_ERROR_UNEXPECTED_TYPE: unexpected type.
+ *
+ * Error code returned by various ds_* and luaD_* functions.
+ * Note that %DS_VALUE_ERROR_FAILED is here only for compatibility with
+ * error domain definition paradigm as defined on GLib documentation.
+ */
+typedef enum
+{
+  DS_VALUE_ERROR_FAILED,
+  DS_VALUE_ERROR_UNKNOWN_TRANSLATION,
+  DS_VALUE_ERROR_UNEXPECTED_TYPE,
+} DsValueError;
+
 typedef struct _DsLualib DsLualib;
 
 #if __cplusplus
 extern "C" {
 #endif // __cplusplus
 
+DEUSEXMAKINA2_API
 GQuark
 ds_lua_error_quark();
 
@@ -110,11 +139,15 @@ _ds_lua_object_new(lua_State *L,
  *
  */
 
+DEUSEXMAKINA2_API
 gboolean
 luaD_xpcall(lua_State  *L,
           int         argc,
           int         retn,
           GError    **error);
+DEUSEXMAKINA2_API
+void
+luaD_close(lua_State* L);
 
 #if __cplusplus
 }

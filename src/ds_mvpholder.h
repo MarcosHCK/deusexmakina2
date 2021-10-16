@@ -17,6 +17,7 @@
  */
 #ifndef __DS_MVPHOLDER_INCLUDED__
 #define __DS_MVPHOLDER_INCLUDED__ 1
+#include <ds_export.h>
 #include <glib-object.h>
 
 #define DS_TYPE_MVP_HOLDER                (ds_mvp_holder_get_type ())
@@ -31,9 +32,29 @@ typedef struct _DsMvpHolderIface        DsMvpHolderIface;
 extern "C" {
 #endif // __cplusplus
 
+DEUSEXMAKINA2_API
 GType
 ds_mvp_holder_get_type();
 
+/**
+ * DsMvpHolderIface:
+ * @parent_iface: parent type data.
+ * @p_model: offset into instance structure which holds 'model' matrix.
+ * @p_view: offset into instance structure which holds 'view' matrix.
+ * @p_projection: offset into instance structure which holds 'projection' matrix.
+ * @notify_model: a callback to be called when 'model' matrix if changed.
+ * @notify_view: a callback to be called when 'view' matrix if changed.
+ * @notify_projection: a callback to be called when 'projection' matrix if changed.
+ * @set_position: virtual function for #ds_mvp_holder_set_position().
+ * @get_position: virtual function for #ds_mvp_holder_get_position().
+ * @set_scale: virtual function for #ds_mvp_holder_set_scale().
+ * @get_scale: virtual function for #ds_mvp_holder_get_scale().
+ *
+ * The #DsMvpHolderIface interface defines a fast access method
+ * to modify MVP matrix components implemented be a #DsMvpHolder
+ * instance.
+ *
+ */
 struct _DsMvpHolderIface
 {
   GTypeInterface parent_iface;
@@ -48,24 +69,40 @@ struct _DsMvpHolderIface
 
   void (*set_position) (DsMvpHolder* holder, gfloat* vec3_);
   void (*get_position) (DsMvpHolder* holder, gfloat* vec3_);
+  void (*set_scale) (DsMvpHolder* holder, gfloat* vec3_);
+  void (*get_scale) (DsMvpHolder* holder, gfloat* vec3_);
 };
 
+DEUSEXMAKINA2_API
 void
 ds_mvp_holder_set_model(DsMvpHolder* holder, gfloat* mat4_);
+DEUSEXMAKINA2_API
 void
 ds_mvp_holder_get_model(DsMvpHolder* holder, gfloat* mat4_);
+DEUSEXMAKINA2_API
 void
 ds_mvp_holder_set_view(DsMvpHolder* holder, gfloat* mat4_);
+DEUSEXMAKINA2_API
 void
 ds_mvp_holder_get_view(DsMvpHolder* holder, gfloat* mat4_);
+DEUSEXMAKINA2_API
 void
 ds_mvp_holder_set_projection(DsMvpHolder* holder, gfloat* mat4_);
+DEUSEXMAKINA2_API
 void
 ds_mvp_holder_get_projection(DsMvpHolder* holder, gfloat* mat4_);
+DEUSEXMAKINA2_API
 void
 ds_mvp_holder_set_position(DsMvpHolder* holder, gfloat* vec3_);
+DEUSEXMAKINA2_API
 void
 ds_mvp_holder_get_position(DsMvpHolder* holder, gfloat* vec3_);
+DEUSEXMAKINA2_API
+void
+ds_mvp_holder_set_scale(DsMvpHolder* holder, gfloat* vec3_);
+DEUSEXMAKINA2_API
+void
+ds_mvp_holder_get_scale(DsMvpHolder* holder, gfloat* vec3_);
 
 #if __cplusplus
 }

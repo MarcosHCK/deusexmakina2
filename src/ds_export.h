@@ -15,38 +15,17 @@
  *  along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#ifndef __DS_LUAENUM_INCLUDED__
-#define __DS_LUAENUM_INCLUDED__ 1
-#include <ds_lua.h>
-#include <glib-object.h>
+#ifndef __DS_EXPORT_INCLUDED__
+#define __DS_EXPORT_INCLUDED__ 1
 
-#if __cplusplus
-extern "C" {
-#endif // __cplusplus
+#if __DUESEXMAKINA_COMPILATION__ && __GNUC__ >= 4
+# define DEUSEXMAKINA2_API __attribute__((__visibility__("default")))
+#elif __DUESEXMAKINA_COMPILATION__ && defined _MSC_VER
+# define DEUSEXMAKINA2_API __declspec(dllexport)
+#elif defined _MSC_VER
+# define DEUSEXMAKINA2_API __declspec(dllimport)
+#else
+# define DEUSEXMAKINA2_API
+#endif
 
-G_GNUC_INTERNAL
-gboolean
-_ds_luaenum_init(lua_State *L,
-                 GError   **error);
-G_GNUC_INTERNAL
-void
-_ds_luaenum_fini(lua_State* L);
-
-void
-luaD_pushenum(lua_State  *L,
-              GType       g_type);
-gboolean
-luaD_isenum(lua_State  *L,
-            int         idx);
-GEnumClass*
-luaD_toenum(lua_State  *L,
-            int         idx);
-GEnumClass*
-luaD_checkenum(lua_State *L,
-               int        arg);
-
-#if __cplusplus
-}
-#endif // __cplusplus
-
-#endif // __DS_LUAENUM_INCLUDED__
+#endif // __DS_EXPORT_INCLUDED__

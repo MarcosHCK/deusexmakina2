@@ -77,11 +77,13 @@ typedef enum {
  *
  * ]|
  *
+ * @DS_CLOSURE_THROWS: closures may throw an error (by #GError architecture).
  * Closure flags
  */
 typedef enum {
   DS_CLOSURE_FLAGS_NONE,
   DS_CLOSURE_CONSTRUCTOR,
+  DS_CLOSURE_THROWS,
 } DsClosureFlags;
 
 #define ds_closure_ref(closure)   (g_closure_ref((GClosure*) ((closure))))

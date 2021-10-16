@@ -44,6 +44,12 @@ ds_gir_hub_get_method(DsGirHub     *self,
                       GType         g_type,
                       const gchar  *name,
                       GError      **error);
+gboolean
+ds_gir_hub_get_field(DsGirHub      *self,
+                     GType          g_type,
+                     const gchar   *name,
+                     GValue        *value,
+                     GError       **error);
 
 gboolean
 _ds_luagir_init(lua_State  *L,

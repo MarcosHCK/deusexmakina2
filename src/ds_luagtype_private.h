@@ -15,49 +15,59 @@
  *  along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#ifndef __DS_LUACLASS_INCLUDED__
-#define __DS_LUACLASS_INCLUDED__ 1
-#include <ds_lua.h>
-#include <glib-object.h>
+#ifndef __DS_LUAGTYPE_PRIVATE_INCLUDED__
+#define __DS_LUAGTYPE_PRIVATE_INCLUDED__
+#include <ds_luagtype.h>
 
-typedef struct _DsClass DsClass;
+typedef struct _DsGType DsGType;
 
 #if __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-struct _DsClass
+struct _DsGType
 {
   GType g_type;
-  GTypeClass* klass;
+  union
+  {
+    gpointer thing;
+    gpointer boxed;
+    GTypeClass* klass;
+    GTypeInterface* iface;
+    GTypeInstance* instance;
+    gint enum_value;
+    guint flags_value;
+  };
+
+  GDestroyNotify notify;
   guint fundamental : 1;
   guint classed : 1;
-  guint instantiatable : 1;
+  guint instantiable : 1;
+  guint instanced : 1;
 };
 
 G_GNUC_INTERNAL
 gboolean
-_ds_luaclass_init(lua_State  *L,
-                  GError    **error);
+_ds_tovalue(lua_State* L, gint idx, GValue* value, GType g_type, GError** error);
 G_GNUC_INTERNAL
-void
-_ds_luaclass_fini(lua_State* L);
-
-void
-luaD_pushclass(lua_State *L,
-               GType      g_type);
 gboolean
-luaD_isclass(lua_State  *L,
-             int         idx);
-DsClass*
-luaD_toclass(lua_State  *L,
-             int         idx);
-DsClass*
-luaD_checkclass(lua_State  *L,
-                int         arg);
+_ds_pushvalue(lua_State* L, GValue* value, GError** error);
+
+G_GNUC_INTERNAL
+DsGType*
+_luaD_pushgtype(lua_State* L, GType g_type, gpointer thing);
+G_GNUC_INTERNAL
+gboolean
+_luaD_isgtype(lua_State* L, int idx);
+G_GNUC_INTERNAL
+DsGType*
+_luaD_togtype(lua_State* L, int idx);
+G_GNUC_INTERNAL
+DsGType*
+_luaD_checkgtype(lua_State* L, int arg);
 
 #if __cplusplus
 }
 #endif // __cplusplus
 
-#endif // __DS_LUACLASS_INCLUDED__
+#endif // __DS_LUAGTYPE_PRIVATE_INCLUDED__

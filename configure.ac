@@ -104,29 +104,30 @@ esac
 AS_IF([test "x$host_cpu" = "xx86_64"],
       [CHECK_FASTCALL_STYLE()])
 
+gl_VISIBILITY
+
 #
 #  Checks for programs we'll
 # need to build
 #
-AC_PROG_CXX
+AM_PROG_AS
 AC_PROG_AWK
 AC_PROG_CC
 AC_PROG_CPP
+AC_PROG_CXX
 AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
-AM_PROG_AS
 AM_PROG_VALAC
 
 LT_PREREQ([2.4.6])
 LT_INIT
+
 PKG_PROG_PKG_CONFIG
 
-AC_CHECK_PROG([GLIB_MKENUMS], [glib-mkenums], [glib-mkenums], [no])
-if test "x$GLIB_MKENUMS" = "xno"; then
-  AC_MSG_FAILURE([glib-mkenums not found our your system])
-fi
+GOBJECT_INTROSPECTION_REQUIRE([1.68.0])
+
 AC_CHECK_PROG([GLIB_GENMARSHAL], [glib-genmarshal], [glib-genmarshal], [no])
 if test "x$GLIB_GENMARSHAL" = "xno"; then
   AC_MSG_FAILURE([glib-genmarshal not found our your system])
@@ -139,6 +140,10 @@ AC_CHECK_PROG([GLIB_COMPILE_SCHEMAS], [glib-compile-schemas], [glib-compile-sche
 if test "x$GLIB_COMPILE_SCHEMAS" = "xno"; then
   AC_MSG_FAILURE([glib-compile-schemas not found our your system])
 fi
+AC_CHECK_PROG([GLIB_MKENUMS], [glib-mkenums], [glib-mkenums], [no])
+if test "x$GLIB_MKENUMS" = "xno"; then
+  AC_MSG_FAILURE([glib-mkenums not found our your system])
+fi
 
 AC_CHECK_PROG([MINILUA], [luajitd], [luajit], [no])
 AM_CONDITIONAL([MINILUA_LOCAL], [test "x$MINILUA" = "xno"])
@@ -146,13 +151,16 @@ if test "x$MINILUA" = "xno"; then
   AC_SUBST([MINILUA], [\${top_builddir}/build/minilua\${EXEEXT}])
 fi
 
-AC_SUBST([MKMARSHAL], [\${MINILUA}\ \${top_builddir}/build/mkmarshal.lua])
 AC_SUBST([DYNASM], [\${MINILUA}\ \${top_builddir}/build/dynasm/dynasm.lua])
+AC_SUBST([MKMARSHAL], [\${MINILUA}\ \${top_builddir}/build/mkmarshal.lua])
 
 #
-# Do you want to debug? Tell me!
+# Custom build options
 #
 debugging="no"
+developer="no"
+verboseclosure="yes"
+
 AC_ARG_ENABLE([debug],
               [AS_HELP_STRING([--enable-debug], [Enable debug object output @<:@default=no@:>@])],
               [if test "x$enableval" != "xno"; then
@@ -173,10 +181,21 @@ else
   AC_SUBST([DEBUG], [1])
 fi
 
-#
-# Verbose closure conversion to string?
-#
-verboseclosure="yes"
+AC_ARG_ENABLE([developer],
+              [AS_HELP_STRING([--enable-developer], [Enable developer features @<:@default=no@:>@])],
+              [if test "x$enableval" != "xno"; then
+                developer="yes"
+               fi
+              ])
+
+if test "x$developer" = "xno"; then
+  AC_DEFINE([DEVELOPER], [0], [Developer feature disabled])
+  AC_SUBST([DEVELOPER], [0])
+else
+  AC_DEFINE([DEVELOPER], [1], [Developer feature enabled])
+  AC_SUBST([DEVELOPER], [1])
+fi
+
 AC_ARG_ENABLE([verbose-closure-tostring],
               [AS_HELP_STRING([--enable-verbose-closure-tostring], [Enables verbose closure to string conversion @<:@default=yes@:>@])],
               [if test "x$enableval" != "xno"; then
@@ -205,15 +224,11 @@ PKG_CHECK_MODULES([GLIB], [glib-2.0])
 PKG_CHECK_MODULES([GMODULE], [gmodule-2.0])
 PKG_CHECK_MODULES([GOBJECT], [gobject-2.0])
 PKG_CHECK_MODULES([LIBAKASHIC], [libakashic])
-PKG_CHECK_MODULES([LIBICU], [icu-i18n])
 PKG_CHECK_MODULES([LIBSOUP], [libsoup-2.4])
 PKG_CHECK_MODULES([LIBWEBP], [libwebp])
 PKG_CHECK_MODULES([LUA], [luajit lua5.1 lua51])
 PKG_CHECK_MODULES([OPENGL], [opengl])
 PKG_CHECK_MODULES([SDL2], [sdl2])
-
-# Just for development
-PKG_CHECK_MODULES([STB], [stb])
 
 #
 # Check for libraries
@@ -277,6 +292,7 @@ settings/Makefile
 scripts/Makefile
 scripts/build.lua
 gfx/Makefile
+gir/Makefile
 ])
 
 AC_OUTPUT

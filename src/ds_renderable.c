@@ -19,7 +19,15 @@
 #include <ds_renderable.h>
 #include <jit/jit.h>
 
-typedef DsRenderableIface DsRenderableInterface;
+/**
+ * SECTION:dsrenderable
+ * @Short_description: Renderable object
+ * @Title: DsRenderable
+ *
+ * DsRenderable is an interface to for renderable
+ * objects.
+ *
+ */
 
 static
 void ds_renderable_default_init(DsRenderableIface* iface);
@@ -29,10 +37,8 @@ void ds_renderable_default_init(DsRenderableIface* iface);
  *
  */
 
-G_DEFINE_INTERFACE
-(DsRenderable,
- ds_renderable,
- G_TYPE_OBJECT);
+typedef DsRenderableIface DsRenderableInterface;
+G_DEFINE_INTERFACE(DsRenderable, ds_renderable, G_TYPE_OBJECT);
 
 static gboolean
 ds_renderable_default_compile(DsRenderable   *renderable,
@@ -68,6 +74,17 @@ void ds_renderable_default_init(DsRenderableIface* iface) {
  *
  */
 
+/**
+ * ds_renderable_compile:
+ * @renderable: a #DsRenderable instance.
+ * @state: render compile state.
+ * @cancellable: (nullable): a %GCancellable
+ * @error: return location for a #GError
+ *
+ * Compiles necessary calls to render @renderable.
+ *
+ * Returns: whether compile was successful or not.
+ */
 gboolean
 ds_renderable_compile(DsRenderable         *renderable,
                       DsRenderState        *state,
@@ -84,6 +101,14 @@ ds_renderable_compile(DsRenderable         *renderable,
 return iface->compile(renderable, state, cancellable, error);
 }
 
+/**
+ * ds_render_state_get_current_program: (skip):
+ * @state: a #DsRenderable instance.
+ *
+ * Returns current GL program object name.
+ *
+ * Returns: see description
+ */
 GLuint
 ds_render_state_get_current_program(DsRenderState* state)
 {
@@ -91,6 +116,16 @@ ds_render_state_get_current_program(DsRenderState* state)
 return ((JitState*) state)->pid;
 }
 
+/**
+ * ds_render_state_call: (skip):
+ * @state: render compile state.
+ * @callback: function to call.
+ * @n_params: the number of parameter types to follow.
+ * @...: a list of types, one for each parameter.
+ *
+ * Compiles a call to @callback.
+ *
+ */
 void
 ds_render_state_call(DsRenderState  *state,
                      GCallback       callback,
@@ -115,6 +150,17 @@ ds_render_state_call(DsRenderState  *state,
   va_end(l);
 }
 
+/**
+ * ds_render_state_pcall: (skip):
+ * @state: render compile state.
+ * @callback: function to call.
+ * @n_params: the number of parameter types to follow.
+ * @...: a list of types, one for each parameter.
+ *
+ * Compiles a protected call to @callback.
+ * Protected calls are checked for GL errors.
+ *
+ */
 void
 ds_render_state_pcall(DsRenderState  *state,
                       GCallback       callback,

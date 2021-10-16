@@ -17,6 +17,7 @@
  */
 #ifndef __DS_SHADER_INCLUDED__
 #define __DS_SHADER_INCLUDED__ 1
+#include <ds_export.h>
 #include <ds_folder_provider.h>
 #include <cglm/cglm.h>
 #include <gio/gio.h>
@@ -64,16 +65,19 @@ typedef struct _DsShaderClass DsShaderClass;
 extern "C" {
 #endif // __cplusplus
 
-GType
-ds_shader_get_type();
+DEUSEXMAKINA2_API
 GQuark
 ds_shader_error_quark();
+DEUSEXMAKINA2_API
+GType
+ds_shader_get_type();
 
 struct _DsShaderClass
 {
   GObjectClass parent_class;
 };
 
+DEUSEXMAKINA2_API
 DsShader*
 ds_shader_new(GFile            *vertex_file,
               GInputStream     *vertex_stream,
@@ -84,6 +88,8 @@ ds_shader_new(GFile            *vertex_file,
               DsCacheProvider  *cache_provider,
               GCancellable     *cancellable,
               GError          **error);
+
+DEUSEXMAKINA2_API
 DsShader*
 ds_shader_new_from_files(GFile           *vertex_file,
                          GFile           *fragment_file,
@@ -91,6 +97,8 @@ ds_shader_new_from_files(GFile           *vertex_file,
                          DsCacheProvider *cache_provider,
                          GCancellable    *cancellable,
                          GError         **error);
+
+DEUSEXMAKINA2_API
 gboolean
 ds_shader_use(DsShader     *shader,
               GError      **error);

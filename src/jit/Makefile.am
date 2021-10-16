@@ -65,18 +65,23 @@ libjit_la_SOURCES=\
 	$(VOID)
 
 libjit_la_CFLAGS=\
+	$(ASSIMP_CFLAGS) \
+	$(CGLM_CFLAGS) \
+	$(FREETYPE_CFLAGS) \
 	$(GIO_CFLAGS) \
-	$(GOBJECT_CFLAGS) \
+	$(GIR_CFLAGS) \
+	$(GLEW_CFLAGS) \
 	$(GLIB_CFLAGS) \
-	$(LIBSOUP_CFLAGS) \
+	$(GMODULE_CFLAGS) \
+	$(GOBJECT_CFLAGS) \
 	$(LIBAKASHIC_CFLAGS) \
+	$(LIBICU_CFLAGS) \
+	$(LIBSOUP_CFLAGS) \
+	$(LIBWEBP_CFLAGS) \
+	$(LUA_CFLAGS) \
 	$(OPENGL_CFLAGS) \
 	$(SDL2_CFLAGS) \
-	$(SDL2_IMG_CFLAGS) \
-	$(SDL2_TTF_CFLAGS) \
-	$(GLEW_CFLAGS) \
-	$(CGLM_CFLAGS) \
-	$(LUA_CFLAGS) \
+	$(CFLAG_VISIBILITY) \
 	-DFASTCALL_STYLE=\"${fastcall_style}\" \
 	-DSCHEMASDIR=\"${schemasdir}\" \
 	-DGFXDIR=\"${gfxdir}\" \

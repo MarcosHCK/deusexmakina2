@@ -1,0 +1,6 @@
+../src/ds_font.c
+../src/ds_font.h
+../src/ds_mvpholder.c
+../src/ds_mvpholder.h
+../src/ds_renderable.c
+../src/ds_renderable.h

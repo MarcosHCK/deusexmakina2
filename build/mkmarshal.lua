@@ -193,6 +193,14 @@ local function mkmarshal(app, output, args, return_, proto, body)
     return out:gsub(',[%s]*$', '');
     end
 
+    local function getargcount()
+      if(#args == 1 and args[1] == 'VOID') then
+        return 0;
+      else
+        return #args;
+      end
+    end
+
     local typename = 'DsMarshalFunc_' .. suffix;
     local return_ctype = gtypes[return_].ctype();
 
@@ -205,7 +213,7 @@ local function mkmarshal(app, output, args, return_, proto, body)
   ]] .. (return_ ~= 'VOID' and (return_ctype .. ' return_;' .. '\r\n') or '') .. [[
 
   ]] .. (return_ ~= 'VOID' and ('g_return_if_fail(return_value != NULL);' .. '\r\n  ') or '') .. [[
-g_return_if_fail(n_param_values == ]] .. (#args) .. [[);
+g_return_if_fail(n_param_values == ]] .. getargcount() .. [[);
 
   callback = (]] .. typename .. [[) (marshal_data ? marshal_data : cc->callback);
 
@@ -275,6 +283,14 @@ local function mkvamarshal(app, output, args, return_, proto, body)
     return out:gsub(',[%s]*$', '');
     end
 
+    local function getargcount()
+      if(#args == 1 and args[1] == 'VOID') then
+        return 0;
+      else
+        return #args;
+      end
+    end
+
     local typename = 'DsMarshalFunc_' .. suffix;
     local return_ctype = gtypes[return_].ctype();
 
@@ -286,7 +302,7 @@ local function mkvamarshal(app, output, args, return_, proto, body)
   ]] .. typename .. [[ callback;
   ]] .. (return_ ~= 'VOID' and (return_ctype .. ' return_;' .. '\r\n') or '') .. [[
   ]] .. ((#args == 1 and args[1] == 'VOID') and '' or gettypes():gsub(',[%s]*', ';\r\n  ') .. ';\r\n') .. '\r\n' .. [[
-  g_return_if_fail(n_params == ]] .. (#args) .. [[);
+  g_return_if_fail(n_params == ]] .. getargcount() .. [[);
 
   va_list args_list;
   G_VA_COPY(args_list, args);
@@ -502,6 +518,11 @@ local app = lapp.new('mkmarshal', function(app, files)
   output:close();
 end);
 
+local function print_version()
+  io.stdout:write('mkmarshal v1.2\r\n');
+  os.exit();
+end
+
 app:add_options({
   {'C', 'body', 'Generate C code'},
   {'H', 'header', 'Generate C header'},
@@ -517,7 +538,7 @@ app:add_options({
   {nil, 'prototypes', 'Generate the marshellers prototypes along with C code'},
   {'q', 'quiet', 'Only print warning an errors', nil},
   {'v', 'verbose', 'Print verbose messages', nil},
-  {nil, 'version', 'Print version information', nil},
+  {nil, 'version', 'Print version information', nil, print_version},
 });
 
 app:run_s(...);

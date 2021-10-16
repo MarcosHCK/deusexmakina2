@@ -17,6 +17,7 @@
  */
 #ifndef __DS_SKYBOX_INCLUDED__
 #define __DS_SKYBOX_INCLUDED__ 1
+#include <ds_export.h>
 #include <gio/gio.h>
 
 /**
@@ -56,11 +57,14 @@ typedef struct _DsSkyboxClassPrivate  DsSkyboxClassPrivate;
 extern "C" {
 #endif // __cplusplus
 
+DEUSEXMAKINA2_API
 GQuark
 ds_skybox_error_quark();
+DEUSEXMAKINA2_API
 GType
 ds_skybox_get_type();
 
+DEUSEXMAKINA2_API
 DsSkybox*
 ds_skybox_new(GFile        *source,
               const gchar  *name,

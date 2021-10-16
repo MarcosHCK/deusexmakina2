@@ -19,14 +19,21 @@
 #define __DS_MACROS_INCLUDED__ 1
 #include <glib.h>
 
-#define _g_free0(var)         ((var == NULL) ? NULL : (var = (g_free (var), NULL)))
-#define _g_object_ref0(var)   ((var == NULL) ? NULL : (var = (g_object_ref (var))))
-#define _g_object_unref0(var) ((var == NULL) ? NULL : (var = (g_object_unref (var), NULL)))
+#define _g_free0(var)             ((var == NULL) ? NULL : (var = (g_free (var), NULL)))
+#define _g_object_ref0(var)       ((var == NULL) ? NULL : (var = (g_object_ref (var))))
+#define _g_object_ref_sink0(var)  ((var == NULL) ? NULL : (var = (g_object_ref_sink (var))))
+#define _g_object_unref0(var)     ((var == NULL) ? NULL : (var = (g_object_unref (var), NULL)))
 
 #define goto_error() \
 G_STMT_START { \
   g_warn_message(G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC, "goto_error()"); \
   success = FALSE; \
+  goto _error_; \
+} G_STMT_END
+
+#define goto_success() \
+G_STMT_START { \
+  success = TRUE; \
   goto _error_; \
 } G_STMT_END
 

@@ -28,9 +28,6 @@ local ds = require('ds');
 --
 --]]
 
--- Check debug flag
-local debug_ = _ENV["DS_DEBUG"] == 'true';
-
 -- Load skybox shader
 do
   local pipeline = application.pipeline;
@@ -141,6 +138,8 @@ do
     cancellable,
     tmp_err:ref());
   tmp_err:check();
+
+  print(model.set_scale);
 
   pipeline:append_object('model', ds.priority.default, model);
 

@@ -17,8 +17,9 @@
  */
 #ifndef __DS_RENDERABLE_INCLUDED__
 #define __DS_RENDERABLE_INCLUDED__ 1
-#include <gio/gio.h>
+#include <ds_export.h>
 #include <ds_gl.h>
+#include <gio/gio.h>
 
 #define DS_TYPE_RENDERABLE            (ds_renderable_get_type())
 #define DS_RENDERABLE(obj)            (G_TYPE_CHECK_INSTANCE_CAST((obj), DS_TYPE_RENDERABLE, DsRenderable))
@@ -34,6 +35,7 @@ typedef struct _DsRenderState       DsRenderState;
 extern "C" {
 #endif // __cplusplus
 
+DEUSEXMAKINA2_API
 GType
 ds_renderable_get_type();
 
@@ -45,6 +47,7 @@ ds_renderable_get_type();
  * @query_mvp_reset: tells object to mark MVP matrix as updated.
  * @query_mvp_data: custom pointer to pass to query_mvp_* functions
  *
+ * The #DsRenderable defined rules to render objects.
  */
 struct _DsRenderableIface
 {
@@ -55,11 +58,13 @@ struct _DsRenderableIface
   gpointer query_mvp_data;
 };
 
+DEUSEXMAKINA2_API
 gboolean
 ds_renderable_compile(DsRenderable   *renderable,
                       DsRenderState  *state,
                       GCancellable   *cancellable,
                       GError        **error);
+
 GLuint
 ds_render_state_get_current_program(DsRenderState* state);
 void

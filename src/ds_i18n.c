@@ -18,66 +18,14 @@
 #include <config.h>
 #include <ds_font.h>
 #include <ds_macros.h>
-#include <unicode/localebuilder.h>
-#include <unicode/locid.h>
-#include <string>
-using namespace icu;
+#include <glib/gi18n.h>
 
 G_GNUC_INTERNAL
 gboolean
-_ds_icu_get_charset(gchar** pcharset, GCancellable* cancellable, GError** error)
+_ds_libi18n_get_charset(gchar** pcharset, GCancellable* cancellable, GError** error)
 {
   gboolean success = TRUE;
   GError* tmp_err = NULL;
-  const gchar* const* langs = NULL;
-  guint i;
-  UErrorCode ecode = U_ZERO_ERROR;
-  LocaleBuilder builder;
-  Locale locale_;
-
-/*
- * Inspect locales
- *
- */
-
-  langs =
-  g_get_language_names();
-
-/*
- * Builder
- *
- */
-
-  builder = LocaleBuilder();
-
-  for(i = 0, success = FALSE;
-      langs[i] != NULL;
-      i++)
-  {
-    builder.clear();
-    if(!g_strcmp0(langs[i], "C") == 1)
-      builder.setLocale(langs[i]);
-    else
-      builder.setLocale("en");
-
-    locale_ = builder.build(ecode);
-    if G_UNLIKELY
-      (U_SUCCESS(ecode) == TRUE)
-    {
-      success = TRUE;
-      break;
-    }
-  }
-
-  if G_UNLIKELY(success == FALSE)
-  {
-    g_set_error_literal
-    (error,
-     DS_FONT_ERROR,
-     DS_FONT_ERROR_LIBICU,
-     "LocalBuilder::builder(): failed!\r\n");
-    goto_error();
-  }
 
 /*
  *

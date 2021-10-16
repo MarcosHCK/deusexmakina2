@@ -16,12 +16,9 @@
  *
  */
 #include <config.h>
-#include <ds_luaboxed.h>
-#include <ds_luaclass.h>
 #include <ds_luaclosure.h>
-#include <ds_luaenum.h>
 #include <ds_luagir.h>
-#include <ds_luaobj.h>
+#include <ds_luagtype.h>
 #include <ds_luaqdata.h>
 #include <ds_macros.h>
 #include <gio/gio.h>
@@ -140,6 +137,9 @@ __index(lua_State* L)
     resolve_type(typename_);
     if(g_type != G_TYPE_INVALID)
     {
+      luaD_pushgtype(L, g_type);
+      return 1;
+/*
       if(G_TYPE_IS_ENUM(g_type))
       {
         luaD_pushenum(L, g_type);
@@ -151,6 +151,7 @@ __index(lua_State* L)
         cachetype(L, typename_);
         return 1;
       }
+*/
     }
   }
 return 0;
@@ -206,31 +207,7 @@ _ds_lualib_init(lua_State  *L,
  */
 
   success =
-  _ds_luaboxed_init(L, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-  success =
-  _ds_luaclass_init(L, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-  success =
-  _ds_luaenum_init(L, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-  success =
-  _ds_luaobj_init(L, &tmp_err);
+  _ds_luagtype_init(L, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -272,6 +249,9 @@ _ds_lualib_init(lua_State  *L,
   } G_STMT_END
 
   gboolean debug = FALSE;
+#if DEBUG
+  debug = TRUE;
+#else
   if G_UNLIKELY
     (g_strcmp0
      (g_getenv("DS_DEBUG"),
@@ -279,6 +259,7 @@ _ds_lualib_init(lua_State  *L,
   {
     debug = TRUE;
   }
+#endif // DEBUG
 
   set_macro(    ASSETSDIR, ABSTOPBUILDDIR "/assets");
   set_macro(       GFXDIR, ABSTOPBUILDDIR "/gfx");
@@ -331,10 +312,7 @@ _ds_lualib_fini(lua_State* L)
  *
  */
 
-  _ds_luaobj_fini(L);
-  _ds_luaenum_fini(L);
-  _ds_luaclass_fini(L);
-  _ds_luaboxed_fini(L);
+  _ds_luagtype_fini(L);
 
 /*
  * Dependencies

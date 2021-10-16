@@ -31,14 +31,24 @@ VOID=
 
 #
 # Build minilua
-# if luajit is not present
+# if luajit binary is not present
 #
 
 if MINILUA_LOCAL
-noinst_PROGRAMS=minilua
-minilua_SOURCES=minilua.c
-minilua_CFLAGS=
-minilua_LDADD=-lm
+noinst_PROGRAMS=\
+	minilua \
+	$(VOID)
+minilua_SOURCES=\
+	lua.c \
+	$(VOID)
+minilua_CFLAGS=\
+	$(GLIB_CFLAGS) \
+	$(LUA_CFLAGS) \
+	$(VOID)
+minilua_LDADD=\
+	$(GLIB_LIBS) \
+	$(LUA_LIBS) \
+	$(VOID)
 else
-EXTRA_DIST+=minilua.c
+EXTRA_DIST+=lua.c
 endif

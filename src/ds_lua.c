@@ -60,6 +60,7 @@ _ds_lua_typeerror(lua_State  *L,
   for(;;);
 }
 
+G_GNUC_INTERNAL
 gboolean
 _ds_tovalue(lua_State* L,
             gint idx,
@@ -272,6 +273,13 @@ luaD_xpcall(lua_State  *L,
     }
     break;
   }
+}
+
+void
+luaD_close(lua_State* L)
+{
+  _ds_lua_fini(L);
+  lua_close(L);
 }
 
 /*

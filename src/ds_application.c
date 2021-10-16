@@ -19,7 +19,7 @@
 #include <ds_application.h>
 #include <ds_folder_provider.h>
 #include <ds_looper.h>
-#include <ds_luaobj.h>
+#include <ds_luagtype.h>
 #include <ds_macros.h>
 #include <ds_mvpholder.h>
 #include <ds_settings.h>
@@ -30,8 +30,8 @@
 G_DEFINE_QUARK(ds-application-error-quark,
                ds_application_error);
 
-static
-void ds_application_g_initiable_iface_init(GInitableIface* iface);
+static void
+ds_application_g_initiable_iface_init(GInitableIface* iface);
 
 /*
  * Clean-up
@@ -59,12 +59,6 @@ static void
 _SDL_fini0(guint var)
 {
   (var == 0) ? 0 : (var = (SDL_Quit (), 0));
-}
-
-static void
-_lua_close0(lua_State* var)
-{
-  (var == NULL) ? NULL : (var = (_ds_lua_fini(var), lua_close (var), NULL));
 }
 
 /*
@@ -133,7 +127,6 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   GError* tmp_err = NULL;
   DsApplication* self =
   DS_APPLICATION(pself);
-  gboolean debug = FALSE;
   gint return_ = 0;
 
   DsSettings* dssettings = NULL;
@@ -144,30 +137,16 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   DsEvents* events = NULL;
 
 /*
- * Debug flag
- *
- */
-
-  if G_UNLIKELY
-    (g_strcmp0
-     (g_getenv("DS_DEBUG"),
-      "true") == 0)
-  {
-    debug = TRUE;
-  }
-
-/*
  * Settings
  *
  */
 
-  if G_UNLIKELY(debug == TRUE)
-    dssettings =
-    ds_settings_new(ABSTOPBUILDDIR "/settings/", cancellable, &tmp_err);
-  else
-    dssettings =
-    ds_settings_new(SCHEMASDIR, cancellable, &tmp_err);
-
+  dssettings =
+#if DEVELOPER
+  ds_settings_new(ABSTOPBUILDDIR "/settings/", cancellable, &tmp_err);
+#else
+  ds_settings_new(SCHEMASDIR, cancellable, &tmp_err);
+#endif // DEVELOPER
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -240,18 +219,13 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
-  if G_UNLIKELY(debug == TRUE)
-  {
-    return_ =
-    luaL_loadfile(L, ABSTOPBUILDDIR "/scripts/patches.lua");
-    lua_pushstring(L, ABSTOPBUILDDIR "/scripts/");
-  }
-  else
-  {
-    return_ =
-    luaL_loadfile(L, PKGLIBEXECDIR "/patches.lua");
-    lua_pushstring(L, PKGLIBEXECDIR);
-  }
+#if DEVELOPER
+  luaL_loadfile(L, ABSTOPBUILDDIR "/scripts/patches.lua");
+  lua_pushstring(L, ABSTOPBUILDDIR "/scripts/");
+#else
+  luaL_loadfile(L, PKGLIBEXECDIR "/patches.lua");
+  lua_pushstring(L, PKGLIBEXECDIR);
+#endif // DEVELOPER
 
   if G_UNLIKELY
     (lua_isfunction(L, -2) == FALSE)
@@ -338,11 +312,9 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   flags |= fullscreen ? SDL_WINDOW_FULLSCREEN : 0;
   flags |= borderless ? SDL_WINDOW_BORDERLESS : 0;
 
-  if G_UNLIKELY(debug == TRUE)
-  {
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_DEBUG_FLAG, TRUE);
-  }
-
+#if DEBUG
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_DEBUG_FLAG, TRUE);
+#endif // DEBUG
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, TRUE);
 
   window =
@@ -455,12 +427,12 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
  *
  */
 
-  if G_UNLIKELY(debug == TRUE)
-    return_ =
-    luaL_loadfile(L, ABSTOPBUILDDIR "/scripts/setup.lua");
-  else
-    return_ =
-    luaL_loadfile(L, PKGLIBEXECDIR "/setup.lua");
+  return_ =
+#if DEVELOPER
+  luaL_loadfile(L, ABSTOPBUILDDIR "/scripts/setup.lua");
+#else
+  luaL_loadfile(L, PKGLIBEXECDIR "/setup.lua");
+#endif // DEVELOPER
 
   if G_UNLIKELY
     (lua_isfunction(L, -1) == FALSE)
@@ -506,6 +478,47 @@ void ds_application_g_initiable_iface_init(GInitableIface* iface) {
 }
 
 static
+void ds_application_class_activate(GApplication* pself)
+{
+  DsApplication* self = DS_APPLICATION(pself);
+  gboolean success = TRUE;
+  GError* tmp_err = NULL;
+
+/*
+ * Initialize ourself
+ *
+ */
+
+  success =
+  g_initable_init(G_INITABLE(pself), g_cancellable_get_current(), &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_critical
+    ("%s: %i: %s\r\n",
+     g_quark_to_string(tmp_err->domain),
+     tmp_err->code,
+     tmp_err->message);
+    g_error_free(tmp_err);
+    return;
+  }
+
+/*
+ * Start loopers
+ *
+ */
+
+  ds_looper_start(DS_LOOPER(self->renderer));
+  ds_looper_start(DS_LOOPER(self->events));
+
+/*
+ * Increase hold count
+ *
+ */
+
+  g_application_hold(pself);
+}
+
+static
 void ds_application_class_get_property(GObject* pself, guint prop_id, GValue* value, GParamSpec* pspec)
 {
   DsApplication* self = DS_APPLICATION(pself);
@@ -548,10 +561,6 @@ void ds_application_class_finalize(GObject* pself) {
   _SDL_GL_DeleteContext0(self->priv->glctx);
   _SDL_DestroyWindow0(self->priv->window);
   _SDL_fini0(self->priv->sdl_init);
-
-  /* Find out if Lua uses application object it won't be destroyed  */
-  /* because Lua holds a reference                                  */
-  _lua_close0(self->L);
 G_OBJECT_CLASS(ds_application_parent_class)->finalize(pself);
 }
 
@@ -570,7 +579,10 @@ G_OBJECT_CLASS(ds_application_parent_class)->dispose(pself);
 
 static
 void ds_application_class_init(DsApplicationClass* klass) {
+  GApplicationClass* aclass = G_APPLICATION_CLASS(klass);
   GObjectClass* oclass = G_OBJECT_CLASS(klass);
+
+  aclass->activate = ds_application_class_activate;
 
   oclass->get_property = ds_application_class_get_property;
   oclass->set_property = ds_application_class_set_property;
@@ -613,98 +625,4 @@ void ds_application_class_init(DsApplicationClass* klass) {
 static
 void ds_application_init(DsApplication* self) {
   self->priv = ds_application_get_instance_private(self);
-}
-
-/*
- * on_activate()
- *
- */
-
-static
-void on_activate(DsApplication* self) {
-  GMainContext* context =
-  g_main_context_default();
-  GSource* source = NULL;
-
-/*
- * Start loopers
- *
- */
-
-  ds_looper_start(DS_LOOPER(self->renderer));
-  ds_looper_start(DS_LOOPER(self->events));
-
-/*
- * Increase hold count
- *
- */
-  g_application_hold
-  (G_APPLICATION(self));
-}
-
-/*
- * main()
- *
- */
-
-int
-main(int    argc,
-     char  *argv[])
-{
-/*
- * Create application
- *
- */
-
-  GError* tmp_err = NULL;
-  GApplication* app = (GApplication*)
-
-  g_initable_new
-  (DS_TYPE_APPLICATION,
-   NULL,
-   &tmp_err,
-   "application-id", GAPPNAME,
-   "flags", G_APPLICATION_FLAGS_NONE,
-   NULL);
-
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_critical
-    ("%s: %i: %s\r\n",
-     g_quark_to_string(tmp_err->domain),
-     tmp_err->code,
-     tmp_err->message);
-    g_error_free(tmp_err);
-    g_assert_not_reached();
-  }
-
-/*
- * Subscribe to 'activate'
- * signal
- *
- */
-
-  g_signal_connect
-  (app,
-   "activate",
-   G_CALLBACK(on_activate),
-   NULL);
-
-/*
- * Run main loop
- *
- */
-
-  int status =
-  g_application_run(app, argc, argv);
-
-/*
- * Finalize application object
- *
- */
-
-  lua_gc(DS_APPLICATION(app)->L, LUA_GCCOLLECT, 1);         /* Collects all unused references, thus it may destroy some objects */
-  g_clear_pointer(&(DS_APPLICATION(app)->L), _lua_close0);  /* Release a possibly held reference to application object          */
-  g_assert_finalize_object(app);                            /* Finally destroy application object                               */
-return status;
 }

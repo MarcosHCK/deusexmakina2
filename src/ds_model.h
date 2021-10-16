@@ -88,8 +88,10 @@ struct _DsModelClass
   gboolean (*compile) (DsModel* model, DsRenderState* state, GCancellable* cancellable, GError** error);
 };
 
+DEUSEXMAKINA2_API
 GQuark
 ds_model_error_quark();
+DEUSEXMAKINA2_API
 GType
 ds_model_get_type();
 
@@ -120,6 +122,10 @@ ds_model_texture_unref(DsModelTexture* texture);
  *
  */
 
+DEUSEXMAKINA2_API
+GType
+ds_model_single_get_type();
+DEUSEXMAKINA2_API
 DsModel*
 ds_model_single_new(GFile* source, const gchar* name, GCancellable* cancellable, GError** error);
 

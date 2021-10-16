@@ -87,6 +87,9 @@ struct _DsModelPrivate
   gchar* filename;
 
   gboolean notified;
+
+  vec3 scale;
+  vec3 position;
   mat4 model;
 
   union _DsModelTioArray
@@ -719,13 +722,42 @@ ds_model_ds_mvp_holder_iface_notify_model(DsMvpHolder* pself)
 }
 
 static void
-ds_model_ds_mvp_holder_iface_set_position(DsMvpHolder* pself, gfloat* dst)
+update_model(DsModelPrivate* priv)
 {
+  glm_mat4_identity(priv->model);
+  glm_scale(priv->model, priv->scale);
+  glm_translate(priv->model, priv->position);
+  priv->notified = TRUE;
+}
+
+static void
+ds_model_ds_mvp_holder_iface_set_position(DsMvpHolder* pself, gfloat* src)
+{
+  DsModelPrivate* priv = ((DsModel*)pself)->priv;
+  glm_vec3_copy(src, priv->position);
+  update_model(priv);
 }
 
 static void
 ds_model_ds_mvp_holder_iface_get_position(DsMvpHolder* pself, gfloat* dst)
 {
+  DsModelPrivate* priv = ((DsModel*) pself)->priv;
+  glm_vec3_copy(priv->position, dst);
+}
+
+static void
+ds_model_ds_mvp_holder_iface_set_scale(DsMvpHolder* pself, gfloat* src)
+{
+  DsModelPrivate* priv = ((DsModel*) pself)->priv;
+  glm_vec3_copy(src, priv->scale);
+  update_model(priv);
+}
+
+static void
+ds_model_ds_mvp_holder_iface_get_scale(DsMvpHolder* pself, gfloat* dst)
+{
+  DsModelPrivate* priv = ((DsModel*) pself)->priv;
+  glm_vec3_copy(priv->scale, dst);
 }
 
 static void
@@ -735,6 +767,8 @@ ds_model_ds_mvp_holder_iface_init(DsMvpHolderIface* iface)
   iface->notify_model = ds_model_ds_mvp_holder_iface_notify_model;
   iface->set_position = ds_model_ds_mvp_holder_iface_set_position;
   iface->get_position = ds_model_ds_mvp_holder_iface_get_position;
+  iface->set_scale = ds_model_ds_mvp_holder_iface_set_scale;
+  iface->get_scale = ds_model_ds_mvp_holder_iface_get_scale;
 }
 
 static gboolean
@@ -980,15 +1014,7 @@ ds_model_init(DsModel* self)
   self->priv = G_STRUCT_MEMBER_P(self, DsModel_private_offset);
   self->priv->notified = TRUE;
 
-  vec3 s;
-  vec3 t = {0.f, 0.f, -0.4f};
-  glm_vec3_fill(s, .05f);
-
   glm_mat4_identity(self->priv->model);
-  glm_translate(self->priv->model, t);
-  glm_scale(self->priv->model, s);
-
-  g_timeout_add(20, G_SOURCE_FUNC(cycle_), self);
 }
 
 /*
