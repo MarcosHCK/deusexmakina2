@@ -42,6 +42,7 @@ GIR_VERSION=${PACKAGE_VERSION_MAYOR}.${PACKAGE_VERSION_MINOR}
 GIR_PKG=\
 	gio-2.0 \
 	gmodule-2.0 \
+	cglm \
 	$(VOID)
 
 GIR_INC=\
@@ -62,7 +63,7 @@ ${GIR_NAMESPACE}-${GIR_VERSION}.gir: sources.list ${top_srcdir}/src/libdeus2.la
 		--namespace ${GIR_NAMESPACE} \
 		--cflags-begin \
 			-I${top_srcdir}/src/ \
-			-D__DUESEXMAKINA_COMPILATION__=1 \
+			-I${top_srcdir}/src/luad \
 		--cflags-end \
 		--libtool "$(LIBTOOL)" \
 		--sources-top-dirs=${top_srcdir} \

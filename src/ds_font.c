@@ -22,6 +22,18 @@
 #include <ds_macros.h>
 #include <SDL.h>
 
+/**
+ * SECTION:dsfont
+ * @Short_description: Font provider
+ * @Title: DsFont
+ *
+ * DsFont encapsulates needed procedures
+ * necessary to load a TrueType font (using
+ * FreeType2 library) and generate GL-compatible
+ * drawing primitives data.
+ *
+ */
+
 G_DEFINE_QUARK(ds-font-error-quark,
                ds_font_error);
 
@@ -765,7 +777,7 @@ void ds_font_init(DsFont* self) {
  */
 
 /**
- * ds_font_new: (constructor):
+ * ds_font_new: (constructor)
  * @font_file: source file from which load font data (usually a .ttf file).
  * @font_size: font size (in 'pt' or points unit).
  * @cache_provider: (nullable): cache provider object.
@@ -903,6 +915,7 @@ _ds_font_generate_vao(DsFont         *font,
     {
     case '\n':
       y_off += (gfloat) font->image_h;
+      G_GNUC_FALLTHROUGH;
     case '\r':
       x_off = xy[0];
       continue;

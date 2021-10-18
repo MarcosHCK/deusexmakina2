@@ -17,6 +17,7 @@
  */
 #ifndef __DS_EVENTS_INCLUDED__
 #define __DS_EVENTS_INCLUDED__ 1
+#include <ds_export.h>
 #include <gio/gio.h>
 
 #define DS_TYPE_EVENTS            (ds_events_get_type())
@@ -33,9 +34,11 @@ typedef struct _DsEventsClass DsEventsClass;
 extern "C" {
 #endif // __cplusplus
 
+DEUSEXMAKINA2_API
 GType
 ds_events_get_type();
 
+DEUSEXMAKINA2_API
 DsEvents*
 ds_events_new(gpointer        engine,
               GCancellable   *cancellable,

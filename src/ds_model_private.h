@@ -27,7 +27,9 @@
 #include <ds_macros.h>
 #include <ds_model.h>
 
-typedef struct _DsModelMesh DsModelMesh;
+typedef struct _DsModelMesh       DsModelMesh;
+typedef struct _DsModelTexture    DsModelTexture;
+
 typedef gboolean (*DsModelTioIterator) (DsModel* model, DsModelTexture* texture, GList* meshes, gpointer user_data);
 
 static const
@@ -121,8 +123,18 @@ _ds_model_import_free(DsModel                *self,
  *
  */
 
+G_GNUC_INTERNAL
 GType
 ds_model_texture_get_type();
+G_GNUC_INTERNAL
+DsModelTexture*
+ds_model_texture_new(GError** error);
+G_GNUC_INTERNAL
+DsModelTexture*
+ds_model_texture_ref(DsModelTexture* texture);
+G_GNUC_INTERNAL
+void
+ds_model_texture_unref(DsModelTexture* texture);
 G_GNUC_INTERNAL
 void
 _ds_model_compile_switch_texture(DsModelTexture  *tex,

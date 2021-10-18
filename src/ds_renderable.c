@@ -102,7 +102,7 @@ return iface->compile(renderable, state, cancellable, error);
 }
 
 /**
- * ds_render_state_get_current_program: (skip):
+ * ds_render_state_get_current_program: (skip)
  * @state: a #DsRenderable instance.
  *
  * Returns current GL program object name.
@@ -117,7 +117,7 @@ return ((JitState*) state)->pid;
 }
 
 /**
- * ds_render_state_call: (skip):
+ * ds_render_state_call: (skip)
  * @state: render compile state.
  * @callback: function to call.
  * @n_params: the number of parameter types to follow.
@@ -151,7 +151,7 @@ ds_render_state_call(DsRenderState  *state,
 }
 
 /**
- * ds_render_state_pcall: (skip):
+ * ds_render_state_pcall: (skip)
  * @state: render compile state.
  * @callback: function to call.
  * @n_params: the number of parameter types to follow.

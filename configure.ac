@@ -286,6 +286,7 @@ AC_CONFIG_FILES([
 Makefile
 build/Makefile
 src/Makefile
+src/luad/Makefile
 src/jit/Makefile
 src/vapi/Makefile
 settings/Makefile

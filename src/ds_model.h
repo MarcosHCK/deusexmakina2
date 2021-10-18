@@ -60,15 +60,27 @@ typedef struct _DsModelClass        DsModelClass;
 
 typedef struct _DsModelVertex     DsModelVertex;
 typedef guint                     DsModelIndex;
-typedef struct _DsModelTexture    DsModelTexture;
 
 G_BEGIN_DECLS
 
+/**
+ * DsModel:
+ * @parent_instance: parent instance.
+ * @bos: OpenGL buffer object names array.
+ * @vbo: OpenGL vertex buffer object name (where vertices data
+ * are stored).
+ * @ibo: OpenGL index buffer object name (where indices data
+ * are stored).
+ *
+ */
 struct _DsModel
 {
   GObject parent_instance;
+
+  /*<private>*/
   DsModelPrivate* priv;
 
+  /*<public>*/
   union
   {
     guint bos[2];
@@ -80,11 +92,21 @@ struct _DsModel
   };
 };
 
+/**
+ * DsModelClass:
+ * @parent_class: parent class.
+ * @vao: OpenGL vertex array object name.
+ * @compile: forwards #DsRenderable::compile virtual function implementation,
+ * since #DsModel already implements it by itself.
+ *
+ */
 struct _DsModelClass
 {
   GObjectClass parent_class;
+  /*<private>*/
   guint vao;
 
+  /*<public>*/
   gboolean (*compile) (DsModel* model, DsRenderState* state, GCancellable* cancellable, GError** error);
 };
 
@@ -109,13 +131,6 @@ struct _DsModelVertex
   vec3 tangent;
   vec3 bitangent;
 };
-
-DsModelTexture*
-ds_model_texture_new(GError** error);
-DsModelTexture*
-ds_model_texture_ref(DsModelTexture* texture);
-void
-ds_model_texture_unref(DsModelTexture* texture);
 
 /*
  * Model types

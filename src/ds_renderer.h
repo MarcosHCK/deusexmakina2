@@ -17,6 +17,7 @@
  */
 #ifndef __DS_RENDERER_INCLUDED__
 #define __DS_RENDERER_INCLUDED__ 1
+#include <ds_export.h>
 #include <gio/gio.h>
 
 #define DS_TYPE_RENDERER            (ds_renderer_get_type())
@@ -33,23 +34,28 @@ typedef struct _DsRendererClass DsRendererClass;
 extern "C" {
 #endif // __cplusplus
 
+DEUSEXMAKINA2_API
 GType
 ds_renderer_get_type();
 
+DEUSEXMAKINA2_API
 DsRenderer*
 ds_renderer_new(GSettings      *gsettings,
                 gpointer        pipeline,
                 gpointer        window,
                 GCancellable   *cancellable,
                 GError        **error);
+DEUSEXMAKINA2_API
 void
-ds_renderer_force_update(DsRenderer* self);
+ds_renderer_force_update(DsRenderer* renderer);
+DEUSEXMAKINA2_API
 void
-ds_renderer_look(DsRenderer  *data,
+ds_renderer_look(DsRenderer  *renderer,
                  gfloat       xrel,
                  gfloat       yrel);
+DEUSEXMAKINA2_API
 void
-ds_renderer_move(DsRenderer  *data,
+ds_renderer_move(DsRenderer  *renderer,
                  gfloat       xrel,
                  gfloat       yrel,
                  gfloat       zrel);

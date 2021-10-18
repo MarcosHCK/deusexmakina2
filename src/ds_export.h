@@ -18,9 +18,9 @@
 #ifndef __DS_EXPORT_INCLUDED__
 #define __DS_EXPORT_INCLUDED__ 1
 
-#if __DUESEXMAKINA_COMPILATION__ && __GNUC__ >= 4
+#if __DUESEXMAKINA_INSIDE__ && __GNUC__ >= 4
 # define DEUSEXMAKINA2_API __attribute__((__visibility__("default")))
-#elif __DUESEXMAKINA_COMPILATION__ && defined _MSC_VER
+#elif __DUESEXMAKINA_INSIDE__ && defined _MSC_VER
 # define DEUSEXMAKINA2_API __declspec(dllexport)
 #elif defined _MSC_VER
 # define DEUSEXMAKINA2_API __declspec(dllimport)

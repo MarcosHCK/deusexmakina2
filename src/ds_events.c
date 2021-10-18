@@ -20,7 +20,18 @@
 #include <ds_events.h>
 #include <ds_looper.h>
 #include <ds_macros.h>
+#include <luad_core.h>
 #include <SDL.h>
+
+/**
+ * SECTION:dsevents
+ * @Short_description: events controller
+ * @Title: DsEvents
+ *
+ * DsEvents encapsulates complexities of
+ * launching SDL events into Lua space
+ *
+ */
 
 #define EVENT_PUSH "__DS_EVENT_PUSH"
 
@@ -264,6 +275,17 @@ ds_events_init(DsEvents* self)
  *
  */
 
+/**
+ * ds_events_new: (constructor)
+ * @engine: (not nullable): Lua state.
+ * @cancellable: (nullable): a %GCancellable
+ * @error: return location for a #GError
+ *
+ * Creates a new #DsEvents which operates on
+ * @engine Lua state.
+ *
+ * Returns: (transfer full): see description.
+ */
 DsEvents*
 ds_events_new(gpointer        engine,
               GCancellable   *cancellable,

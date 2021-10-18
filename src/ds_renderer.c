@@ -17,7 +17,6 @@
  */
 #include <config.h>
 #include <ds_application.h>
-#include <ds_callable.h>
 #include <ds_gl.h>
 #include <ds_looper.h>
 #include <ds_macros.h>
@@ -27,8 +26,6 @@
 
 static void
 ds_renderer_g_initable_iface_init(GInitableIface* iface);
-static void
-ds_renderer_ds_callable_iface_init(DsCallableIface* iface);
 
 enum {
   conn_width,
@@ -111,10 +108,7 @@ G_DEFINE_TYPE_WITH_CODE
  DS_TYPE_LOOPER,
  G_IMPLEMENT_INTERFACE
  (G_TYPE_INITABLE,
-  ds_renderer_g_initable_iface_init)
- G_IMPLEMENT_INTERFACE
- (DS_TYPE_CALLABLE,
-  ds_renderer_ds_callable_iface_init));
+  ds_renderer_g_initable_iface_init));
 
 static void
 on_width_changed(GSettings       *gsettings,
@@ -476,35 +470,6 @@ ds_renderer_g_initable_iface_init(GInitableIface* iface)
   iface->init = ds_renderer_g_initable_iface_init_sync;
 }
 
-static void
-ds_renderer_ds_callable_iface_init(DsCallableIface* iface)
-{
-  ds_callable_iface_add_method
-  (iface,
-   "look",
-   DS_CLOSURE_FLAGS_NONE,
-   G_CALLBACK(ds_renderer_look),
-   ds_cclosure_marshal_VOID__INSTANCE_FLOAT_FLOAT,
-   ds_cclosure_marshal_VOID__INSTANCE_FLOAT_FLOATv,
-   G_TYPE_NONE,
-   2,
-   G_TYPE_FLOAT,
-   G_TYPE_FLOAT);
-
-  ds_callable_iface_add_method
-  (iface,
-   "move",
-   DS_CLOSURE_FLAGS_NONE,
-   G_CALLBACK(ds_renderer_move),
-   ds_cclosure_marshal_VOID__INSTANCE_FLOAT_FLOAT_FLOAT,
-   ds_cclosure_marshal_VOID__INSTANCE_FLOAT_FLOAT_FLOATv,
-   G_TYPE_NONE,
-   3,
-   G_TYPE_FLOAT,
-   G_TYPE_FLOAT,
-   G_TYPE_FLOAT);
-}
-
 static gboolean
 ds_renderer_class_loop_step(DsLooper* pself)
 {
@@ -766,10 +731,22 @@ update_projection(DsRenderer* self)
 #undef front
 #undef worldup
 #undef position
-
 #undef d
-#define d renderer
 
+/**
+ * ds_renderer_new: (constructor) (skip)
+ * @gsettings: a #GSettings object.
+ * @pipeline: (not nullable) (type Ds.Pipeline): pipeline object to execute.
+ * @window: (not nullable): SDL window object.
+ * @cancellable: (nullable): a %GCancellable
+ * @error: return location for a #GError
+ *
+ * Creates a new #DsRenderer instance, which uses @window
+ * as rendering target and @pipeline as rendering pipeline.
+ * @gsettings is used to get and watch rendering settings.
+ *
+ * Returns: (transfer full): a new #DsRenderer object.
+ */
 DsRenderer*
 ds_renderer_new(GSettings      *gsettings,
                 gpointer        pipeline,
@@ -788,6 +765,14 @@ ds_renderer_new(GSettings      *gsettings,
    NULL);
 }
 
+/**
+ * ds_renderer_force_update: (skip)
+ * @renderer: a #DsRenderer object.
+ *
+ * Forces @renderer update, which is usually done on demand
+ * after any change on rendering settings.
+ *
+ */
 void
 ds_renderer_force_update(DsRenderer* renderer)
 {
@@ -797,6 +782,16 @@ ds_renderer_force_update(DsRenderer* renderer)
   update_view(renderer, 0, 0);
 }
 
+/**
+ * ds_renderer_look:
+ * @renderer: a #DsRenderer object.
+ * @xrel: relative displacement on X-axis.
+ * @yrel: relative displacement on Y-axis.
+ *
+ * Performs some kind of "look around" action,
+ * which ofcourse depends on game mechanics.
+ *
+ */
 void
 ds_renderer_look(DsRenderer  *renderer,
                  gfloat       xrel,
@@ -806,6 +801,16 @@ ds_renderer_look(DsRenderer  *renderer,
   update_view(renderer, xrel, yrel);
 }
 
+/**
+ * ds_renderer_move:
+ * @renderer: a #DsRenderer object.
+ * @xrel: relative displacement on X-axis.
+ * @yrel: relative displacement on Y-axis.
+ * @zrel: relative displacement on Z-axis.
+ *
+ * Moves viewpoint position.
+ *
+ */
 void
 ds_renderer_move(DsRenderer  *renderer,
                  gfloat       xrel,
@@ -815,6 +820,6 @@ ds_renderer_move(DsRenderer  *renderer,
   g_return_if_fail(DS_IS_RENDERER(renderer));
 
   vec3 vec_ = {xrel, yrel, zrel};
-  glm_vec3_add(d->position, vec_, d->position);
+  glm_vec3_add(renderer->position, vec_, renderer->position);
   update_view(renderer, 0, 0);
 }

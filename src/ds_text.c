@@ -17,7 +17,6 @@
  */
 #include <config.h>
 #include <cglm/cglm.h>
-#include <ds_callable.h>
 #include <ds_font.h>
 #include <ds_gl.h>
 #include <ds_macros.h>
@@ -27,8 +26,6 @@
 G_DEFINE_QUARK(ds-text-error-quark,
                ds_text_error);
 
-static
-void ds_text_ds_callable_iface_init(DsCallableIface* iface);
 static
 void ds_text_ds_renderable_iface_init(DsRenderableIface* iface);
 
@@ -87,9 +84,6 @@ G_DEFINE_TYPE_WITH_CODE
  ds_text,
  G_TYPE_OBJECT,
  G_IMPLEMENT_INTERFACE
- (DS_TYPE_CALLABLE,
-  ds_text_ds_callable_iface_init)
- G_IMPLEMENT_INTERFACE
  (DS_TYPE_RENDERABLE,
   ds_text_ds_renderable_iface_init)
  {
@@ -102,37 +96,6 @@ _ds_text_print(DsText* text, DsTextHandle handle, const gchar* text_, gfloat x, 
   vec2 pos = {x, y};
   return
   ds_text_print(text, handle, text_, pos, cancellable, error);
-}
-
-static
-void ds_text_ds_callable_iface_init(DsCallableIface* iface) {
-  ds_callable_iface_add_method
-  (iface,
-   "new",
-   DS_CLOSURE_CONSTRUCTOR,
-   G_CALLBACK(ds_text_new),
-   ds_cclosure_marshal_OBJECT__OBJECT,
-   ds_cclosure_marshal_OBJECT__OBJECTv,
-   DS_TYPE_TEXT,
-   1,
-   DS_TYPE_FONT,
-   G_TYPE_NONE);
-
-  ds_callable_iface_add_method
-  (iface,
-   "print",
-   DS_CLOSURE_FLAGS_NONE,
-   G_CALLBACK(_ds_text_print),
-   ds_cclosure_marshal_POINTER__INSTANCE_POINTER_STRING_FLOAT_FLOAT_OBJECT_POINTER,
-   ds_cclosure_marshal_POINTER__INSTANCE_POINTER_STRING_FLOAT_FLOAT_OBJECT_POINTERv,
-   G_TYPE_POINTER,
-   6,
-   G_TYPE_POINTER,
-   G_TYPE_STRING,
-   G_TYPE_FLOAT,
-   G_TYPE_FLOAT,
-   G_TYPE_CANCELLABLE,
-   G_TYPE_POINTER);
 }
 
 static void

@@ -15,18 +15,6 @@
 # along with deusexmakina2. If not, see <http://www.gnu.org/licenses/>.
 #
 
-# Where assets goes (data comes in a different package)
-assetsdir=${pkgdatadir}/assets/
-
-# Keep sync with gfx/Makefile.am
-gfxdir=${pkgdatadir}/gfx/
-
-# Keep sync with gir/Makefile.am
-girdir=${pkgdatadir}/gir/
-
-# Keep sync with settings/Makefile.am
-schemasdir=${pkgdatadir}/schemas/
-
 #
 # Some variables
 #
@@ -42,94 +30,30 @@ EXTRA_DIST=
 VOID=
 
 #
-# Subdirectories
-#
-
-SUBDIRS=\
-	luad \
-	jit \
-	vapi \
-	$(VOID)
-
-#
-# Source files where
-# at least an enum is defined
-#
-
-ENUM_FILES=\
-	ds_dds_fmt.h \
-	ds_gl.h \
-	$(VOID)
-
-ds_enums.c: $(ENUM_FILES) ds_enums.c.template
-	$(GLIB_MKENUMS) --symbol-prefix "ds" \
-									--identifier-prefix "Ds" \
-									--template "ds_enums.c.template" \
-									--output $@ \
-									$(ENUM_FILES)
-
-#
 # C headers
 #
 
 EXTRA_DIST+=\
-	ds_application.h \
-	ds_dds.h \
-	ds_dds_fmt.h \
-	ds_events.h \
-	ds_export.h \
-	ds_folder_provider.h \
-	ds_font.h \
-	ds_gl.h \
-	ds_looper.h \
-	ds_macros.h \
-	ds_model.h \
-	ds_model_private.h \
-	ds_mvpholder.h \
-	ds_pipeline.h \
-	ds_renderable.h \
-	ds_renderer.h \
-	ds_saves.h \
-	ds_settings.h \
-	ds_shader.h \
-	ds_skybox.h \
-	ds_text.h \
+	luad_closure.h \
+	luad_core.h \
+	luad_girhub.h \
+	luad_lib.h \
+	luad_value.h \
 	$(VOID)
 
 #
 # Binaries and libraries
 #
 
-pkglib_LTLIBRARIES=libdeus2.la
-libdeus2_la_SOURCES=\
-	ds_application.c \
-	ds_basedirs.vala \
-	ds_dds.vala \
-	ds_enums.c \
-	ds_events.c \
-	ds_folder_provider.vala \
-	ds_font.c \
-	ds_font_cache.c \
-	ds_gl.c \
-	ds_i18n.c \
-	ds_looper.vala \
-	ds_model.c \
-	ds_model_buf.c \
-	ds_model_imp.c \
-	ds_model_tex.c \
-	ds_model_single.c \
-	ds_mvpholder.c \
-	ds_pipeline.c \
-	ds_renderable.c \
-	ds_renderer.c \
-	ds_saves.vala \
-	ds_settings.vala \
-	ds_shader.c \
-	ds_shader_cache.c \
-	ds_skybox.c \
-	ds_text.c \
+pkglib_LTLIBRARIES=libluad2.la
+libluad2_la_SOURCES=\
+	luad_closure.c \
+	luad_core.c \
+	luad_girhub.vala \
+	luad_lib.c \
+	luad_value.c \
 	$(VOID)
-libdeus2_la_CFLAGS=\
+libluad2_la_CFLAGS=\
 	$(ASSIMP_CFLAGS) \
 	$(CGLM_CFLAGS) \
 	$(FREETYPE_CFLAGS) \
@@ -146,7 +70,6 @@ libdeus2_la_CFLAGS=\
 	$(OPENGL_CFLAGS) \
 	$(SDL2_CFLAGS) \
 	$(CFLAG_VISIBILITY) \
-	-Iluad/ \
 	-DASSETSDIR=\"${assetsdir}\" \
 	-DGFXDIR=\"${gfxdir}\" \
 	-DGIRDIR=\"${girdir}\" \
@@ -156,18 +79,20 @@ libdeus2_la_CFLAGS=\
 	-DABSTOPBUILDDIR=\"${abs_top_builddir}\" \
 	-DGAPPNAME=\"org.hck.${PACKAGE_NAME}\" \
 	-D__DUESEXMAKINA_INSIDE__=1 \
+	-D__LUAD_INSIDE__=1 \
 	-fstack-protector-strong \
 	-funwind-tables \
 	-Winline \
 	-Wpacked \
 	-Wimplicit-fallthrough \
+	-I.. \
 	$(VOID)
-libdeus2_la_LDFLAGS=\
+libluad2_la_LDFLAGS=\
 	-rpath ${pkglibdir} \
 	-release ${PACKAGE_RELEASE} \
 	-version-info ${PACKAGE_VERSION_MAYOR}:${PACKAGE_VERSION_MINOR}:${PACKAGE_VERSION_MICRO} \
 	$(VOID)
-libdeus2_la_LIBADD=\
+libluad2_la_LIBADD=\
 	$(ASSIMP_LIBS) \
 	$(CGLM_LIBS) \
 	$(FREETYPE_LIBS) \
@@ -183,20 +108,6 @@ libdeus2_la_LIBADD=\
 	$(LUA_LIBS) \
 	$(OPENGL_LIBS) \
 	$(SDL2_LIBS) \
-	jit/libjit.la \
-	luad/libluad2.la \
-	$(VOID)
-
-bin_PROGRAMS=deusexmakina2
-deusexmakina2_SOURCES=\
-	ds_main.c \
-	$(VOID)
-deusexmakina2_CFLAGS=\
-	$(libdeus2_la_CFLAGS) \
-	$(VOID)
-deusexmakina2_LDADD=\
-	$(libdeus2_la_LIBADD) \
-	libdeus2.la \
 	$(VOID)
 
 #
@@ -213,13 +124,11 @@ VALA_PKG=\
 
 VALA_VAPIS=\
 	config \
-	dds \
 	lua \
-	model \
 	$(VOID)
 
 AM_VALAFLAGS=\
-	--vapidir=vapi/ \
+	--vapidir=../vapi/ \
 	--hide-internal \
 	-D DEBUG=${DEBUG} \
 	-D DEVELOPER=${DEVELOPER} \

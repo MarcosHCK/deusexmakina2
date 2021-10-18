@@ -15,10 +15,23 @@
  *  along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#ifndef __DS_LUAQDATA_INCLUDED__
-#define __DS_LUAQDATA_INCLUDED__
-#include <ds_lua.h>
+#ifndef __LUAD_CLOSURE_INCLUDED__
+#define __LUAD_CLOSURE_INCLUDED__ 1
+#include <ds_export.h>
+#include <girepository.h>
 #include <glib-object.h>
+#include <luad_core.h>
+
+typedef struct _LClosure LClosure;
+
+#if __LUAD_INSIDE__ == 1
+#include <girepository.h>
+
+struct _LClosure
+{
+  GClosure closure;
+  GCallback address;
+};
 
 #if __cplusplus
 extern "C" {
@@ -26,23 +39,15 @@ extern "C" {
 
 G_GNUC_INTERNAL
 gboolean
-_ds_luaqdata_init(lua_State *L,
-                 GError   **error);
+_luaD_lclosure_init(lua_State* L, GError** error);
 G_GNUC_INTERNAL
 void
-_ds_luaqdata_fini(lua_State* L);
-
-gpointer
-luaD_get_qdata(lua_State* L, GQuark quark);
-gpointer
-luaD_steal_qdata(lua_State* L, GQuark quark);
-void
-luaD_set_qdata_full(lua_State* L, GQuark quark, gpointer user_data, GDestroyNotify notify);
-void
-luaD_set_qdata(lua_State* L, GQuark quark, gpointer user_data);
+_luaD_lclosure_fini(lua_State* L);
 
 #if __cplusplus
 }
 #endif // __cplusplus
 
-#endif // __DS_LUAQDATA_INCLUDED__
+#endif // __LUAD_INSIDE__
+
+#endif // __LUAD_CLOSURE_INCLUDED__

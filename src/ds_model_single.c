@@ -16,9 +16,18 @@
  *
  */
 #include <config.h>
-#include <ds_callable.h>
 #include <ds_model_private.h>
 #include <ds_renderable.h>
+
+/**
+ * SECTION:dsmodelsingle
+ * @Short_description: Implementation of #DsModel
+ * @Title: DsModelSingle
+ *
+ * DsModelSingle implements #DsModel for single-instanced
+ * models.
+ *
+ */
 
 #define DS_TYPE_MODEL_SINGLE            (ds_model_single_get_type ())
 #define DS_MODEL_SINGLE(object)         (G_TYPE_CHECK_INSTANCE_CAST((object), DS_TYPE_MODEL_SINGLE, DsModelSingle))
@@ -29,9 +38,6 @@
 
 typedef struct _DsModelSingle       DsModelSingle;
 typedef struct _DsModelSingleClass  DsModelSingleClass;
-
-static void
-ds_model_single_ds_callable_iface_init(DsCallableIface* iface);
 
 #define _g_array_unref0(var) ((var == NULL) ? NULL : (var = (g_array_unref (var), NULL)))
 #define _ds_array_unref0(var) ((var == NULL) ? NULL : (var = (g_array_unref ((GArray*) var), NULL)))
@@ -75,27 +81,7 @@ G_DEFINE_TYPE_WITH_CODE
 (DsModelSingle,
  ds_model_single,
  DS_TYPE_MODEL,
- G_IMPLEMENT_INTERFACE
- (DS_TYPE_CALLABLE,
-  ds_model_single_ds_callable_iface_init));
-
-static void
-ds_model_single_ds_callable_iface_init(DsCallableIface* iface)
-{
-  ds_callable_iface_add_method
-  (iface,
-   "new",
-   DS_CLOSURE_CONSTRUCTOR,
-   G_CALLBACK(ds_model_single_new),
-   ds_cclosure_marshal_OBJECT__OBJECT_STRING_OBJECT_POINTER,
-   ds_cclosure_marshal_OBJECT__OBJECT_STRING_OBJECT_POINTERv,
-   DS_TYPE_MODEL,
-   4,
-   G_TYPE_FILE,
-   G_TYPE_STRING,
-   G_TYPE_CANCELLABLE,
-   G_TYPE_POINTER);
-}
+ );
 
 static gboolean
 foreach_tio(DsModel* pself, DsModelTexture* tex, GList* meshes)
@@ -248,6 +234,17 @@ ds_model_single_init(DsModelSingle* self)
  *
  */
 
+/**
+ * ds_model_single_new: (constructor)
+ * @source: source directory where model and all it data resides.
+ * @name: main model filename (note that must be relative to @source).
+ * @cancellable: (nullable): a %GCancellable
+ * @error: return location for a #GError
+ *
+ * Create a new instance of #DsModelSingle object.
+ *
+ * Returns: (transfer full): a #DsModel derived instance.
+ */
 DsModel*
 ds_model_single_new(GFile* source, const gchar* name, GCancellable* cancellable, GError** error)
 {

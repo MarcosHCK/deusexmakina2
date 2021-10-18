@@ -31,14 +31,14 @@
 #define DS_SHADER_ERROR  (ds_shader_error_quark())
 
 /**
- * DsApplicationError:
+ * DsShaderError:
  * @DS_SHADER_ERROR_FAILED: generic error condition.
  * @DS_SHADER_ERROR_INVALID_BINARY: used internally to
  * implement shader caching.
  * @DS_SHADER_ERROR_COMPILE: error compiling shader.
  * @DS_SHADER_ERROR_LINK: error linking program.
  *
- * Error code returned by DsApplication API.
+ * Error code returned by DsShader API.
  * Note that %DS_SHADER_ERROR_FAILED is here only for compatibility with
  * error domain definition paradigm as defined on GLib documentation.
  */
@@ -97,11 +97,6 @@ ds_shader_new_from_files(GFile           *vertex_file,
                          DsCacheProvider *cache_provider,
                          GCancellable    *cancellable,
                          GError         **error);
-
-DEUSEXMAKINA2_API
-gboolean
-ds_shader_use(DsShader     *shader,
-              GError      **error);
 
 #if __cplusplus
 }

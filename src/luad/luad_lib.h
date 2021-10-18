@@ -15,36 +15,30 @@
  *  along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#ifndef __DS_LUACLOSURE_INCLUDED__
-#define __DS_LUACLOSURE_INCLUDED__ 1
-#include <ds_closure.h>
-#include <ds_lua.h>
+#ifndef __LUAD_LIB_INCLUDED__
+#define __LUAD_LIB_INCLUDED__ 1
+#include <ds_export.h>
+#include <glib-object.h>
+#include <luad_core.h>
 
 #if __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-gboolean
-_ds_luaclosure_init(lua_State  *L,
-                    GError    **error);
-void
-_ds_luaclosure_fini(lua_State* L);
+/*
+ * Module
+ *
+ */
 
-void
-luaD_pushclosure(lua_State *L,
-                 DsClosure *closure);
+DEUSEXMAKINA2_API
 gboolean
-luaD_isclosure(lua_State  *L,
-               int         idx);
-DsClosure*
-luaD_toclosure(lua_State  *L,
-               int         idx);
-DsClosure*
-luaD_checkclosure(lua_State  *L,
-                  int         arg);
+_luaD_lib_init(lua_State* L, GError** error);
+DEUSEXMAKINA2_API
+void
+_luaD_lib_fini(lua_State* L);
 
 #if __cplusplus
 }
 #endif // __cplusplus
 
-#endif // __DS_LUACLOSURE_INCLUDED__
+#endif

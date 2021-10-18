@@ -16,18 +16,26 @@
  *
  */
 #include <config.h>
-#include <ds_callable.h>
 #include <ds_gl.h>
 #include <ds_macros.h>
 #include <ds_shader.h>
+
+/**
+ * SECTION:dsshader
+ * @Short_description: a OpenGL program
+ * @Title: DsShader
+ *
+ * DsShader encapsulates complexities of OpenGL shader source
+ * loading, compilation and program linking, it's lifespan and even
+ * caching.
+ *
+ */
 
 G_DEFINE_QUARK(ds-shader-error-quark,
                ds_shader_error);
 
 static
 void ds_shader_g_initable_iface_init(GInitableIface* iface);
-static
-void ds_shader_ds_callable_iface_init(DsCallableIface* iface);
 
 typedef struct _Shaders Shaders;
 
@@ -130,10 +138,7 @@ G_DEFINE_TYPE_WITH_CODE
  G_TYPE_OBJECT,
  G_IMPLEMENT_INTERFACE
  (G_TYPE_INITABLE,
-  ds_shader_g_initable_iface_init)
- G_IMPLEMENT_INTERFACE
- (DS_TYPE_CALLABLE,
-  ds_shader_ds_callable_iface_init));
+  ds_shader_g_initable_iface_init));
 
 static inline gboolean
 assert_stream(GFile          *file,
@@ -658,44 +663,6 @@ void ds_shader_g_initable_iface_init(GInitableIface* iface) {
 }
 
 static
-void ds_shader_ds_callable_iface_init(DsCallableIface* iface) {
-  ds_callable_iface_add_method
-  (iface,
-   "new",
-   DS_CLOSURE_CONSTRUCTOR,
-   G_CALLBACK(ds_shader_new),
-   ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTER,
-   ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTERv,
-   DS_TYPE_SHADER,
-   9,
-   G_TYPE_FILE,
-   G_TYPE_INPUT_STREAM,
-   G_TYPE_FILE,
-   G_TYPE_INPUT_STREAM,
-   G_TYPE_FILE,
-   G_TYPE_INPUT_STREAM,
-   DS_TYPE_CACHE_PROVIDER,
-   G_TYPE_CANCELLABLE,
-   G_TYPE_POINTER);
-
-  ds_callable_iface_add_method
-  (iface,
-   "new_from_files",
-   DS_CLOSURE_CONSTRUCTOR,
-   G_CALLBACK(ds_shader_new_from_files),
-   ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTER,
-   ds_cclosure_marshal_OBJECT__OBJECT_OBJECT_OBJECT_OBJECT_OBJECT_POINTERv,
-   DS_TYPE_SHADER,
-   6,
-   G_TYPE_FILE,
-   G_TYPE_FILE,
-   G_TYPE_FILE,
-   DS_TYPE_CACHE_PROVIDER,
-   G_TYPE_CANCELLABLE,
-   G_TYPE_POINTER);
-}
-
-static
 void ds_shader_class_set_property(GObject* pself, guint prop_id, const GValue* value, GParamSpec* pspec) {
   DsShader* self = DS_SHADER(pself);
   switch(prop_id)
@@ -854,6 +821,34 @@ void ds_shader_init(DsShader* self) {
  *
  */
 
+/**
+ * ds_shader_new: (constructor)
+ * @vertex_file: (nullable): file from which load vertex shader source
+ * code.
+ * @vertex_stream: (nullable): stream from which load vertex shader source
+ * code.
+ * @fragment_file: (nullable): file from which load fragment shader source
+ * code.
+ * @fragment_stream: (nullable): stream from which load fragment shader source
+ * code.
+ * @geometry_file: (nullable): file from which load geometry shader source
+ * code.
+ * @geometry_stream: (nullable): file from which load geometry shader source
+ * code.
+ * @cache_provider: (nullable): cache provider object.
+ * @cancellable: (nullable): a %GCancellable
+ * @error: return location for a #GError
+ *
+ * Creates a new #DsShader object, preforming this steps:
+ * - Looks up for a cached program (looks up in directory provided by
+ * @cache_provider), checks if is compatible and then checks if needs to
+ * be updated. If all goes well, #DsShader is ready to use.
+ * - If not, creates an empty OpenGL programs.
+ * - Loads available shader code (those shader type which have a source).
+ * - Compiles and link the program, then caches it.
+ *
+ * Returns: (transfer full): a new #DsShader instance.
+ */
 DsShader*
 ds_shader_new(GFile            *vertex_file,
               GInputStream     *vertex_stream,
@@ -880,6 +875,23 @@ ds_shader_new(GFile            *vertex_file,
    NULL);
 }
 
+/**
+ * ds_shader_new_from_files: (constructor)
+ * @vertex_file: (nullable): file from which load vertex shader source
+ * code.
+ * @fragment_file: (nullable): file from which load fragment shader source
+ * code.
+ * @geometry_file: (nullable): file from which load geometry shader source
+ * code.
+ * @cache_provider: (nullable): cache provider object.
+ * @cancellable: (nullable): a %GCancellable
+ * @error: return location for a #GError
+ *
+ * Performs the same as #ds_shader_new(), but removes overhead of
+ * pass NULL to stream inputs.
+ *
+ * Returns: (transfer full): a new #DsShader instance.
+ */
 DsShader*
 ds_shader_new_from_files(GFile           *vertex_file,
                          GFile           *fragment_file,
@@ -906,26 +918,4 @@ _ds_shader_get_pid(DsShader *shader)
 {
   g_return_val_if_fail(DS_IS_SHADER(shader), 0);
 return shader->pid;
-}
-
-gboolean
-ds_shader_use(DsShader     *shader,
-              GError      **error)
-{
-  g_return_val_if_fail(DS_IS_SHADER(shader), FALSE);
-  g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
-  GLuint pid = shader->pid;
-
-  g_return_val_if_fail(pid != 0, FALSE);
-
-  __gl_try(
-    glUseProgram(pid);
-  );
-  __gl_catch(
-    g_propagate_error(error, glerror);
-    return FALSE;
-  ,
-    return TRUE;
-  );
-return FALSE;
 }

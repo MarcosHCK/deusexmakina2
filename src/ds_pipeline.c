@@ -17,13 +17,29 @@
  */
 #include <config.h>
 #include <cglm/cglm.h>
-#include <ds_callable.h>
 #include <ds_gl.h>
 #include <ds_macros.h>
 #include <ds_mvpholder.h>
 #include <ds_pipeline.h>
 #include <GL/glew.h>
 #include <jit/jit.h>
+
+/**
+ * SECTION:dspipeline
+ * @Short_description: Pipeline object
+ * @Title: DsPipeline
+ *
+ * DsPipeline encapsulates an OpenGL rendering
+ * pipeline (don't confuse it with OpenGL pipeline object,
+ * this object class isn't based on how it works).
+ * DsPipeline provides a procedures to render objects which
+ * implements #DsRenderable interface using a JIT compiler.
+ * Those objects are first sorted by shader program and priority,
+ * then opportunistically compiles all necessary call to draw something
+ * using DynASM. Later, the pipeline could be executed every frame without
+ * the overhead of generic code tricks.
+ *
+ */
 
 G_DEFINE_QUARK(ds-pipeline-error-quark,
                ds_pipeline_error);
@@ -32,8 +48,6 @@ G_DEFINE_QUARK(ds-pipeline-priority-quark,
 
 static
 void ds_pipeline_g_initable_iface_init(GInitableIface* iface);
-static
-void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface);
 static
 void ds_pipeline_ds_mvp_holder_iface_init(DsMvpHolderIface* iface);
 
@@ -102,9 +116,6 @@ G_DEFINE_TYPE_WITH_CODE
  (G_TYPE_INITABLE,
   ds_pipeline_g_initable_iface_init)
  G_IMPLEMENT_INTERFACE
- (DS_TYPE_CALLABLE,
-  ds_pipeline_ds_callable_iface_init)
- G_IMPLEMENT_INTERFACE
  (DS_TYPE_MVP_HOLDER,
   ds_pipeline_ds_mvp_holder_iface_init));
 
@@ -122,70 +133,6 @@ return success;
 static
 void ds_pipeline_g_initable_iface_init(GInitableIface* iface) {
   iface->init = ds_pipeline_g_initable_iface_init_sync;
-}
-
-static
-void ds_pipeline_ds_callable_iface_init(DsCallableIface* iface) {
-  ds_callable_iface_add_method
-  (iface,
-   "register_shader",
-   DS_CLOSURE_FLAGS_NONE,
-   G_CALLBACK(ds_pipeline_register_shader),
-   ds_cclosure_marshal_VOID__INSTANCE_STRING_INT_OBJECT,
-   ds_cclosure_marshal_VOID__INSTANCE_STRING_INT_OBJECTv,
-   G_TYPE_NONE,
-   3,
-   G_TYPE_STRING,
-   G_TYPE_INT,
-   DS_TYPE_SHADER);
-
-  ds_callable_iface_add_method
-  (iface,
-   "unregister_shader",
-   DS_CLOSURE_FLAGS_NONE,
-   G_CALLBACK(ds_pipeline_unregister_shader),
-   ds_cclosure_marshal_VOID__INSTANCE_STRING,
-   ds_cclosure_marshal_VOID__INSTANCE_STRINGv,
-   G_TYPE_NONE,
-   1,
-   G_TYPE_STRING);
-
-  ds_callable_iface_add_method
-  (iface,
-   "append_object",
-   DS_CLOSURE_FLAGS_NONE,
-   G_CALLBACK(ds_pipeline_append_object),
-   ds_cclosure_marshal_VOID__INSTANCE_STRING_INT_OBJECT,
-   ds_cclosure_marshal_VOID__INSTANCE_STRING_INT_OBJECTv,
-   G_TYPE_NONE,
-   3,
-   G_TYPE_STRING,
-   G_TYPE_INT,
-   DS_TYPE_RENDERABLE);
-
-  ds_callable_iface_add_method
-  (iface,
-   "remove_object",
-   DS_CLOSURE_FLAGS_NONE,
-   G_CALLBACK(ds_pipeline_remove_object),
-   ds_cclosure_marshal_VOID__INSTANCE_STRING_OBJECT,
-   ds_cclosure_marshal_VOID__INSTANCE_STRING_OBJECTv,
-   G_TYPE_NONE,
-   2,
-   G_TYPE_STRING,
-   DS_TYPE_RENDERABLE);
-
-  ds_callable_iface_add_method
-  (iface,
-   "update",
-   DS_CLOSURE_FLAGS_NONE,
-   G_CALLBACK(ds_pipeline_update),
-   ds_cclosure_marshal_BOOLEAN__INSTANCE_OBJECT_POINTER,
-   ds_cclosure_marshal_BOOLEAN__INSTANCE_OBJECT_POINTERv,
-   G_TYPE_BOOLEAN,
-   2,
-   G_TYPE_CANCELLABLE,
-   G_TYPE_POINTER);
 }
 
 static void
@@ -294,6 +241,17 @@ void ds_pipeline_init(DsPipeline* self) {
  *
  */
 
+/**
+ * ds_pipeline_new: (constructor) (skip)
+ * @cancellable: (nullable): a %GCancellable.
+ * @error: return location for a #GError.
+ *
+ * Creates a new pipeline object.
+ * Note that usually this object allocates
+ * a lot of memory, so you may have only
+ * one of this.
+ *
+ */
 DsPipeline*
 ds_pipeline_new(GCancellable   *cancellable,
                 GError        **error)
@@ -338,6 +296,16 @@ insert_sorted_shader(ShaderEntry *shader1,
 return (pr1 > pr2) ? 1 : -1;
 }
 
+/**
+ * ds_pipeline_register_shader:
+ * @pipeline: a #DsPipeline object.
+ * @shader_name: under which name @shader object should be registered.
+ * @priority: sort priority of @shader.
+ * @shader: a #DsShader object.
+ *
+ * Registers @shader as @shader_name, sorted by priority @priority.
+ *
+ */
 void
 ds_pipeline_register_shader(DsPipeline   *pipeline,
                             const gchar  *shader_name,
@@ -376,6 +344,15 @@ ds_pipeline_register_shader(DsPipeline   *pipeline,
   pipeline->modified = TRUE;
 }
 
+/**
+ * ds_pipeline_unregister_shader:
+ * @pipeline: a #DsPipeline object.
+ * @shader_name: under which name @shader object should be registered.
+ *
+ * Erases shader previously registeres as @shader_name from @pipeline.
+ * Note: obviously it also erases object attached to it.
+ *
+ */
 void
 ds_pipeline_unregister_shader(DsPipeline   *pipeline,
                               const gchar  *shader_name)
@@ -422,6 +399,17 @@ insert_sorted_object(DsRenderable  *object1,
 return (pr1 > pr2) ? 1 : -1;
 }
 
+/**
+ * ds_pipeline_append_object:
+ * @pipeline: a #DsPipeline object.
+ * @shader_name: shader object which append object to.
+ * @priority: sort priority of @shader.
+ * @object: a #DsRenderable object.
+ *
+ * Appends @object to @shader_name shader's object
+ * list, sorted by @priority.
+ *
+ */
 void
 ds_pipeline_append_object(DsPipeline   *pipeline,
                           const gchar  *shader_name,
@@ -457,6 +445,15 @@ ds_pipeline_append_object(DsPipeline   *pipeline,
   entry->n_objects++;
 }
 
+/**
+ * ds_pipeline_remove_object:
+ * @pipeline: a #DsPipeline object.
+ * @shader_name: shader object which append object to.
+ * @object: a #DsRenderable object.
+ *
+ * Removes @object from @shader_name shader's object list.
+ *
+ */
 void
 ds_pipeline_remove_object(DsPipeline   *pipeline,
                           const gchar  *shader_name,
@@ -506,6 +503,16 @@ mvps_query_end(DsPipeline* self)
   self->notified = FALSE;
 }
 
+/**
+ * ds_pipeline_update:
+ * @pipeline: a #DsPipeline object.
+ * @cancellable: (nullable): a %GCancellable
+ * @error: return location for a #GError
+ *
+ * Updates pipeline.
+ *
+ * Returns: TRUE if successful, FALSE otherwise.
+ */
 gboolean
 ds_pipeline_update(DsPipeline    *pipeline,
                    GCancellable  *cancellable,
@@ -661,6 +668,17 @@ _error_:
 return success;
 }
 
+/**
+ * ds_pipeline_execute:
+ * @pipeline: a #DsPipeline object
+ *
+ * Executes code produced previously by #ds_pipeline_update().
+ * Note: if pipeline is modified and not updated, #ds_pipeline_update()
+ * is executed under the hood, but since #ds_pipeline_update() could
+ * fail it may be lead to a program termination in case of an error is
+ * produced.
+ *
+ */
 void
 ds_pipeline_execute(DsPipeline* pipeline)
 {

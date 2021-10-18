@@ -19,13 +19,24 @@
 #include <ds_application.h>
 #include <ds_folder_provider.h>
 #include <ds_looper.h>
-#include <ds_luagtype.h>
 #include <ds_macros.h>
 #include <ds_mvpholder.h>
 #include <ds_settings.h>
 #include <GL/glew.h>
+#include <luad_core.h>
+#include <luad_value.h>
 #include <SDL.h>
 #undef main
+
+/**
+ * SECTION:dsapplication
+ * @Short_description: Main application
+ * @Title: DsApplication
+ *
+ * DsApplication is a central part on deusexmakina2, since
+ * it manages startup and shutdown procedures, internal
+ * state management and in general all things going on.
+ */
 
 G_DEFINE_QUARK(ds-application-error-quark,
                ds_application_error);
@@ -113,7 +124,7 @@ G_DEFINE_TYPE_WITH_CODE
   ds_application_g_initiable_iface_init)
  G_ADD_PRIVATE(DsApplication));
 
-#define L         (self->L)
+#define L         (self->lua)
 #define sdl_init  (self->priv->sdl_init)
 #define glew_init (self->priv->glew_init)
 #define pipeline  (self->pipeline)
@@ -200,19 +211,7 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
  *
  */
 
-  L = luaL_newstate();
-  if G_UNLIKELY(L == NULL)
-  {
-    g_set_error
-    (error,
-     DS_APPLICATION_ERROR,
-     DS_APPLICATION_ERROR_LUA_INIT,
-     "luaL_newstate(): failed!: unknown error\r\n");
-    goto_error();
-  }
-
-  success =
-  _ds_lua_init(L, &tmp_err);
+  L = luaD_new(&tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -235,8 +234,8 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
 
     g_set_error
     (error,
-     DS_LUA_ERROR,
-     DS_LUA_ERROR_FAILED,
+     LUAD_ERROR,
+     LUAD_ERROR_FAILED,
      "luaL_loadfile(): failed!: %s\r\n",
      (err != NULL) ? err : "unknown error");
     goto_error();
@@ -442,15 +441,15 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
 
     g_set_error
     (error,
-     DS_LUA_ERROR,
-     DS_LUA_ERROR_FAILED,
+     LUAD_ERROR,
+     LUAD_ERROR_FAILED,
      "luaL_loadfile(): failed!: %s\r\n",
      (err != NULL) ? err : "unknown error");
     goto_error();
   }
 
-  luaD_pushobject(L, (GObject*) self);
-  luaD_pushobject(L, (GObject*) cancellable);
+  _luaD_pushlvalue(L, DS_TYPE_APPLICATION, self);
+  _luaD_pushlvalue(L, G_TYPE_CANCELLABLE, cancellable);
 
   success =
   luaD_xpcall(L, 2, 0, &tmp_err);
@@ -525,7 +524,7 @@ void ds_application_class_get_property(GObject* pself, guint prop_id, GValue* va
   switch(prop_id)
   {
   case prop_lua_state:
-    g_value_set_pointer(value, self->L);
+    g_value_set_pointer(value, self->lua);
     break;
   case prop_pipeline:
     g_value_set_object(value, self->pipeline);

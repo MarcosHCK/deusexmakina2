@@ -19,7 +19,6 @@
 #define __DS_APPLICATION_INCLUDED__ 1
 #include <ds_events.h>
 #include <ds_export.h>
-#include <ds_lua.h>
 #include <ds_pipeline.h>
 #include <ds_renderer.h>
 #include <gio/gio.h>
@@ -77,16 +76,32 @@ DEUSEXMAKINA2_API
 GType
 ds_application_get_type();
 
+/**
+ * DsApplication:
+ * @parent_instance: parent instance.
+ * @lua: Lua engine state.
+ * @pipeline: application pipeline.
+ * @renderer: application renderer.
+ * @events: application events controller.
+ *
+ */
 struct _DsApplication
 {
   GApplication parent_instance;
+  /*<private>*/
   DsApplicationPrivate* priv;
-  lua_State* L;
+  /*<public>*/
+  gpointer lua;
   DsPipeline* pipeline;
   DsRenderer* renderer;
   DsEvents* events;
 };
 
+/**
+ * DsApplicationClass:
+ * @parent_class: parent class.
+ *
+ */
 struct _DsApplicationClass
 {
   GApplicationClass parent_class;

@@ -16,33 +16,14 @@
  *
  */
 #include <config.h>
-#include <ds_luaclosure.h>
-#include <ds_luagir.h>
-#include <ds_luagtype.h>
-#include <ds_luaqdata.h>
 #include <ds_macros.h>
-#include <gio/gio.h>
+#include <gmodule.h>
+#include <luad_closure.h>
+#include <luad_girhub.h>
+#include <luad_lib.h>
+#include <luad_value.h>
 
 typedef GType (*GTypeGetFunc) (void);
-
-/* Some kind of static assert */
-#include <luajit.h>
-
-/*
- * Functions table
- *
- */
-
-static const
-luaL_Reg lualib[] =
-{
-  {NULL, NULL},
-};
-
-/*
- * Type table metaindexes
- *
- */
 
 #define cachetype(L,t) \
   G_STMT_START { \
@@ -85,99 +66,101 @@ resolve_type_lazily(const gchar* name)
 {
   static
   GModule* module = NULL;
-  GTypeGetFunc func;
-  GType gtype = G_TYPE_INVALID;
+  GTypeGetFunc func = NULL;
+  GType g_type = G_TYPE_INVALID;
   gchar* symbol;
 
   if G_UNLIKELY(module == NULL)
-  {
     module = g_module_open(NULL, 0);
-  }
 
   symbol = type_name_mangle(name);
 
   if(g_module_symbol
      (module,
       symbol,
-      (gpointer)&func))
+      (gpointer) &func))
   {
-    gtype = func();
+    g_type = func();
   }
 
   g_free(symbol);
-return gtype;
+return g_type;
 }
 
 static GType
 resolve_type(const gchar* name)
 {
-  GType gtype;
+  GType g_type;
 
-  if((gtype = g_type_from_name(name)) != G_TYPE_INVALID)
-    return gtype;
-  if((gtype = resolve_type_lazily(name)) != G_TYPE_INVALID)
-    return gtype;
+  if((g_type = g_type_from_name(name)) != G_TYPE_INVALID)
+    return g_type;
+  if((g_type = resolve_type_lazily(name)) != G_TYPE_INVALID)
+    return g_type;
 return G_TYPE_INVALID;
+}
+
+/*
+ * __index()! & __newindex()!
+ *
+ */
+
+static int
+__newindex(lua_State* L)
+{
+return 0;
 }
 
 static int
 __index(lua_State* L)
 {
-  const gchar* typename_;
-  if G_LIKELY
-    (lua_isstring(L, 2) == TRUE)
-  {
-    typename_ = lua_tostring(L, 2);
-    if G_UNLIKELY(typename_ == NULL)
-    {
-      return 0;
-    }
+  const gchar* t;
+  GType g_type;
 
-    GType g_type =
-    resolve_type(typename_);
-    if(g_type != G_TYPE_INVALID)
+  if G_LIKELY
+    (lua_isstring(L, 2)
+     && (t = lua_tostring(L, 2)) != NULL)
+  {
+    g_type =
+    resolve_type(t);
+    if G_LIKELY
+      (g_type != G_TYPE_INVALID)
     {
-      luaD_pushgtype(L, g_type);
+      _luaD_pushlvalue(L, g_type, NULL);
       return 1;
-/*
-      if(G_TYPE_IS_ENUM(g_type))
-      {
-        luaD_pushenum(L, g_type);
-        cachetype(L, typename_);
-        return 1;
-      } else
-      {
-        luaD_pushclass(L, g_type);
-        cachetype(L, typename_);
-        return 1;
-      }
-*/
     }
   }
 return 0;
 }
 
 /*
- * luaopen_*
+ * Library
  *
  */
 
-G_GNUC_INTERNAL
+static const
+luaL_Reg lualib[] =
+{
+  {NULL, NULL},
+};
+
+/*
+ * Module
+ *
+ */
+
 gboolean
-_ds_lualib_init(lua_State  *L,
-                GError    **error)
+_luaD_lib_init(lua_State* L, GError** error)
 {
   gboolean success = TRUE;
   GError* tmp_err = NULL;
 
 /*
- * Dependencies
- * sorted in by dependency
+ * Initialization
  *
  */
 
   success =
-  _ds_luaqdata_init(L, &tmp_err);
+  _luaD_lclosure_init(L, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -185,7 +168,7 @@ _ds_lualib_init(lua_State  *L,
   }
 
   success =
-  _ds_luaclosure_init(L, &tmp_err);
+  _luaD_girhub_init(L, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -193,7 +176,7 @@ _ds_lualib_init(lua_State  *L,
   }
 
   success =
-  _ds_luagir_init(L, &tmp_err);
+  _luaD_lvalue_init(L, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -201,98 +184,91 @@ _ds_lualib_init(lua_State  *L,
   }
 
 /*
- * Generic type
- * sorted alphabetically
+ * Library
  *
  */
 
-  success =
-  _ds_luagtype_init(L, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
 #if LUA_VERSION_NUM >= 502
   luaL_newlib(L, lualib);
-#else
+#else // LUA_VERSION_NUM
   lua_newtable(L);
   luaL_register(L, NULL, lualib);
-#endif
+#endif // LUA_VERSION_NUM
 
   /* module info */
+  lua_pushliteral(L, "_COPYRIGHT");
   lua_pushliteral(L, "Copyright 2021-2022 MarcosHCK");
-  lua_setfield(L, -2, "_COPYRIGHT");
+  lua_settable(L, -3);
+  lua_pushliteral(L, "_VERSION");
   lua_pushliteral(L, PACKAGE_STRING);
-  lua_setfield(L, -2, "_VERSION");
+  lua_settable(L, -3);
 
-  /* create types table */
+  /* types table */
   lua_pushliteral(L, "type");
   lua_createtable(L, 0, 0);
   lua_createtable(L, 0, 1);
+  lua_pushliteral(L, "__newindex");
+  lua_pushcfunction(L, __newindex);
+  lua_settable(L, -3);
   lua_pushliteral(L, "__index");
   lua_pushcfunction(L, __index);
   lua_settable(L, -3);
   lua_setmetatable(L, -2);
   lua_settable(L, -3);
 
-  /* Set compile-time strings */
-#define set_macro(MacroName, __debug__) \
-  G_STMT_START { \
-    lua_pushliteral(L, #MacroName ); \
-    if G_UNLIKELY(debug == TRUE) \
-      lua_pushliteral(L,  __debug__ ); \
-    else \
+  /* configuration */
+#if DEVELOPER == 1
+# define set_macro(MacroName, __alternative__) \
+    G_STMT_START { \
+      lua_pushliteral(L, #MacroName ); \
+      lua_pushliteral(L,  __alternative__ ); \
+      lua_settable(L, -3); \
+    } G_STMT_END
+#else // DEVELOPER
+# define set_macro(MacroName, __alternative__) \
+    G_STMT_START { \
+      lua_pushliteral(L, #MacroName ); \
       lua_pushliteral(L,  MacroName ); \
-    lua_settable(L, -3); \
-  } G_STMT_END
+      lua_settable(L, -3); \
+    } G_STMT_END
+#endif // DEVELOPER
+# define set_int_macro(MacroName) \
+    G_STMT_START { \
+      lua_pushliteral(L, #MacroName ); \
+      lua_pushnumber(L,  MacroName ); \
+      lua_settable(L, -3); \
+    } G_STMT_END
 
-  gboolean debug = FALSE;
-#if DEBUG
-  debug = TRUE;
-#else
-  if G_UNLIKELY
-    (g_strcmp0
-     (g_getenv("DS_DEBUG"),
-      "true") == 0)
-  {
-    debug = TRUE;
-  }
-#endif // DEBUG
-
+  /* string macros */
   set_macro(    ASSETSDIR, ABSTOPBUILDDIR "/assets");
   set_macro(       GFXDIR, ABSTOPBUILDDIR "/gfx");
   set_macro(   SCHEMASDIR, ABSTOPBUILDDIR "/settings");
 
+  /* integer and boolean macros */
+  set_int_macro(DEBUG);
+  set_int_macro(DEVELOPER);
+
 #undef set_macro
 
-  /* set priority table */
+  /* set priority values */
   lua_pushliteral(L, "priority");
   lua_createtable(L, 5, 0);
-
   lua_pushnumber(L, G_MININT);
   lua_setfield(L, -2, "higher");
-
   lua_pushnumber(L, G_PRIORITY_HIGH);
   lua_setfield(L, -2, "high");
-
   lua_pushnumber(L, G_PRIORITY_DEFAULT);
   lua_setfield(L, -2, "default");
-
   lua_pushnumber(L, G_PRIORITY_LOW);
   lua_setfield(L, -2, "low");
-
   lua_pushnumber(L, G_MAXINT);
   lua_setfield(L, -2, "lower");
-
   lua_settable(L, -3);
 
   /* inject module onto package.loaded */
   lua_getglobal(L, "package");
   lua_getfield(L, -1, "loaded");
   lua_remove(L, -2);
-
   lua_pushliteral(L, "ds");
   lua_pushvalue(L, -3);
   lua_settable(L, -3);
@@ -302,24 +278,15 @@ _error_:
 return success;
 }
 
-G_GNUC_INTERNAL
 void
-_ds_lualib_fini(lua_State* L)
+_luaD_lib_fini(lua_State* L)
 {
-
 /*
- * Generic type
+ * Finalization
  *
  */
 
-  _ds_luagtype_fini(L);
-
-/*
- * Dependencies
- *
- */
-
-  _ds_luagir_fini(L);
-  _ds_luaclosure_fini(L);
-  _ds_luaqdata_fini(L);
+  _luaD_lvalue_fini(L);
+  _luaD_girhub_fini(L);
+  _luaD_lclosure_fini(L);
 }

@@ -21,6 +21,20 @@
 #include <ds_mvpholder.h>
 #include <jit/jit.h>
 
+/**
+ * SECTION:dsmodel
+ * @Short_description: Base class for model object
+ * @Title: DsModel
+ *
+ * DsModel is a base class for GL-compatible model
+ * loading. This class loads static (no animated)
+ * model shipped using a large number of 3d model
+ * formats (uses Assimp for that) and converts it
+ * to an intermediate data format to be easily use
+ * by derived classes.
+ *
+ */
+
 G_DEFINE_QUARK(ds-model-error-quark,
                ds_model_error);
 

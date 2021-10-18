@@ -17,7 +17,6 @@
  */
 #include <config.h>
 #include <cglm/cglm.h>
-#include <ds_callable.h>
 #include <ds_dds.h>
 #include <ds_gl.h>
 #include <ds_macros.h>
@@ -25,6 +24,17 @@
 #include <ds_skybox.h>
 #include <SDL.h>
 #include <SDL_image.h>
+
+/**
+ * SECTION:dsskybox
+ * @Short_description: Skybox renderable object
+ * @Title: DsSkybox
+ *
+ * DsSkybox is an special case of model which doesn't derivates from
+ * #DsModel since it is so simple that is easily implemented statically.
+ *
+ */
+
 
 G_DEFINE_QUARK(ds-skybox-error-quark,
                ds_skybox_error);
@@ -39,8 +49,6 @@ static
 void ds_skybox_init(DsSkybox* self);
 static
 void ds_skybox_g_initable_iface_init(GInitableIface* iface);
-static
-void ds_skybox_ds_callable_iface_init(DsCallableIface* iface);
 static
 void ds_skybox_ds_renderable_iface_init(DsRenderableIface* iface);
 static
@@ -130,10 +138,6 @@ ds_skybox_get_type()
     G_IMPLEMENT_INTERFACE
     (G_TYPE_INITABLE,
      ds_skybox_g_initable_iface_init)
-
-    G_IMPLEMENT_INTERFACE
-    (DS_TYPE_CALLABLE,
-     ds_skybox_ds_callable_iface_init)
 
     G_IMPLEMENT_INTERFACE
     (DS_TYPE_RENDERABLE,
@@ -242,7 +246,7 @@ GLuint cubmap_faces[] =
   GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
 };
 
-static
+static const
 struct
 {
   const gchar* str;
@@ -280,8 +284,9 @@ on_name_replace(const GMatchInfo *info,
   {
   case '%':
     g_string_append_c(result, '%');
+    break;
   case 'i':
-    g_string_printf(result, "i", i);
+    g_string_printf(result, "i", i + 1);
     break;
   case 's':
     g_string_append_len
@@ -492,23 +497,6 @@ return success;
 static
 void ds_skybox_g_initable_iface_init(GInitableIface* iface) {
   iface->init = ds_skybox_g_initable_iface_init_sync;
-}
-
-static
-void ds_skybox_ds_callable_iface_init(DsCallableIface* iface) {
-  ds_callable_iface_add_method
-  (iface,
-   "new",
-   DS_CLOSURE_CONSTRUCTOR,
-   G_CALLBACK(ds_skybox_new),
-   ds_cclosure_marshal_OBJECT__OBJECT_STRING_OBJECT_POINTER,
-   ds_cclosure_marshal_OBJECT__OBJECT_STRING_OBJECT_POINTERv,
-   G_TYPE_OBJECT,
-   4,
-   G_TYPE_FILE,
-   G_TYPE_STRING,
-   G_TYPE_CANCELLABLE,
-   G_TYPE_POINTER);
 }
 
 static gboolean
@@ -768,6 +756,30 @@ void ds_skybox_init(DsSkybox* self) {
  *
  */
 
+/**
+ * ds_skybox_new: (constructor)
+ * @source: directory where skybox images resides.
+ * @name: image names, using a reduced printf-like pattern.
+ * @cancellable: (nullable): a %GCancellable
+ * @error: return location for a #GError
+ *
+ * Creates a new #DsSkybox instance, picking six images
+ * from @source, using pattern @name.
+ *
+ * Images name pattern goes like this:
+ * - %s: is substituted by side name (right, left, ...)
+ * - %i: is substituted by side number.
+ *
+ * Sides are enumerated as:
+ * 1 - right side.
+ * 2 - left side.
+ * 3 - top side.
+ * 4 - bottom side.
+ * 5 - front side.
+ * 6 - back side.
+ *
+ * Returns: (transfer full): see description.
+ */
 DsSkybox*
 ds_skybox_new(GFile        *source,
               const gchar  *name,

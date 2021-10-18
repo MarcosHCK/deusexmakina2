@@ -19,6 +19,7 @@
 #include <ds_application.h>
 #include <ds_macros.h>
 #include <girepository.h>
+#include <luad_value.h>
 #include <SDL.h>
 #undef main
 
@@ -32,27 +33,6 @@ _lua_close0(lua_State* var)
  * Option callbacks
  *
  */
-
-static gboolean
-introspect_dump_arg(const gchar  *option_name,
-                    const gchar  *value,
-                    gpointer      data,
-                    GError      **error)
-{
-  gboolean success = TRUE;
-  GError* tmp_err = NULL;
-
-  success =
-  g_irepository_dump(value, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-_error_:
-return success;
-}
 
 static gboolean
 version_arg(const gchar  *option_name,
@@ -97,7 +77,6 @@ main(int argc, char* argv[])
   static const
   GOptionEntry entries[] =
   {
-    {"introspect-dump", '\0', G_OPTION_FLAG_HIDDEN, G_OPTION_ARG_CALLBACK, introspect_dump_arg, "GIR introspection support", NULL},
     {"version", 'v', G_OPTION_FLAG_IN_MAIN | G_OPTION_FLAG_NO_ARG, G_OPTION_ARG_CALLBACK, version_arg, "Displays version information", NULL},
     {NULL, '\0', 0, 0, NULL, NULL, NULL},
   };
@@ -118,12 +97,17 @@ main(int argc, char* argv[])
  */
 
   DsApplication* self = DS_APPLICATION(app);
+  lua_State* L = (lua_State*) self->lua;
 
   /* Collects all unused references, thus it may destroy some objects */
-  if G_LIKELY(self->L != NULL)
-    lua_gc(self->L, LUA_GCCOLLECT, 1);
+  if G_LIKELY(self->lua != NULL)
+    lua_gc(L, LUA_GCCOLLECT, 1);
 
-  g_clear_pointer(&(self->L), _lua_close0);   /* Release a possibly held reference to application object          */
+  g_clear_pointer(&(self->lua), _lua_close0);   /* Release a possibly held reference to application object          */
+#if DEVELOPER == 1
   g_assert_finalize_object(app);              /* Finally destroy application object                               */
+#else
+  g_object_unref(app);
+#endif // DEVELOPER
 return return_;
 }
