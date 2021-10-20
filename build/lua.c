@@ -81,32 +81,83 @@ return return_;
 }
 
 static int
+handle_script(lua_State* L, char** argx)
+{
+  int status;
+  const char *fname = argx[0];
+
+  status =
+  luaL_loadfile(L, fname);
+  if G_UNLIKELY(status == LUA_OK)
+  {
+    /* Fetch args from arg table. LUA_INIT or -e might have changed them. */
+    int narg = 0;
+    lua_getglobal(L, "arg");
+
+    if G_LIKELY
+      (lua_istable(L, -1))
+    {
+      do
+      {
+        narg++;
+        lua_rawgeti(L, -narg, narg);
+      }
+      while(!lua_isnil(L, -1));
+
+      lua_pop(L, 1);
+      lua_remove(L, -narg);
+      narg--;
+    }
+    else
+    {
+      lua_pop(L, 1);
+    }
+
+    status =
+    lua_xpcall(L, narg, 0);
+  }
+return 0;
+}
+
+static void
+createargtable(lua_State* L, gchar** argv, gint argc, gint argf)
+{
+  int i;
+  lua_createtable(L, argc - argf, argf);
+
+  for(i = 0;
+      i < argc;
+      i++)
+  {
+    lua_pushstring(L, argv[i]);
+    lua_rawseti(L, -2, i - argf);
+  }
+
+  lua_setglobal(L, "arg");
+}
+
+static int
 pmain(lua_State *L)
 {
-  gint argc = (int)lua_tointeger(L, 1);
-  gchar** argv = (char**)lua_touserdata(L, 2);
+  gint argc = (gint) lua_tointeger(L, 1);
+  gchar** argv = (gchar**) lua_touserdata(L, 2);
   const gint script_idx = 1;
-  gint return_, i, n;
+  gint return_, i;
 
   if G_UNLIKELY(!(argc >= 2))
     luaL_error(L, "assert failed!: argc >= 2");
 
+  lua_gc(L, LUA_GCSTOP, 0);
   luaL_openlibs(L);
+  lua_gc(L, LUA_GCRESTART, -1);
+
+  createargtable(L, argv, argc, script_idx);
 
   return_ =
   luaL_loadfile(L, argv[script_idx]);
   if G_UNLIKELY(return_ != LUA_OK)
     lua_error(L);
-
-  for(i = script_idx, n = 0;
-      i < argc;
-      i++, n++)
-  {
-    lua_pushstring(L, argv[i]);
-  }
-
-  lua_call(L, n, 0);
-return 0;
+return handle_script(L, argv + script_idx);
 }
 
 /*
@@ -132,6 +183,6 @@ main(int argc, char* argv[])
   lua_pushlightuserdata(L, argv);
 
   return_ =
-  lua_xpcall(L, 2, 1);
+  lua_xpcall(L, 2, 0);
 return return_;
 }

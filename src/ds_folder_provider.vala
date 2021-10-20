@@ -36,7 +36,7 @@ namespace Ds
 
     public GLib.File child(string name, GLib.Cancellable? cancellable = null) throws GLib.Error
     {
-      return _Ds.base_dirs.child(name, this.basedir, cancellable);
+      return Ds.base_dirs.child(name, this.basedir, cancellable);
     }
 
     public bool init(GLib.Cancellable? cancellable = null) throws GLib.Error
@@ -55,7 +55,7 @@ namespace Ds
   {
     public override GLib.File pick_basedir(GLib.Cancellable? cancellable = null) throws GLib.Error
     {
-      return _Ds.base_data_dir.pick(cancellable);
+      return Ds.base_data_dir.pick(cancellable);
     }
 
     static weak Ds.DataProvider __default__ = null;
@@ -70,13 +70,17 @@ namespace Ds
       this.init(cancellable);
       __default__ = this;
     }
+    ~DataProvider()
+    {
+      __default__ = null;
+    }
   }
 
   public class CacheProvider : Ds.FolderProvider
   {
     public override GLib.File pick_basedir(GLib.Cancellable? cancellable = null) throws GLib.Error
     {
-      return _Ds.base_cache_dir.pick(cancellable);
+      return Ds.base_cache_dir.pick(cancellable);
     }
 
     static weak Ds.CacheProvider __default__ = null;
@@ -90,6 +94,10 @@ namespace Ds
       GLib.Object();
       this.init(cancellable);
       __default__ = this;
+    }
+    ~CacheProvider()
+    {
+      __default__ = null;
     }
   }
 }

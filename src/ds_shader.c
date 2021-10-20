@@ -823,18 +823,12 @@ void ds_shader_init(DsShader* self) {
 
 /**
  * ds_shader_new: (constructor)
- * @vertex_file: (nullable): file from which load vertex shader source
- * code.
- * @vertex_stream: (nullable): stream from which load vertex shader source
- * code.
- * @fragment_file: (nullable): file from which load fragment shader source
- * code.
- * @fragment_stream: (nullable): stream from which load fragment shader source
- * code.
- * @geometry_file: (nullable): file from which load geometry shader source
- * code.
- * @geometry_stream: (nullable): file from which load geometry shader source
- * code.
+ * @vertex_file: (nullable): file from which load vertex shader source code.
+ * @vertex_stream: (nullable): stream from which load vertex shader source code.
+ * @fragment_file: (nullable): file from which load fragment shader source code.
+ * @fragment_stream: (nullable): stream from which load fragment shader source code.
+ * @geometry_file: (nullable): file from which load geometry shader source code.
+ * @geometry_stream: (nullable): file from which load geometry shader source code.
  * @cache_provider: (nullable): cache provider object.
  * @cancellable: (nullable): a %GCancellable
  * @error: return location for a #GError

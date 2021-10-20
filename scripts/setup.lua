@@ -15,14 +15,10 @@
 -- You should have received a copy of the GNU General Public License
 -- along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
 --]]
-local application, cancellable = ...;
-local event = require('event');
-local ds = require('ds');
-
-print(ds.type.GApplication)
-print(ds.type.DsModel)
-print(application)
-print(cancellable)
+local application, cancellable = ...
+local event = require('event')
+local ds = require('ds')
+local lgi = require('lgi')
 
 --[[
 --
@@ -33,12 +29,23 @@ print(cancellable)
 --
 --]]
 
--- Load skybox shader
+--
+-- Retrieve objects
+--
+
+application = application and lgi.Ds.Application(application)
+cancellable = cancellable and lgi.Gio.Cancellable(cancellable)
+
+--
+-- Initialize things
+--
+
 do
-  local pipeline = application.pipeline;
-  local renderer = application.renderer;
-  local shader, skybox, font, text;
-  local GFile = ds.type.GFile;
+  local pipeline = application.pipeline
+  local renderer = application.renderer
+  local shader, skybox, font, text
+  local GFile = lgi.Gio.File
+  local Ds = lgi.Ds
 
 --[[
 --
@@ -47,11 +54,10 @@ do
 --]]
 
   shader =
-  ds.type.DsShader.new_from_files(
+  Ds.Shader.new_from_files(
     GFile.new_for_path(ds.GFXDIR .. '/model_vs.glsl'),
     GFile.new_for_path(ds.GFXDIR .. '/model_fs.glsl'),
-    --GFile.new_for_path(ds.GFXDIR .. '/debug_gs.glsl'),
-    nil,
+    GFile.new_for_path(ds.GFXDIR .. '/debug_gs.glsl'),
     nil,
     cancellable);
 
@@ -64,7 +70,7 @@ do
 --]]
 
   shader =
-  ds.type.DsShader.new_from_files(
+  Ds.Shader.new_from_files(
     GFile.new_for_path(ds.GFXDIR .. '/skybox_vs.glsl'),
     GFile.new_for_path(ds.GFXDIR .. '/skybox_fs.glsl'),
     nil,
@@ -80,7 +86,7 @@ do
 --]]
 
   shader =
-  ds.type.DsShader.new_from_files(
+  Ds.Shader.new_from_files(
     GFile.new_for_path(ds.GFXDIR .. '/text_vs.glsl'),
     GFile.new_for_path(ds.GFXDIR .. '/text_fs.glsl'),
     nil,
@@ -95,12 +101,13 @@ do
 --
 --]]
 
-  skybox = ds.type.DsSkybox.new(
+  skybox =
+  Ds.Skybox.new(
     GFile.new_for_path(ds.ASSETSDIR .. '/skybox/'),
     '%s.dds',
     cancellable);
 
-  pipeline:append_object('skybox', ds.priority.default, skybox);
+  --pipeline:append_object('skybox', ds.priority.default, skybox);
 
 --[[
 --
@@ -108,7 +115,8 @@ do
 --
 --]]
 
-  font = ds.type.DsFont.new(
+  font =
+  Ds.Font.new(
     GFile.new_for_path(ds.ASSETSDIR .. '/Unknown.ttf'),
     13,
     nil,
@@ -120,7 +128,8 @@ do
 --
 --]]
 
-  text = ds.type.DsText.new(font);
+  text =
+  Ds.Text.new(font);
   pipeline:append_object('text', ds.priority.default, text);
 
   text:print(nil, require('build').PACKAGE_STRING, 2, 600 - 12 - 2, cancellable);
@@ -131,14 +140,30 @@ do
 --
 --]]
 
-  local model = ds.type.DsModelSingle.new(
-    GFile.new_for_path(ds.ASSETSDIR),
-    'backpack.obj',
-    cancellable);
+  do
+    local vec3 = require('glm').vec3
 
-  print(model.set_scale);
+    for i = 1, 3 do
+      local model = Ds.ModelSingle.new(
+        GFile.new_for_path(ds.ASSETSDIR),
+        'backpack.obj',
+        cancellable)
 
-  pipeline:append_object('model', ds.priority.default, model);
+      local scale = vec3(
+          0.08,
+          0.08,
+          0.08)
+      local position = vec3(
+          0.10 * i,
+          0,
+         -0.2)
+
+      model:set_scale(scale.vec3)
+      model:set_position(position.vec3)
+
+      pipeline:append_object('model', 0, model)
+    end
+  end
 
 --[[
 --

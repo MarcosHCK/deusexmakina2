@@ -34,11 +34,8 @@ VOID=
 #
 
 EXTRA_DIST+=\
-	luad_closure.h \
 	luad_core.h \
-	luad_girhub.h \
 	luad_lib.h \
-	luad_value.h \
 	$(VOID)
 
 #
@@ -47,11 +44,8 @@ EXTRA_DIST+=\
 
 pkglib_LTLIBRARIES=libluad2.la
 libluad2_la_SOURCES=\
-	luad_closure.c \
 	luad_core.c \
-	luad_girhub.vala \
 	luad_lib.c \
-	luad_value.c \
 	$(VOID)
 libluad2_la_CFLAGS=\
 	$(ASSIMP_CFLAGS) \
@@ -77,6 +71,7 @@ libluad2_la_CFLAGS=\
 	-DPKGDATADIR=\"${pkgdatadir}\" \
 	-DPKGLIBEXECDIR=\"${pkglibexecdir}\" \
 	-DABSTOPBUILDDIR=\"${abs_top_builddir}\" \
+	-DTOPBUILDDIR=\"${top_builddir}\" \
 	-DGAPPNAME=\"org.hck.${PACKAGE_NAME}\" \
 	-D__DUESEXMAKINA_INSIDE__=1 \
 	-D__LUAD_INSIDE__=1 \
@@ -85,7 +80,7 @@ libluad2_la_CFLAGS=\
 	-Winline \
 	-Wpacked \
 	-Wimplicit-fallthrough \
-	-I.. \
+	-I${top_builddir}/src/ \
 	$(VOID)
 libluad2_la_LDFLAGS=\
 	-rpath ${pkglibdir} \
@@ -108,30 +103,4 @@ libluad2_la_LIBADD=\
 	$(LUA_LIBS) \
 	$(OPENGL_LIBS) \
 	$(SDL2_LIBS) \
-	$(VOID)
-
-#
-# Vala
-#
-
-VALA_PKG=\
-	gio-2.0 \
-	glib-2.0 \
-	gmodule-2.0 \
-	gobject-2.0 \
-	gobject-introspection-1.0 \
-	$(VOID)
-
-VALA_VAPIS=\
-	config \
-	lua \
-	$(VOID)
-
-AM_VALAFLAGS=\
-	--vapidir=../vapi/ \
-	--hide-internal \
-	-D DEBUG=${DEBUG} \
-	-D DEVELOPER=${DEVELOPER} \
-	$(addprefix --pkg , ${VALA_PKG}) \
-	$(addprefix --pkg , ${VALA_VAPIS}) \
 	$(VOID)

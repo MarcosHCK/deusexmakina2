@@ -46,8 +46,8 @@ VOID=
 #
 
 SUBDIRS=\
-	luad \
 	jit \
+	luad \
 	vapi \
 	$(VOID)
 
@@ -83,6 +83,7 @@ EXTRA_DIST+=\
 	ds_gl.h \
 	ds_looper.h \
 	ds_macros.h \
+	ds_matrix.h \
 	ds_model.h \
 	ds_model_private.h \
 	ds_mvpholder.h \
@@ -113,6 +114,7 @@ libdeus2_la_SOURCES=\
 	ds_gl.c \
 	ds_i18n.c \
 	ds_looper.vala \
+	ds_matrix.c \
 	ds_model.c \
 	ds_model_buf.c \
 	ds_model_imp.c \
@@ -145,7 +147,6 @@ libdeus2_la_CFLAGS=\
 	$(LUA_CFLAGS) \
 	$(OPENGL_CFLAGS) \
 	$(SDL2_CFLAGS) \
-	$(CFLAG_VISIBILITY) \
 	-Iluad/ \
 	-DASSETSDIR=\"${assetsdir}\" \
 	-DGFXDIR=\"${gfxdir}\" \
@@ -154,6 +155,7 @@ libdeus2_la_CFLAGS=\
 	-DPKGDATADIR=\"${pkgdatadir}\" \
 	-DPKGLIBEXECDIR=\"${pkglibexecdir}\" \
 	-DABSTOPBUILDDIR=\"${abs_top_builddir}\" \
+	-DTOPBUILDDIR=\"${top_builddir}\" \
 	-DGAPPNAME=\"org.hck.${PACKAGE_NAME}\" \
 	-D__DUESEXMAKINA_INSIDE__=1 \
 	-fstack-protector-strong \
@@ -214,13 +216,12 @@ VALA_PKG=\
 VALA_VAPIS=\
 	config \
 	dds \
-	lua \
-	model \
 	$(VOID)
 
 AM_VALAFLAGS=\
 	--vapidir=vapi/ \
 	--hide-internal \
+	--abi-stability \
 	-D DEBUG=${DEBUG} \
 	-D DEVELOPER=${DEVELOPER} \
 	$(addprefix --pkg , ${VALA_PKG}) \

@@ -27,6 +27,10 @@ local scriptsdir = ...;
 --
 --]]
 
+--
+-- Create a php-like ENV table
+--
+
 do
   local cache = {};
   _G._ENV = setmetatable({}, {
@@ -47,6 +51,10 @@ do
   });
 end
 
+--
+-- Add checkArg facility (useful, idea taken from OpenComputers)
+--
+
 local function check(have, want, ...)
   if(not want) then
     return false;
@@ -63,15 +71,17 @@ function checkArg(n, have, ...)
   end
 end
 
-if(table.pack == nil) then
-  table.pack = function(...)
-    return {...};
-  end
-end
+--
+-- Patch 'table.pack' and 'table.unpack' functions
+-- which are absent on LuaJIT.
+--
 
-if(table.unpack == nil) then
-  table.unpack = assert(_G.unpack);
-end
+table.pack = table.pack or function(...) return {...} end
+table.unpack = table.unpack or assert(_G.unpack)
+
+--
+-- Add custom module path
+--
 
 do
   local newpath = table.concat({
@@ -87,6 +97,10 @@ do
   package.cpath =
   table.concat({package.cpath, newcpath}, ';');
 end
+
+--
+-- Overwrite priority table
+--
 
 do
   local higher = ds.priority.higher;
@@ -112,7 +126,52 @@ do
   });
 end
 
+--
+-- Initialize LGI
+--
+
 do
-  local build = require('build');
-  ds.debug = build or _ENV["DS_DEBUG"] == 'true';
+  local lgi = require('lgi')
+  local core = require('lgi.core')
+  local build = require('build')
+
+  -- LGI doesn't do this itself (cool?)
+  package.loaded.lgi = lgi
+
+  local version = ('%s.%s'):format(build.PACKAGE_VERSION_MAYOR, build.PACKAGE_VERSION_MINOR)
+  local Ds = core.gi.require('Ds', version, ds.GIRDIR)
+  local Ds = lgi.require('Ds', version)
+
+  local Matrix = Ds.Matrix
+  local attribute = {}
+  local glm = {}
+
+  package.loaded.glm = glm
+  Matrix._attribute = attribute
+
+  local names =  {'vec2', 'vec3', 'vec4', 'mat2', 'mat3', 'mat4'}
+  local floats = {    2,      3,      4,      4,      9,     16 }
+
+  for i = 1, #names do
+    local name = names[i]
+    local float = floats[i]
+    local field = name .. '_'
+
+    glm[name] = function (...)
+      local array = {...}
+      for j = 1, float do
+        checkArg(1, array[j], 'number')
+      end
+
+    return Matrix.new ({unpack(array, 1, float)})
+    end
+
+    attribute[name] = {
+      get = function(matrix)
+        return matrix.value[field]
+      end
+    }
+  end
 end
+
+collectgarbage()

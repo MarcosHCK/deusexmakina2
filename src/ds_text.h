@@ -29,7 +29,7 @@
 #define DS_TEXT_ERROR (ds_text_error_quark())
 
 /**
- * DsApplicationError:
+ * DsTextError:
  * @DS_TEXT_ERROR_FAILED: generic error condition.
  *
  * Error code returned by DsText API.
@@ -62,11 +62,6 @@ DEUSEXMAKINA2_API
 GType
 ds_text_get_type();
 
-struct _DsTextClass
-{
-  GObjectClass parent_class;
-};
-
 DEUSEXMAKINA2_API
 DsText*
 ds_text_new(DsFont* provider);
@@ -74,16 +69,17 @@ ds_text_new(DsFont* provider);
 DEUSEXMAKINA2_API
 DsTextHandle
 ds_text_print(DsText         *text,
-              DsTextHandle    instance,
+              DsTextHandle    text_handle,
               const gchar    *text_,
-              vec2            position,
+              gfloat          x,
+              gfloat          y,
               GCancellable   *cancellable,
               GError        **error);
 
 DEUSEXMAKINA2_API
 void
 ds_text_unprint(DsText         *text,
-                DsTextHandle    handle);
+                DsTextHandle    text_handle);
 
 #if __cplusplus
 }

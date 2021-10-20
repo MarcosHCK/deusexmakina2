@@ -19,7 +19,7 @@
 #include <ds_application.h>
 #include <ds_macros.h>
 #include <girepository.h>
-#include <luad_value.h>
+#include <luad_core.h>
 #include <SDL.h>
 #undef main
 

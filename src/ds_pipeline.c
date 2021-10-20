@@ -482,7 +482,7 @@ ds_pipeline_remove_object(DsPipeline   *pipeline,
 }
 
 static void
-mvps_query_start(DsPipeline* self, GLuint uloc_jvp, GLuint uloc_mvp)
+mvps_query_start(DsPipeline* self, JitState* ctx, GLuint uloc_jvp, GLuint uloc_mvp)
 {
   if G_UNLIKELY
     (self->notified == TRUE)
@@ -533,6 +533,7 @@ ds_pipeline_update(DsPipeline    *pipeline,
   ShaderEntry* entry;
   ObjectList* olist;
   GLuint program = 0;
+  GLuint l_jvp, l_mvp;
 
   for(slist = pipeline->shaders;
       slist != NULL;
@@ -559,14 +560,14 @@ ds_pipeline_update(DsPipeline    *pipeline,
     );
 
     __gl_try_catch(
-      ctx->mvps.l_mvp = glGetUniformLocation(program, "a_mvp");
+      l_mvp = glGetUniformLocation(program, "a_mvp");
     ,
       g_propagate_error(error, glerror);
       goto_error();
     );
 
     __gl_try_catch(
-      ctx->mvps.l_jvp = glGetUniformLocation(program, "a_jvp");
+      l_jvp = glGetUniformLocation(program, "a_jvp");
     ,
       g_propagate_error(error, glerror);
       goto_error();
@@ -585,15 +586,16 @@ ds_pipeline_update(DsPipeline    *pipeline,
      1,
      (guintptr) program);
 
-    /* check if jvp must be updated */
+    /* check if matrices must be updated */
     _ds_jit_compile_call
     (ctx,
      G_CALLBACK(mvps_query_start),
      TRUE,
-     3,
+     4,
      (guintptr) pipeline,
-     (guintptr) ctx->mvps.l_jvp,
-     (guintptr) ctx->mvps.l_mvp);
+     (guintptr) ctx,
+     (guintptr) l_jvp,
+     (guintptr) l_mvp);
 
     /* propagate compile */
     for(olist = entry->objects;
@@ -611,8 +613,8 @@ ds_pipeline_update(DsPipeline    *pipeline,
        4,
        (guintptr) obj,
        (guintptr) ctx,
-       (guintptr) ctx->mvps.l_jvp,
-       (guintptr) ctx->mvps.l_mvp);
+       (guintptr) l_jvp,
+       (guintptr) l_mvp);
 
       success =
       ds_renderable_compile(obj, (DsRenderState*) ctx, cancellable, &tmp_err);

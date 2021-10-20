@@ -68,6 +68,11 @@ struct _DsText
   } *texts;
 };
 
+struct _DsTextClass
+{
+  GObjectClass parent_class;
+};
+
 enum {
   prop_0,
   prop_provider,
@@ -89,14 +94,6 @@ G_DEFINE_TYPE_WITH_CODE
  {
    glm_mat4_identity(scale);
  });
-
-static DsTextHandle
-_ds_text_print(DsText* text, DsTextHandle handle, const gchar* text_, gfloat x, gfloat y, GCancellable* cancellable, GError** error)
-{
-  vec2 pos = {x, y};
-  return
-  ds_text_print(text, handle, text_, pos, cancellable, error);
-}
 
 static void
 glBindVertexArray_s(GLuint* pvao)
@@ -409,11 +406,32 @@ _ds_font_generate_vao(DsFont         *font,
                       GCancellable   *cancellable,
                       GError        **error);
 
+/**
+ * ds_text_print:
+ * @text: an #DsText instance.
+ * @text_handle: a text fragment handler.
+ * @text_: text to draw.
+ * @x: X-axis coordinates where to put @text_.
+ * @y: Y-axis coordinates where to put @text_.
+ * @cancellable: (nullable): a %GCancellable
+ * @error: return location for a #GError
+ *
+ * Prints a rectangle containing @text_ glyphs.
+ * If @text_handle refers to a previously printed
+ * text, previous one is replaced by this call.
+ * Note: text are printed in a 800x600 pixels screen
+ * space, starting for top-left corner.
+ *
+ * Returns: (transfer none): a handler to text fragment
+ * produced by this call. It belongs to @text, so don't
+ * mess with it.
+ */
 DsTextHandle
 ds_text_print(DsText         *text,
               DsTextHandle    text_handle,
               const gchar    *text_,
-              vec2            position,
+              gfloat          x,
+              gfloat          y,
               GCancellable   *cancellable,
               GError        **error)
 {
@@ -445,6 +463,8 @@ ds_text_print(DsText         *text,
      "Invalid UTF-8 string\r\n");
     goto_error();
   }
+
+  vec2 position = {x, y};
 
   success =
   _ds_font_generate_vao(text->font, text_, position, &vao, &vbo, &n_vertices, cancellable, &tmp_err);
@@ -507,14 +527,22 @@ _error_:
 return handle;
 }
 
+/**
+ * ds_text_unprint:
+ * @text: an #DsText instance.
+ * @text_handle: a text fragment handler.
+ *
+ * Erases anything printed by a previous call
+ * to #ds_text_print().
+ * Note that this function doesn't actually erases
+ * anything, it just queues it to be skipped and erased
+ * when next frame is to be drown.
+ */
 void
 ds_text_unprint(DsText         *text,
-                DsTextHandle    handle)
+                DsTextHandle    text_handle)
 {
   g_return_if_fail(DS_TEXT(text));
-
-  if(handle != NULL)
-  {
-    ((DsTextEntry*) handle)->df = TRUE;
-  }
+  if(text_handle != NULL)
+    ((DsTextEntry*) text_handle)->df = TRUE;
 }

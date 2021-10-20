@@ -15,9 +15,9 @@
  *  along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#ifndef __JIT_MACOS_INCLUDED__
-#define __JIT_MACOS_INCLUDED__ 1
+#ifndef __JIT_MACROS_INCLUDED__
+#define __JIT_MACROS_INCLUDED__ 1
 
 
 
-#endif // __JIT_MACOS_INCLUDED__
+#endif // __JIT_MACROS_INCLUDED__

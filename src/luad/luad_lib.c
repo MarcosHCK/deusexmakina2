@@ -17,120 +17,8 @@
  */
 #include <config.h>
 #include <ds_macros.h>
-#include <gmodule.h>
-#include <luad_closure.h>
-#include <luad_girhub.h>
+#include <gio/gio.h>
 #include <luad_lib.h>
-#include <luad_value.h>
-
-typedef GType (*GTypeGetFunc) (void);
-
-#define cachetype(L,t) \
-  G_STMT_START { \
-    /*  1 -> ds.type      */ \
-    /* -1 -> class value  */ \
-    lua_pushstring((L), (t)); \
-    lua_pushvalue((L), -2); \
-    lua_settable((L), 1); \
-  } G_STMT_END
-
-static gchar*
-type_name_mangle(const gchar* name)
-{
-  GString* symbol_name = g_string_new("");
-  gint i;
-
-  for(i = 0;name[i] != '\0';i++)
-  {
-    /* skip if uppercase, first or previous is uppercase */
-    if((name[i] == g_ascii_toupper(name[i])
-        && i > 0
-        && name[i-1] != g_ascii_toupper(name[i-1]))
-       || (i > 2
-           && name[i] == g_ascii_toupper(name[i])
-           && name[i-1] == g_ascii_toupper(name[i-1])
-           && name[i-2] == g_ascii_toupper(name[i-2])))
-    {
-      g_string_append_c(symbol_name, '_');
-    }
-
-    g_string_append_c(symbol_name, g_ascii_tolower(name[i]));
-  }
-
-  g_string_append(symbol_name, "_get_type");
-return g_string_free(symbol_name, FALSE);
-}
-
-static GType
-resolve_type_lazily(const gchar* name)
-{
-  static
-  GModule* module = NULL;
-  GTypeGetFunc func = NULL;
-  GType g_type = G_TYPE_INVALID;
-  gchar* symbol;
-
-  if G_UNLIKELY(module == NULL)
-    module = g_module_open(NULL, 0);
-
-  symbol = type_name_mangle(name);
-
-  if(g_module_symbol
-     (module,
-      symbol,
-      (gpointer) &func))
-  {
-    g_type = func();
-  }
-
-  g_free(symbol);
-return g_type;
-}
-
-static GType
-resolve_type(const gchar* name)
-{
-  GType g_type;
-
-  if((g_type = g_type_from_name(name)) != G_TYPE_INVALID)
-    return g_type;
-  if((g_type = resolve_type_lazily(name)) != G_TYPE_INVALID)
-    return g_type;
-return G_TYPE_INVALID;
-}
-
-/*
- * __index()! & __newindex()!
- *
- */
-
-static int
-__newindex(lua_State* L)
-{
-return 0;
-}
-
-static int
-__index(lua_State* L)
-{
-  const gchar* t;
-  GType g_type;
-
-  if G_LIKELY
-    (lua_isstring(L, 2)
-     && (t = lua_tostring(L, 2)) != NULL)
-  {
-    g_type =
-    resolve_type(t);
-    if G_LIKELY
-      (g_type != G_TYPE_INVALID)
-    {
-      _luaD_pushlvalue(L, g_type, NULL);
-      return 1;
-    }
-  }
-return 0;
-}
 
 /*
  * Library
@@ -154,34 +42,11 @@ _luaD_lib_init(lua_State* L, GError** error)
   gboolean success = TRUE;
   GError* tmp_err = NULL;
 
-/*
- * Initialization
- *
- */
+  GFile* current = NULL;
+  GFile* child = NULL;
 
-  success =
-  _luaD_lclosure_init(L, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-  success =
-  _luaD_girhub_init(L, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-  success =
-  _luaD_lvalue_init(L, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
+  /* keep this sync with ds_application.c */
+  current = g_file_new_for_path(".");
 
 /*
  * Library
@@ -203,25 +68,13 @@ _luaD_lib_init(lua_State* L, GError** error)
   lua_pushliteral(L, PACKAGE_STRING);
   lua_settable(L, -3);
 
-  /* types table */
-  lua_pushliteral(L, "type");
-  lua_createtable(L, 0, 0);
-  lua_createtable(L, 0, 1);
-  lua_pushliteral(L, "__newindex");
-  lua_pushcfunction(L, __newindex);
-  lua_settable(L, -3);
-  lua_pushliteral(L, "__index");
-  lua_pushcfunction(L, __index);
-  lua_settable(L, -3);
-  lua_setmetatable(L, -2);
-  lua_settable(L, -3);
-
   /* configuration */
 #if DEVELOPER == 1
 # define set_macro(MacroName, __alternative__) \
     G_STMT_START { \
       lua_pushliteral(L, #MacroName ); \
-      lua_pushliteral(L,  __alternative__ ); \
+      g_set_object(&child, g_file_get_child(current, __alternative__ )); \
+      lua_pushstring(L, g_file_peek_path(child)); \
       lua_settable(L, -3); \
     } G_STMT_END
 #else // DEVELOPER
@@ -240,9 +93,10 @@ _luaD_lib_init(lua_State* L, GError** error)
     } G_STMT_END
 
   /* string macros */
-  set_macro(    ASSETSDIR, ABSTOPBUILDDIR "/assets");
-  set_macro(       GFXDIR, ABSTOPBUILDDIR "/gfx");
-  set_macro(   SCHEMASDIR, ABSTOPBUILDDIR "/settings");
+  set_macro(    ASSETSDIR, "assets/");
+  set_macro(       GFXDIR, "gfx/");
+  set_macro(       GIRDIR, "gir/");
+  set_macro(   SCHEMASDIR, "settings/");
 
   /* integer and boolean macros */
   set_int_macro(DEBUG);
@@ -275,18 +129,12 @@ _luaD_lib_init(lua_State* L, GError** error)
   lua_pop(L, 2);
 
 _error_:
+  _g_object_unref0(current);
+  _g_object_unref0(child);
 return success;
 }
 
 void
 _luaD_lib_fini(lua_State* L)
 {
-/*
- * Finalization
- *
- */
-
-  _luaD_lvalue_fini(L);
-  _luaD_girhub_fini(L);
-  _luaD_lclosure_fini(L);
 }

@@ -16,7 +16,7 @@
  *
  */
 
-namespace _Ds
+namespace Ds
 {
   errordomain UtilsError
   {
@@ -113,7 +113,7 @@ namespace _Ds
 
       if(unlikely(paths.length == 0))
       {
-        throw new _Ds.UtilsError.BASE_DATA_DIR("Could not find a suitable configuration path\r\n");
+        throw new Ds.UtilsError.BASE_DATA_DIR("Could not find a suitable configuration path\r\n");
       }
 
       unowned string baseDir = null;
@@ -149,7 +149,7 @@ namespace _Ds
       var paths = new GenericArray<string>();
       unowned string env = null;
 
-      var basedata = _Ds.base_data_dir.pick(cancellable);
+      var basedata = Ds.base_data_dir.pick(cancellable);
       paths.add(basedata.get_child("cache").peek_path());
 
       if((env = GLib.Environment.get_variable("XDG_CACHE_HOME")) != null)
@@ -165,7 +165,7 @@ namespace _Ds
 
       if(unlikely(paths.length == 0))
       {
-        throw new _Ds.UtilsError.BASE_CACHE_DIR("Could not find a suitable cache path\r\n");
+        throw new Ds.UtilsError.BASE_CACHE_DIR("Could not find a suitable cache path\r\n");
       }
 
       unowned string baseDir = null;

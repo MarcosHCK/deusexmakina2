@@ -35,8 +35,8 @@ guint format_floats[] =
 };
 
 #define n_attribs 5
-G_STATIC_ASSERT(G_N_ELEMENTS(format_offsets) >= n_attribs);
-G_STATIC_ASSERT(G_N_ELEMENTS(format_floats) >= n_attribs);
+G_STATIC_ASSERT(G_N_ELEMENTS(format_offsets) == n_attribs);
+G_STATIC_ASSERT(G_N_ELEMENTS(format_floats) == n_attribs);
 
 G_GNUC_INTERNAL
 gboolean

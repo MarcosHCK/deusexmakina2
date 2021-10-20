@@ -36,6 +36,7 @@ VOID=
 EXTRA_DIST+=\
   closure.vapi \
   config.vapi \
-  luad.vapi \
-  model.vapi \
+  dds.vapi \
+  dds.deps \
+  gl.vapi \
   $(VOID)

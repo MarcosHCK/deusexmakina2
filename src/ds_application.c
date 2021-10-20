@@ -24,7 +24,6 @@
 #include <ds_settings.h>
 #include <GL/glew.h>
 #include <luad_core.h>
-#include <luad_value.h>
 #include <SDL.h>
 #undef main
 
@@ -147,15 +146,24 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   DsRenderer* renderer = NULL;
   DsEvents* events = NULL;
 
+  GFile* current = NULL;
+  GFile* child = NULL;
+
+  /* keep this sync with luad_lib.c */
+  current = g_file_new_for_path(".");
+
 /*
  * Settings
  *
  */
 
-  dssettings =
+
 #if DEVELOPER
-  ds_settings_new(ABSTOPBUILDDIR "/settings/", cancellable, &tmp_err);
+  g_set_object(&child, g_file_get_child(current, "settings/"));
+  dssettings =
+  ds_settings_new(g_file_peek_path(child), cancellable, &tmp_err);
 #else
+  dssettings =
   ds_settings_new(SCHEMASDIR, cancellable, &tmp_err);
 #endif // DEVELOPER
   if G_UNLIKELY(tmp_err != NULL)
@@ -219,18 +227,17 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   }
 
 #if DEVELOPER
-  luaL_loadfile(L, ABSTOPBUILDDIR "/scripts/patches.lua");
-  lua_pushstring(L, ABSTOPBUILDDIR "/scripts/");
+  g_set_object(&child, g_file_get_child(current, "scripts/patches.lua"));
+  luaL_loadfile(L, g_file_peek_path(child));
 #else
   luaL_loadfile(L, PKGLIBEXECDIR "/patches.lua");
-  lua_pushstring(L, PKGLIBEXECDIR);
 #endif // DEVELOPER
 
   if G_UNLIKELY
-    (lua_isfunction(L, -2) == FALSE)
+    (lua_isfunction(L, -1) == FALSE)
   {
     const gchar* err =
-    lua_tostring(L, -2);
+    lua_tostring(L, -1);
 
     g_set_error
     (error,
@@ -241,8 +248,18 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
+#if DEVELOPER
+  g_set_object(&child, g_file_get_child(current, "scripts/"));
+  lua_pushstring(L, g_file_peek_path(child));
+  g_set_object(&child, g_file_get_child(current, "gir/"));
+  lua_pushstring(L, g_file_peek_path(child));
+#else
+  lua_pushstring(L, PKGLIBEXECDIR);
+  lua_pushstring(L, GIRDIR);
+#endif // DEVELOPER
+
   success =
-  luaD_xpcall(L, 1, 0, &tmp_err);
+  luaD_xpcall(L, 2, 0, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -428,7 +445,8 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
 
   return_ =
 #if DEVELOPER
-  luaL_loadfile(L, ABSTOPBUILDDIR "/scripts/setup.lua");
+  g_set_object(&child, g_file_get_child(current, "scripts/setup.lua"));
+  luaL_loadfile(L, g_file_peek_path(child));
 #else
   luaL_loadfile(L, PKGLIBEXECDIR "/setup.lua");
 #endif // DEVELOPER
@@ -448,8 +466,11 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
-  _luaD_pushlvalue(L, DS_TYPE_APPLICATION, self);
-  _luaD_pushlvalue(L, G_TYPE_CANCELLABLE, cancellable);
+  lua_pushlightuserdata(L, self);
+  if G_UNLIKELY(cancellable != NULL)
+    lua_pushlightuserdata(L, cancellable);
+  else
+    lua_pushnil(L);
 
   success =
   luaD_xpcall(L, 2, 0, &tmp_err);
@@ -463,6 +484,8 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   lua_gc(L, LUA_GCCOLLECT, 1);
 
 _error_:
+  _g_object_unref0(current);
+  _g_object_unref0(child);
 return success;
 }
 

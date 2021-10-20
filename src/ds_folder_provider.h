@@ -15,8 +15,9 @@
  *  along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-#ifndef __DS_CACHE_PROVIDER_INCLUDED__
-#define __DS_CACHE_PROVIDER_INCLUDED__ 1
+#ifndef __DS_FOLDER_PROVIDER_INCLUDED__
+#define __DS_FOLDER_PROVIDER_INCLUDED__ 1
+#include <ds_export.h>
 #include <gio/gio.h>
 
 /**
@@ -84,12 +85,16 @@ extern "C" {
  *
  */
 
+DEUSEXMAKINA2_API
 GQuark
 ds_folder_provider_error_quark();
+DEUSEXMAKINA2_API
 GType
 ds_folder_provider_get_type();
+DEUSEXMAKINA2_API
 GType
 ds_data_provider_get_type();
+DEUSEXMAKINA2_API
 GType
 ds_cache_provider_get_type();
 
@@ -138,19 +143,78 @@ struct _DsCacheProviderClass
  *
  */
 
+/**
+ * ds_folder_provider_child:
+ * @provider: an #DsFolderProvider instance.
+ * @name: child name.
+ * @cancellable: (nullable): a %GCancellable
+ * @error: return location for a #GError
+ *
+ * Request an specified child folder to be available (if it doesn't exists
+ * is created).
+ * 
+ * Returns: (transfer full): requested child.
+ */
+DEUSEXMAKINA2_API
 GFile*
 ds_folder_provider_child (DsFolderProvider   *provider,
                           const gchar        *name,
                           GCancellable       *cancellable,
                           GError            **error);
+
+/**
+ * ds_data_provider_new:
+ * @cancellable: (nullable): a %GCancellable
+ * @error: return location for a #GError
+ *
+ * Creates a new instance of #DsDataProvider on
+ * default data folder (see source for a step by
+ * step description of how it is selected).
+ * 
+ * Returns: (transfer full): see description.
+ */
+DEUSEXMAKINA2_API
 DsDataProvider*
 ds_data_provider_new (GCancellable* cancellable,
                       GError** error);
+
+/**
+ * ds_data_provider_get_default:
+ *
+ * Retrieves default per-process instance of #DsDataProvider,
+ * if it was previously created.
+ * 
+ * Returns: (transfer none) (nullable): default per-process provider.
+ */
+DEUSEXMAKINA2_API
 DsDataProvider*
 ds_data_provider_get_default (void);
+
+/**
+ * ds_cache_provider_new:
+ * @cancellable: (nullable): a %GCancellable
+ * @error: return location for a #GError
+ *
+ * Creates a new instance of #DsCacheProvider on
+ * default cache folder (see source for a step by
+ * step description of how it is selected).
+ * 
+ * Returns: (transfer full): see description.
+ */
+DEUSEXMAKINA2_API
 DsCacheProvider*
 ds_cache_provider_new (GCancellable   *cancellable,
                        GError        **error);
+
+/**
+ * ds_cache_provider_get_default:
+ *
+ * Retrieves default per-process instance of #DsCacheProvider,
+ * if it was previously created.
+ * 
+ * Returns: (transfer none) (nullable): default per-process provider.
+ */
+DEUSEXMAKINA2_API
 DsCacheProvider*
 ds_cache_provider_get_default (void);
 
@@ -158,4 +222,4 @@ ds_cache_provider_get_default (void);
 }
 #endif // __cplusplus
 
-#endif // __DS_CACHE_PROVIDER_INCLUDED__
+#endif // __DS_FOLDER_PROVIDER_INCLUDED__

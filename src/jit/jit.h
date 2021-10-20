@@ -29,9 +29,9 @@
 #     define MAP_ANONYMOUS MAP_ANON
 #   endif
 # endif // G_OS_WINDOWS
-# define Dst        ((dasm_State**)&(ctx->pd))
+# define Dst      ((dasm_State**)&(ctx->pd))
 #else // __INSIDE_DYNASM_FILE__
-# define jitmain         ((JitMain)(ctx->labels[ctx->n_main]))
+# define jitmain  ((JitMain)(ctx->labels[ctx->n_main]))
 #endif // __INSIDE_DYNASM_FILE__
 
 typedef struct {
@@ -47,9 +47,6 @@ typedef struct {
   mat4 projection;
   mat4 view;
   mat4 model;
-
-  GLuint l_mvp;
-  GLuint l_jvp;
 } JitMvps;
 
 typedef struct {

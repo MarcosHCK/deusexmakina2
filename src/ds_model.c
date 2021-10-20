@@ -739,8 +739,8 @@ static void
 update_model(DsModelPrivate* priv)
 {
   glm_mat4_identity(priv->model);
-  glm_scale(priv->model, priv->scale);
   glm_translate(priv->model, priv->position);
+  glm_scale(priv->model, priv->scale);
   priv->notified = TRUE;
 }
 
@@ -1010,16 +1010,6 @@ ds_model_class_init(DsModelClass* klass)
 static void
 ds_model_class_fini(DsModelClass* klass)
 {
-}
-
-static gboolean
-cycle_(DsModel* self)
-{
-  mat4 from;
-  glm_mat4_copy(self->priv->model, from);
-  glm_rotate_y(from, glm_rad(1.5f), self->priv->model);
-  self->priv->notified = TRUE;
-return G_SOURCE_CONTINUE;
 }
 
 static void

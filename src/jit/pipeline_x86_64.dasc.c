@@ -286,6 +286,7 @@ _ds_jit_compile_call_valist(JitState *ctx,
  * Make call
  *
  */
+
   if(protected_ == TRUE)
   {
     | invoke ((guintptr) callback)

@@ -32,6 +32,8 @@ PACKAGE_VERSION_BUILD=@PACKAGE_VERSION_BUILD@
 EXTRA_DIST=
 VOID=
 
+include $(INTROSPECTION_MAKEFILE)
+
 #
 # Source headers
 #
@@ -54,13 +56,13 @@ GIR_INC=\
 # .gir file
 #
 
-${GIR_NAMESPACE}-${GIR_VERSION}.gir: sources.list ${top_srcdir}/src/libdeus2.la
+Ds-${GIR_VERSION}.gir: sources.list ${top_srcdir}/src/libdeus2.la
 	${INTROSPECTION_SCANNER} \
-		--output ${GIR_NAMESPACE}-${GIR_VERSION}.gir \
+		--output $@ \
 		--nsversion "${GIR_VERSION}" \
 		--library "${top_srcdir}/src/libdeus2.la" \
 		--warn-all \
-		--namespace ${GIR_NAMESPACE} \
+		--namespace Ds \
 		--cflags-begin \
 			-I${top_srcdir}/src/ \
 			-I${top_srcdir}/src/luad \
@@ -77,16 +79,17 @@ ${GIR_NAMESPACE}-${GIR_VERSION}.gir: sources.list ${top_srcdir}/src/libdeus2.la
 # *.typelib file
 #
 
-${GIR_NAMESPACE}-${GIR_VERSION}.typelib: ${GIR_NAMESPACE}-${GIR_VERSION}.gir
-	$(INTROSPECTION_COMPILER) \
-		--output ${GIR_NAMESPACE}-${GIR_VERSION}.typelib \
-			${GIR_NAMESPACE}-${GIR_VERSION}.gir
+TYPELIB_FILES=\
+	Ds-${GIR_VERSION}.typelib \
+	$(VOID)
+
+$(TYPELIB_FILES): $(TYPELIB_FILES:.typelib=.gir)
+	$(INTROSPECTION_COMPILER) --output $@ $<
 
 #
 # GObject introspection data
 #
 
 gir_DATA=\
-	${GIR_NAMESPACE}-${GIR_VERSION}.gir \
-	${GIR_NAMESPACE}-${GIR_VERSION}.typelib \
+	$(TYPELIB_FILES) \
 	$(VOID)

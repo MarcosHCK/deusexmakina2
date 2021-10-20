@@ -429,6 +429,7 @@ ds_renderer_g_initable_iface_init_sync(GInitable* pself, GCancellable* cancellab
 
   __gl_try_catch(
     glClearColor(0.f, 0.f, 0.f, 0.f);
+    glClearDepth(1.d);
   ,
     g_propagate_error(error, glerror);
     goto_error();
