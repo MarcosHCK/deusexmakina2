@@ -57,7 +57,7 @@ do
   Ds.Shader.new_from_files(
     GFile.new_for_path(ds.GFXDIR .. '/model_vs.glsl'),
     GFile.new_for_path(ds.GFXDIR .. '/model_fs.glsl'),
-    GFile.new_for_path(ds.GFXDIR .. '/debug_gs.glsl'),
+    nil,
     nil,
     cancellable);
 
@@ -107,7 +107,7 @@ do
     '%s.dds',
     cancellable);
 
-  --pipeline:append_object('skybox', ds.priority.default, skybox);
+  pipeline:append_object('skybox', ds.priority.default, skybox);
 
 --[[
 --
@@ -150,11 +150,11 @@ do
         cancellable)
 
       local scale = vec3(
-          0.08,
-          0.08,
-          0.08)
+          0.04,
+          0.04,
+          0.04)
       local position = vec3(
-          0.10 * i,
+          0.20 * i,
           0,
          -0.2)
 

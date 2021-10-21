@@ -25,8 +25,8 @@
 
 static
 gboolean _check = FALSE;
-static
-const guint n_tios = G_N_ELEMENTS(gl2ai);
+static const
+guint n_tios = G_N_ELEMENTS(gl2ai);
 
 G_DEFINE_BOXED_TYPE
 (DsModelTexture,

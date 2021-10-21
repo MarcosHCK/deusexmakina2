@@ -560,14 +560,14 @@ ds_pipeline_update(DsPipeline    *pipeline,
     );
 
     __gl_try_catch(
-      l_mvp = glGetUniformLocation(program, "a_mvp");
+      l_mvp = glGetUniformLocation(program, A_MVP);
     ,
       g_propagate_error(error, glerror);
       goto_error();
     );
 
     __gl_try_catch(
-      l_jvp = glGetUniformLocation(program, "a_jvp");
+      l_jvp = glGetUniformLocation(program, A_JVP);
     ,
       g_propagate_error(error, glerror);
       goto_error();
@@ -602,22 +602,8 @@ ds_pipeline_update(DsPipeline    *pipeline,
         olist != NULL;
         olist = olist->next)
     {
-      DsRenderable* obj = olist->object;
-      DsRenderableIface* iface =
-      DS_RENDERABLE_GET_IFACE(obj);
-
-      _ds_jit_compile_call
-      (ctx,
-       G_CALLBACK(iface->query_mvp_step),
-       TRUE,
-       4,
-       (guintptr) obj,
-       (guintptr) ctx,
-       (guintptr) l_jvp,
-       (guintptr) l_mvp);
-
       success =
-      ds_renderable_compile(obj, (DsRenderState*) ctx, cancellable, &tmp_err);
+      ds_renderable_compile(olist->object, (DsRenderState*) ctx, cancellable, &tmp_err);
       if G_UNLIKELY(tmp_err != NULL)
       {
         g_propagate_error(error, tmp_err);
@@ -633,31 +619,6 @@ ds_pipeline_update(DsPipeline    *pipeline,
    FALSE,
    1,
    (guintptr) pipeline);
-
-  for(slist = pipeline->shaders;
-      slist != NULL;
-      slist = slist->next)
-  {
-    entry = slist->e;
-    if(entry->n_objects < 1)
-      continue;
-
-    for(olist = entry->objects;
-        olist != NULL;
-        olist = olist->next)
-    {
-      DsRenderable* obj = olist->object;
-      DsRenderableIface* iface =
-      DS_RENDERABLE_GET_IFACE(obj);
-
-      _ds_jit_compile_call
-      (ctx,
-       G_CALLBACK(iface->query_mvp_reset),
-       TRUE,
-       1,
-       (guintptr) obj);
-    }
-  }
 
 _error_:
   /* finalize code */

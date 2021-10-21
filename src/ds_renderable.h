@@ -43,9 +43,6 @@ ds_renderable_get_type();
  * _DsRenderableIface:
  * @parent_iface: parent type data.
  * @compile: compiles every code needed to render this object.
- * @query_mvp_step: tells object to update MVP matrix if is marked as modified.
- * @query_mvp_reset: tells object to mark MVP matrix as updated.
- * @query_mvp_data: custom pointer to pass to query_mvp_* functions
  *
  * The #DsRenderable defined rules to render objects.
  */
@@ -53,9 +50,6 @@ struct _DsRenderableIface
 {
   GTypeInterface parent_iface;
   gboolean (*compile) (DsRenderable* renderable, DsRenderState* state, GCancellable* cancellable, GError** error);
-  void (*query_mvp_step) (DsRenderable* renderable, DsRenderState* state);
-  void (*query_mvp_reset) (DsRenderable* renderable);
-  gpointer query_mvp_data;
 };
 
 DEUSEXMAKINA2_API

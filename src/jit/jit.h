@@ -20,6 +20,9 @@
 #include <cglm/cglm.h>
 #include <src/ds_gl.h>
 
+#define A_MVP "a_mvp"
+#define A_JVP "a_jvp"
+
 #ifdef __INSIDE_DYNASM_FILE__
 # ifdef G_OS_WINDOWS
 #   include <windows.h>

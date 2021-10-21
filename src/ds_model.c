@@ -792,6 +792,8 @@ ds_model_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, 
   GError* tmp_err = NULL;
   DsModelClass* klass =
   DS_MODEL_GET_CLASS(pself);
+  DsModelPrivate* priv =
+  ((DsModel*) pself)->priv;
 
   GLuint program;
   GLuint uloc;
@@ -822,7 +824,7 @@ ds_model_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, 
     __gl_try_catch(
       uloc = glGetUniformLocation(program, tex_uniforms[i]);
     ,
-      g_propagate_error(error, tmp_err);
+      g_propagate_error(error, glerror);
       goto_error();
     );
 
@@ -832,9 +834,52 @@ ds_model_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, 
     __gl_try_catch(
       glUniform1i(uloc, i);
     ,
-      g_propagate_error(error, tmp_err);
+      g_propagate_error(error, glerror);
       goto_error();
     );
+  }
+
+/*
+ * Update model matrix
+ *
+ */
+
+  __gl_try_catch(
+    uloc = glGetUniformLocation(program, A_MVP);
+  ,
+    g_propagate_error(error, glerror);
+    goto_error();
+  );
+
+  if G_LIKELY(uloc != (-1))
+  {
+    JitState* ctx =
+    (JitState*) state;
+
+    _ds_jit_compile_call
+    (ctx,
+     G_CALLBACK(_ds_jit_helper_update_model),
+     FALSE,
+     2,
+     (guintptr) &(ctx->mvps),
+     (guintptr) priv->model);
+
+    _ds_jit_compile_call
+    (ctx,
+     G_CALLBACK(_ds_jit_helper_update_mvp),
+     FALSE,
+     1,
+     (guintptr) &(ctx->mvps));
+
+    _ds_jit_compile_call
+    (ctx,
+     G_CALLBACK(glUniformMatrix4fv),
+     TRUE,
+     4,
+     (guintptr) uloc,
+     (guintptr) 1,
+     (guintptr) GL_FALSE,
+     (guintptr) &(ctx->mvps.mvp));
   }
 
 /*
@@ -855,32 +900,9 @@ return success;
 }
 
 static void
-ds_model_ds_renderable_iface_query_mvp_step(DsModel* self, JitState* ctx, GLuint uloc_jvp, GLuint l_mvp)
-{
-  if G_UNLIKELY
-    (self->priv->notified == TRUE)
-  {
-    JitMvps* mvps = &(ctx->mvps);
-    _ds_jit_helper_update_model(&(ctx->mvps), self->priv->model);
-    _ds_jit_helper_update_mvp(&(ctx->mvps));
-
-    if(l_mvp != (-1))
-      glUniformMatrix4fv(l_mvp, 1, FALSE, (GLfloat*) mvps->mvp);
-  }
-}
-
-static void
-ds_model_ds_renderable_iface_query_mvp_reset(DsModel* self)
-{
-  self->priv->notified = FALSE;
-}
-
-static void
 ds_model_ds_renderable_iface_init(DsRenderableIface* iface)
 {
   iface->compile = ds_model_ds_renderable_iface_compile;
-  iface->query_mvp_step = (void(*)(DsRenderable*,DsRenderState*)) ds_model_ds_renderable_iface_query_mvp_step;
-  iface->query_mvp_reset = (void(*)(DsRenderable*)) ds_model_ds_renderable_iface_query_mvp_reset;
 }
 
 static void

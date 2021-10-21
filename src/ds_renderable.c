@@ -52,21 +52,9 @@ ds_renderable_default_compile(DsRenderable   *renderable,
 return FALSE;
 }
 
-static void
-ds_renderable_default_query_mvp_step(DsRenderable* renderable, DsRenderState* state)
-{
-}
-
-static void
-ds_renderable_default_query_mvp_reset(DsRenderable* renderable)
-{
-}
-
 static
 void ds_renderable_default_init(DsRenderableIface* iface) {
   iface->compile = ds_renderable_default_compile;
-  iface->query_mvp_step = ds_renderable_default_query_mvp_step;
-  iface->query_mvp_reset = ds_renderable_default_query_mvp_reset;
 }
 
 /*
