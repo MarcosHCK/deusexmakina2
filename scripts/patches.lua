@@ -79,11 +79,14 @@ end
 table.pack = table.pack or function(...) return {...} end
 table.unpack = table.unpack or assert(_G.unpack)
 
+-- Initialize things 
+do
+  local lgi = require('lgi')
+
 --
 -- Add custom module path
 --
 
-do
   local newpath = table.concat({
     scriptsdir .. '/?.lua',
     scriptsdir .. '/?/init.lua',
@@ -96,13 +99,11 @@ do
   table.concat({package.path, newpath}, ';');
   package.cpath =
   table.concat({package.cpath, newcpath}, ';');
-end
 
 --
 -- Overwrite priority table
 --
 
-do
   local higher = ds.priority.higher;
   local lower = ds.priority.lower;
 
@@ -124,14 +125,25 @@ do
       error('protected table');
     end,
   });
-end
+
+--
+-- Add paths
+--
+
+  local build = require('build')
+  local GFile = lgi.Gio.File
+
+  local separator = (build.os == 'Windows') and '\\' or '/'
+  local objectsdir = GFile.new_for_path(scriptsdir):get_child('objects'):get_path();
+
+  ds.SEPARATOR = separator
+  ds.SCRIPTSDIR = scriptsdir
+  ds.OBJECTSDIR = objectsdir
 
 --
 -- Initialize LGI
 --
 
-do
-  local lgi = require('lgi')
   local core = require('lgi.core')
   local build = require('build')
 
@@ -172,6 +184,8 @@ do
       end
     }
   end
+
+  _G.assert = lgi.assert
 end
 
 collectgarbage()

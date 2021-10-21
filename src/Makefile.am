@@ -80,6 +80,7 @@ EXTRA_DIST+=\
 	ds_export.h \
 	ds_folder_provider.h \
 	ds_font.h \
+	ds_game_object.h \
 	ds_gl.h \
 	ds_looper.h \
 	ds_macros.h \
@@ -111,6 +112,7 @@ libdeus2_la_SOURCES=\
 	ds_folder_provider.vala \
 	ds_font.c \
 	ds_font_cache.c \
+	ds_game_object.c \
 	ds_gl.c \
 	ds_i18n.c \
 	ds_looper.vala \
@@ -216,6 +218,7 @@ VALA_PKG=\
 VALA_VAPIS=\
 	config \
 	dds \
+	deus \
 	$(VOID)
 
 AM_VALAFLAGS=\

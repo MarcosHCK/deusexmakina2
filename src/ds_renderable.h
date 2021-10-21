@@ -62,6 +62,8 @@ ds_renderable_compile(DsRenderable   *renderable,
 GLuint
 ds_render_state_get_current_program(DsRenderState* state);
 void
+ds_render_state_switch_vertex_array(DsRenderState* state, GLuint vao);
+void
 ds_render_state_call(DsRenderState  *state,
                      GCallback       callback,
                      guint           n_params,

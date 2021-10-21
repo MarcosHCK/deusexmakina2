@@ -47,8 +47,6 @@ ds_model_class_init(DsModelClass* klass);
 static void
 ds_model_init(DsModel* self);
 static void
-ds_model_ds_mvp_holder_iface_init(DsMvpHolderIface* iface);
-static void
 ds_model_ds_renderable_iface_init(DsRenderableIface* iface);
 static void
 ds_model_g_initable_iface_init(GInitableIface* iface);
@@ -99,12 +97,6 @@ struct _DsModelPrivate
 {
   GFile* source;
   gchar* filename;
-
-  gboolean notified;
-
-  vec3 scale;
-  vec3 position;
-  mat4 model;
 
   union _DsModelTioArray
   {
@@ -187,7 +179,6 @@ ds_model_get_type()
 #define g_define_type_id g_type
 
     G_IMPLEMENT_INTERFACE(G_TYPE_INITABLE, ds_model_g_initable_iface_init)
-    G_IMPLEMENT_INTERFACE(DS_TYPE_MVP_HOLDER, ds_model_ds_mvp_holder_iface_init)
     G_IMPLEMENT_INTERFACE(DS_TYPE_RENDERABLE, ds_model_ds_renderable_iface_init)
 
     G_ADD_PRIVATE(DsModel);
@@ -729,62 +720,6 @@ ds_model_g_initable_iface_init(GInitableIface* iface) {
   iface->init = ds_model_g_initable_iface_init_sync;
 }
 
-static void
-ds_model_ds_mvp_holder_iface_notify_model(DsMvpHolder* pself)
-{
-  DS_MODEL(pself)->priv->notified = TRUE;
-}
-
-static void
-update_model(DsModelPrivate* priv)
-{
-  glm_mat4_identity(priv->model);
-  glm_translate(priv->model, priv->position);
-  glm_scale(priv->model, priv->scale);
-  priv->notified = TRUE;
-}
-
-static void
-ds_model_ds_mvp_holder_iface_set_position(DsMvpHolder* pself, gfloat* src)
-{
-  DsModelPrivate* priv = ((DsModel*)pself)->priv;
-  glm_vec3_copy(src, priv->position);
-  update_model(priv);
-}
-
-static void
-ds_model_ds_mvp_holder_iface_get_position(DsMvpHolder* pself, gfloat* dst)
-{
-  DsModelPrivate* priv = ((DsModel*) pself)->priv;
-  glm_vec3_copy(priv->position, dst);
-}
-
-static void
-ds_model_ds_mvp_holder_iface_set_scale(DsMvpHolder* pself, gfloat* src)
-{
-  DsModelPrivate* priv = ((DsModel*) pself)->priv;
-  glm_vec3_copy(src, priv->scale);
-  update_model(priv);
-}
-
-static void
-ds_model_ds_mvp_holder_iface_get_scale(DsMvpHolder* pself, gfloat* dst)
-{
-  DsModelPrivate* priv = ((DsModel*) pself)->priv;
-  glm_vec3_copy(priv->scale, dst);
-}
-
-static void
-ds_model_ds_mvp_holder_iface_init(DsMvpHolderIface* iface)
-{
-  iface->p_model = G_PRIVATE_OFFSET(DsModel, model);
-  iface->notify_model = ds_model_ds_mvp_holder_iface_notify_model;
-  iface->set_position = ds_model_ds_mvp_holder_iface_set_position;
-  iface->get_position = ds_model_ds_mvp_holder_iface_get_position;
-  iface->set_scale = ds_model_ds_mvp_holder_iface_set_scale;
-  iface->get_scale = ds_model_ds_mvp_holder_iface_get_scale;
-}
-
 static gboolean
 ds_model_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, GCancellable* cancellable, GError** error)
 {
@@ -806,11 +741,7 @@ ds_model_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, 
  *
  */
 
-  ds_render_state_pcall
-  (state,
-   G_CALLBACK(glBindVertexArray),
-   1,
-   (guintptr) klass->vao);
+  ds_render_state_switch_vertex_array(state, klass->vao);
 
 /*
  * Texture binding
@@ -837,49 +768,6 @@ ds_model_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, 
       g_propagate_error(error, glerror);
       goto_error();
     );
-  }
-
-/*
- * Update model matrix
- *
- */
-
-  __gl_try_catch(
-    uloc = glGetUniformLocation(program, A_MVP);
-  ,
-    g_propagate_error(error, glerror);
-    goto_error();
-  );
-
-  if G_LIKELY(uloc != (-1))
-  {
-    JitState* ctx =
-    (JitState*) state;
-
-    _ds_jit_compile_call
-    (ctx,
-     G_CALLBACK(_ds_jit_helper_update_model),
-     FALSE,
-     2,
-     (guintptr) &(ctx->mvps),
-     (guintptr) priv->model);
-
-    _ds_jit_compile_call
-    (ctx,
-     G_CALLBACK(_ds_jit_helper_update_mvp),
-     FALSE,
-     1,
-     (guintptr) &(ctx->mvps));
-
-    _ds_jit_compile_call
-    (ctx,
-     G_CALLBACK(glUniformMatrix4fv),
-     TRUE,
-     4,
-     (guintptr) uloc,
-     (guintptr) 1,
-     (guintptr) GL_FALSE,
-     (guintptr) &(ctx->mvps.mvp));
   }
 
 /*
@@ -1038,9 +926,6 @@ static void
 ds_model_init(DsModel* self)
 {
   self->priv = G_STRUCT_MEMBER_P(self, DsModel_private_offset);
-  self->priv->notified = TRUE;
-
-  glm_mat4_identity(self->priv->model);
 }
 
 /*

@@ -16,8 +16,10 @@
 -- along with deusexmakina2.  If not, see <http://www.gnu.org/licenses/>.
 --]]
 local application, cancellable = ...
+local build = require('build')
 local event = require('event')
 local ds = require('ds')
+local glm = require('glm')
 local lgi = require('lgi')
 
 --[[
@@ -43,9 +45,44 @@ cancellable = cancellable and lgi.Gio.Cancellable(cancellable)
 do
   local pipeline = application.pipeline
   local renderer = application.renderer
-  local shader, skybox, font, text
+  local shader, skybox, font, text, error
   local GFile = lgi.Gio.File
   local Ds = lgi.Ds
+
+--[[
+--
+-- Log domain
+--
+--]]
+
+  ds.log = lgi.log.domain(build.PACKAGE)
+
+--[[
+--
+-- Objects
+--
+--]]
+
+  ds.Pkg = lgi.package(build.PACKAGE)
+  ds.Pkg = lgi[build.PACKAGE]
+
+  local objectsdir = GFile.new_for_path(ds.OBJECTSDIR)
+  local enum = objectsdir:enumerate_children('standard::name', 'NONE')
+
+  repeat
+    local info, error = enum:next_file()
+    if(info ~= nil) then
+      local name = info:get_name();
+      local objectfile = objectsdir:get_child(name);
+      local success, reason = pcall(dofile, objectfile:peek_path())
+      if(success == false) then
+        ds.log.warning(reason);
+      end
+    else
+      lgi.assert(error == nil, error)
+      break;
+    end
+  until(false)
 
 --[[
 --
@@ -53,13 +90,14 @@ do
 --
 --]]
 
-  shader =
+  shader, error =
   Ds.Shader.new_from_files(
     GFile.new_for_path(ds.GFXDIR .. '/model_vs.glsl'),
     GFile.new_for_path(ds.GFXDIR .. '/model_fs.glsl'),
     nil,
     nil,
     cancellable);
+  assert(error == nil, error)
 
   pipeline:register_shader('model', ds.priority.default, shader);
 
@@ -69,13 +107,14 @@ do
 --
 --]]
 
-  shader =
+  shader, error =
   Ds.Shader.new_from_files(
     GFile.new_for_path(ds.GFXDIR .. '/skybox_vs.glsl'),
     GFile.new_for_path(ds.GFXDIR .. '/skybox_fs.glsl'),
     nil,
     nil,
     cancellable);
+  assert(error == nil, error)
 
   pipeline:register_shader('skybox', ds.priority.higher, shader);
 
@@ -85,13 +124,14 @@ do
 --
 --]]
 
-  shader =
+  shader, error =
   Ds.Shader.new_from_files(
     GFile.new_for_path(ds.GFXDIR .. '/text_vs.glsl'),
     GFile.new_for_path(ds.GFXDIR .. '/text_fs.glsl'),
     nil,
     nil,
     cancellable);
+  assert(error == nil, error)
 
   pipeline:register_shader('text', ds.priority.lower, shader);
 
@@ -101,11 +141,12 @@ do
 --
 --]]
 
-  skybox =
+  skybox, error =
   Ds.Skybox.new(
     GFile.new_for_path(ds.ASSETSDIR .. '/skybox/'),
     '%s.dds',
     cancellable);
+  assert(error == nil, error)
 
   pipeline:append_object('skybox', ds.priority.default, skybox);
 
@@ -115,12 +156,13 @@ do
 --
 --]]
 
-  font =
+  font, error =
   Ds.Font.new(
     GFile.new_for_path(ds.ASSETSDIR .. '/Unknown.ttf'),
     13,
     nil,
     cancellable);
+  assert(error == nil, error)
 
 --[[
 --
@@ -128,42 +170,12 @@ do
 --
 --]]
 
-  text =
+  text, error =
   Ds.Text.new(font);
+  assert(error == nil, error)
+
   pipeline:append_object('text', ds.priority.default, text);
-
-  text:print(nil, require('build').PACKAGE_STRING, 2, 600 - 12 - 2, cancellable);
-
---[[
---
--- Test model
---
---]]
-
-  do
-    local vec3 = require('glm').vec3
-
-    for i = 1, 3 do
-      local model = Ds.ModelSingle.new(
-        GFile.new_for_path(ds.ASSETSDIR),
-        'backpack.obj',
-        cancellable)
-
-      local scale = vec3(
-          0.04,
-          0.04,
-          0.04)
-      local position = vec3(
-          0.20 * i,
-          0,
-         -0.2)
-
-      model:set_scale(scale.vec3)
-      model:set_position(position.vec3)
-
-      pipeline:append_object('model', 0, model)
-    end
-  end
+  text:print(nil, build.PACKAGE_STRING, 2, 600 - 12 - 2, cancellable);
 
 --[[
 --
@@ -171,7 +183,9 @@ do
 --
 --]]
 
+  local _, error =
   pipeline:update(cancellable);
+  assert(error == nil, error)
 
 --[[
 --

@@ -60,6 +60,7 @@ typedef struct {
   gpointer block;
   gsize blocksz;
   GLuint pid;
+  GLuint vao;
   JitMvps mvps;
 } JitState;
 
@@ -117,6 +118,9 @@ _ds_jit_helper_update_mvp(JitMvps* mvps);
 G_GNUC_INTERNAL
 void
 _ds_jit_helper_update_mvps(JitMvps* mvps);
+G_GNUC_INTERNAL
+void
+_ds_jit_helper_switch_vao(JitState* ctx, GLuint vao);
 
 #if __cplusplus
 }

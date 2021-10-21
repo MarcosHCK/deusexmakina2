@@ -105,6 +105,29 @@ return ((JitState*) state)->pid;
 }
 
 /**
+ * ds_render_state_switch_vertex_array: (skip)
+ * @state: a #DsRenderable instance.
+ * @vao: vertex array object name.
+ *
+ * Switches GL context to a new vertex array @vao if
+ * current bound one is diferent.
+ *
+ */
+void
+ds_render_state_switch_vertex_array(DsRenderState* state, GLuint vao)
+{
+  g_return_if_fail(state != NULL);
+  JitState* ctx = (JitState*) state;
+  guintptr vao_ = vao;
+
+  if(ctx->vao != vao)
+  {
+    _ds_jit_compile_call(ctx, G_CALLBACK(glBindVertexArray), TRUE, 1, vao_);
+    ctx->vao = vao;
+  }
+}
+
+/**
  * ds_render_state_call: (skip)
  * @state: render compile state.
  * @callback: function to call.

@@ -5,6 +5,8 @@
 ../src/ds_folder_provider.h
 ../src/ds_font.c
 ../src/ds_font.h
+../src/ds_game_object.c
+../src/ds_game_object.h
 ../src/ds_matrix.c
 ../src/ds_matrix.h
 ../src/ds_model.c
