@@ -68,6 +68,7 @@ struct _DsRenderer
   vec3 position;
   vec3 worldup;
   vec3 front_;
+  vec3 up;
   gfloat yaw;
   gfloat pitch;
   gfloat sensitivity;
@@ -623,6 +624,7 @@ ds_renderer_init(DsRenderer* self)
 #define position    self->position
 #define worldup     self->worldup
 #define front       self->front_
+#define up          self->up
 #define yaw         self->yaw
 #define pitch       self->pitch
 #define sensitivity self->sensitivity
@@ -632,9 +634,6 @@ update_view(DsRenderer     *self,
             gfloat          xrel,
             gfloat          yrel)
 {
-  yaw = yaw + (xrel * sensitivity);
-  pitch = pitch - (yrel * sensitivity);
-
   if(pitch > 89.f)
     pitch = 89.f;
   else
@@ -649,7 +648,7 @@ update_view(DsRenderer     *self,
   front[2] = sin(yaw_r) * cos(pitch_r);
 
   vec3 right;
-  vec3 up;
+  //vec3 up;
   vec3 center;
   mat4 camera;
 
@@ -729,6 +728,7 @@ update_projection(DsRenderer* self)
 #undef sensitivity
 #undef pitch
 #undef yaw
+#undef up
 #undef front
 #undef worldup
 #undef position
@@ -783,6 +783,10 @@ ds_renderer_force_update(DsRenderer* renderer)
   update_view(renderer, 0, 0);
 }
 
+#define yaw         renderer->yaw
+#define pitch       renderer->pitch
+#define sensitivity renderer->sensitivity
+
 /**
  * ds_renderer_look:
  * @renderer: a #DsRenderer object.
@@ -799,8 +803,23 @@ ds_renderer_look(DsRenderer  *renderer,
                  gfloat       yrel)
 {
   g_return_if_fail(DS_IS_RENDERER(renderer));
+
+  /* calculate euler angles */
+  yaw = yaw + (xrel * sensitivity);
+  pitch = pitch - (yrel * sensitivity);
+
+  /* update view */
   update_view(renderer, xrel, yrel);
 }
+
+#undef sensitivity
+#undef pitch
+#undef yaw
+
+#define position    renderer->position
+#define front       renderer->front_
+#define up          renderer->up
+#define sensitivity renderer->sensitivity
 
 /**
  * ds_renderer_move:
@@ -808,6 +827,10 @@ ds_renderer_look(DsRenderer  *renderer,
  * @xrel: relative displacement on X-axis.
  * @yrel: relative displacement on Y-axis.
  * @zrel: relative displacement on Z-axis.
+ * @relative: if relative is FALSE, @xrel, @yrel and @zrel as taken as
+ * tridimensional magnitudes of a vector to by added as-in to camera position
+ * vector. Otherwise, those magnitudes are interpreted as displacements on
+ * corresponding axis relative to camera direction.
  *
  * Moves viewpoint position.
  *
@@ -816,11 +839,37 @@ void
 ds_renderer_move(DsRenderer  *renderer,
                  gfloat       xrel,
                  gfloat       yrel,
-                 gfloat       zrel)
+                 gfloat       zrel,
+                 gboolean     relative)
 {
   g_return_if_fail(DS_IS_RENDERER(renderer));
 
+  /* calculate new position */
   vec3 vec_ = {xrel, yrel, zrel};
-  glm_vec3_add(renderer->position, vec_, renderer->position);
+  if(relative == TRUE)
+  {
+    if(zrel != 0.f)
+      glm_vec3_muladds(front, zrel * sensitivity, position);
+    if(yrel != 0.f)
+      g_assert_not_reached();
+    if(xrel != 0.f)
+    {
+      vec3 tmp;
+      glm_vec3_cross(front, up, tmp);
+      glm_vec3_normalize(tmp);
+      glm_vec3_scale(tmp, xrel * sensitivity, tmp);
+      glm_vec3_add(position, tmp, position);
+    }
+  }
+  else
+  {
+    glm_vec3_add(position, vec_, position);
+  }
+
   update_view(renderer, 0, 0);
 }
+
+#undef sensitivity
+#undef up
+#undef front
+#undef position

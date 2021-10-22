@@ -97,6 +97,7 @@ ds_marshals.h: ds_marshals.list
 
 EXTRA_DIST+=\
 	ds_application.h \
+	ds_collision_tree.h \
 	ds_dds.h \
 	ds_dds_fmt.h \
 	ds_events.h \
@@ -130,6 +131,7 @@ pkglib_LTLIBRARIES=libdeus2.la
 libdeus2_la_SOURCES=\
 	ds_application.c \
 	ds_basedirs.vala \
+	ds_collision_tree.c \
 	ds_dds.vala \
 	ds_enums.c \
 	ds_events.c \

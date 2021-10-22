@@ -194,7 +194,23 @@ do
 --
 --]]
 
+  local w_ = string.byte('w')
+  local a_ = string.byte('a')
+  local d_ = string.byte('d')
+  local s_ = string.byte('s')
+
   event.listen('Mouse.Motion', function(_, x, y, xrel, yrel)
     renderer:look(xrel, yrel);
   end);
+  event.listen('Key.Down', function(_, sym, repeat_)
+    if(sym == w_) then
+      renderer:move(   0,    0,  0.1, true);
+    elseif(sym == a_) then
+      renderer:move(-0.1,    0,    0, true);
+    elseif(sym == d_) then
+      renderer:move( 0.1,    0,    0, true);
+    elseif(sym == s_) then
+      renderer:move(   0,    0, -0.1, true);
+    end
+  end)
 end

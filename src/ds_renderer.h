@@ -58,7 +58,8 @@ void
 ds_renderer_move(DsRenderer  *renderer,
                  gfloat       xrel,
                  gfloat       yrel,
-                 gfloat       zrel);
+                 gfloat       zrel,
+                 gboolean     relative);
 
 #if __cplusplus
 }
