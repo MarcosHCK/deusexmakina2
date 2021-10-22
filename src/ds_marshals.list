@@ -19,5 +19,8 @@
 # Please keep this files entries sorted alphabetically
 #
 
+# DsEvent
+VOID:STRING,POINTER
+
 # DsGameObject
 BOOLEAN:OBJECT,POINTER

@@ -20,7 +20,7 @@
 #include <ds_font.h>
 #include <ds_gl.h>
 #include <ds_macros.h>
-#include <SDL.h>
+#include <GLFW/glfw3.h>
 
 /**
  * SECTION:dsfont
@@ -333,34 +333,46 @@ ds_font_class_base_init_(DsFontClass   *klass,
  *
  */
 
-  int n_display = 0;
   int return_;
 
-  return_ =
-  SDL_InitSubSystem(SDL_INIT_VIDEO);
-  if G_UNLIKELY(0 > return_)
+  return_ = glfwInit();
+  if G_UNLIKELY(return_ != GLFW_TRUE)
   {
+    const gchar* err = NULL;
+    glfwGetError(&err);
+
     g_set_error
     (error,
      DS_FONT_ERROR,
-     DS_FONT_ERROR_SDL,
-     "SDL_InitSubSystem(): failed!: %s\r\n",
-     SDL_GetError());
+     DS_FONT_ERROR_GLFW,
+     "glfwInit(): failed!: %s\r\n",
+     (err) ? err : "(null)");
     goto_error();
   }
 
-  return_ =
-  SDL_GetDisplayDPI(n_display, &(klass->ddpi), &(klass->hdpi), &(klass->vdpi));
-  if G_UNLIKELY(0 != return_)
-  {
-    g_set_error
-    (error,
-     DS_FONT_ERROR,
-     DS_FONT_ERROR_SDL,
-     "SDL_GetDisplayDPI(): failed!: %s\r\n",
-     SDL_GetError());
-    goto_error();
-  }
+  GLFWmonitor* monitor = NULL;
+  G_STMT_START {
+    GLFWwindow* window =
+    glfwGetCurrentContext();
+    if G_LIKELY(window != NULL)
+    {
+      monitor =
+      glfwGetWindowMonitor(window);
+      if(monitor == NULL)
+      {
+        monitor = glfwGetPrimaryMonitor();
+      }
+    }
+    else
+    {
+      monitor = glfwGetPrimaryMonitor();
+    }
+
+    g_assert(monitor != NULL);
+  } G_STMT_END;
+
+  glfwGetMonitorContentScale(monitor, &(klass->hdpi), &(klass->vdpi));
+  klass->ddpi = sqrt(klass->hdpi * klass->hdpi + klass->vdpi * klass->vdpi);
 
 _error_:
 return success;
@@ -388,7 +400,6 @@ void ds_font_class_base_init(DsFontClass* klass) {
 
 static
 void ds_font_class_base_fini(DsFontClass* klass) {
-  SDL_QuitSubSystem(SDL_INIT_VIDEO);
   FT_Done_Library(klass->ft_library);
   klass->ft_library = NULL;
   _g_free0(klass->charset);
@@ -490,8 +501,8 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
  */
 
   font_size  = (gfloat) self->font_size;
-  font_size *= 64.f;
-  font_size *= 72.f / klass->ddpi;
+  font_size *= klass->ddpi;
+  font_size *= (64.f /* default DPI*/ * 64.f /* FreeType2 'FT_F26Dot6' type size factor*/);
 
   ft_error =
   FT_Set_Char_Size(face, 0, (FT_F26Dot6) font_size, (FT_UInt) klass->hdpi, (FT_UInt) klass->vdpi);
@@ -982,7 +993,7 @@ _ds_font_generate_vao(DsFont         *font,
   __gl_try_catch(
     glUnmapBuffer(GL_ARRAY_BUFFER);
   ,
-    g_propagate_error(error, tmp_err);
+    g_propagate_error(error, glerror);
     goto_error();
   );
 
@@ -990,7 +1001,7 @@ _ds_font_generate_vao(DsFont         *font,
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(DsTextVertex), (gconstpointer) G_STRUCT_OFFSET(DsTextVertex, xy));
   ,
-    g_propagate_error(error, tmp_err);
+    g_propagate_error(error, glerror);
     goto_error();
   );
 
@@ -998,7 +1009,7 @@ _ds_font_generate_vao(DsFont         *font,
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(DsTextVertex), (gconstpointer) G_STRUCT_OFFSET(DsTextVertex, uv));
   ,
-    g_propagate_error(error, tmp_err);
+    g_propagate_error(error, glerror);
     goto_error();
   );
 

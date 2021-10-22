@@ -17,11 +17,27 @@
  */
 #include <config.h>
 #include <ds_application.h>
+#include <ds_event_types.h>
 #include <ds_events.h>
 #include <ds_looper.h>
 #include <ds_macros.h>
+#include <ds_marshals.h>
+#include <GLFW/glfw3.h>
 #include <luad_core.h>
-#include <SDL.h>
+
+G_DEFINE_QUARK(ds-window-events-quark,
+               ds_window_events);
+
+G_DEFINE_QUARK(motion,
+               ds_cursor_motion);
+G_DEFINE_QUARK(button,
+               ds_cursor_button);
+G_DEFINE_QUARK(scroll,
+               ds_cursor_scroll);
+G_DEFINE_QUARK(char,
+               ds_keyboard_unichar);
+G_DEFINE_QUARK(key,
+               ds_keyboard_key);
 
 /**
  * SECTION:dsevents
@@ -29,7 +45,7 @@
  * @Title: DsEvents
  *
  * DsEvents encapsulates complexities of
- * launching SDL events into Lua space
+ * launching events into Lua space
  *
  */
 
@@ -37,6 +53,25 @@
 
 static void
 ds_events_g_initable_iface_init(GInitableIface* iface);
+
+enum
+{
+  conn_invert_y,
+  conn_number,
+};
+
+static void
+on_window_close(GLFWwindow* window);
+static void
+on_cursor_motion(GLFWwindow* window, double x, double y);
+static void
+on_cursor_button(GLFWwindow* window, int button, int action, int mods);
+static void
+on_cursor_scroll(GLFWwindow* window, double x_offs, double y_offs);
+static void
+on_keyboard_unichar(GLFWwindow* window, gunichar codepoint);
+static void
+on_keyboard_key(GLFWwindow* window, int key, int scancode, int action, int mods);
 
 /*
  * Object definition
@@ -48,7 +83,13 @@ struct _DsEvents
   DsLooper parent_instance;
 
   /*<private>*/
-  lua_State* L;
+  GSettings* gsettings;
+  GLFWwindow* window;
+
+  double x_prev, y_prev;
+  double x_fact, y_fact;
+
+  gulong connections[conn_number];
 };
 
 struct _DsEventsClass
@@ -59,12 +100,23 @@ struct _DsEventsClass
 enum
 {
   prop_0,
-  prop_engine,
+  prop_gsettings,
+  prop_window,
   prop_number,
 };
 
 static
 GParamSpec* properties[prop_number] = {0};
+
+enum
+{
+  sig_cursor,
+  sig_keyboard,
+  sig_number,
+};
+
+static
+guint signals[sig_number] = {0};
 
 G_DEFINE_TYPE_WITH_CODE
 (DsEvents,
@@ -74,57 +126,66 @@ G_DEFINE_TYPE_WITH_CODE
  (G_TYPE_INITABLE,
   ds_events_g_initable_iface_init));
 
-static int
-ticks(lua_State* L) {
-  lua_pushnumber
-  (L,
-   (lua_Number)
-   SDL_GetTicks());
-return 1;
+static void
+on_invert_y_changed(GSettings       *gsettings,
+                    const gchar     *key,
+                    DsEvents        *self)
+{
+  gboolean invert_y;
+  g_settings_get(gsettings, key, "b", &invert_y);
+  self->y_fact = (invert_y) ? -1.d : 1.d;
 }
+
 
 static gboolean
 ds_events_g_initable_iface_init_sync(GInitable* pself, GCancellable* cancellable, GError** error)
 {
   DsEvents* self = DS_EVENTS(pself);
-  lua_State* L = self->L;
   gboolean success = TRUE;
   GError* tmp_err = NULL;
 
 /*
- * local event = require('event')
+ * Add ourself to window's datalist
  *
  */
 
-  lua_getglobal(L, "require");
-  lua_pushstring(L, "event");
+  GData** datalist =
+  glfwGetWindowUserPointer(self->window);
 
-  success =
-  luaD_xpcall(L, 1, 1, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
+  g_datalist_id_set_data_full
+  (datalist,
+   ds_window_events_quark(),
+   g_object_ref(self),
+   g_object_unref);
 
 /*
- * event.ticks = C(ticks)
+ * Register callbacks
  *
  */
 
-  lua_pushstring(L, "ticks");
-  lua_pushcfunction(L, ticks);
-  lua_settable(L, -3);
+  glfwSetWindowCloseCallback(self->window, on_window_close);
+  glfwSetCursorPosCallback(self->window, on_cursor_motion);
+  glfwSetMouseButtonCallback(self->window, on_cursor_button);
+  glfwSetScrollCallback(self->window, on_cursor_scroll);
+  glfwSetCharCallback(self->window, on_keyboard_unichar);
+  glfwSetKeyCallback(self->window, on_keyboard_key);
 
 /*
- * _R['__DS_EVENT_PUSH'] = event.push
+ * Connects settings
  *
  */
 
-  lua_pushstring(L, "push");
-  lua_gettable(L, -2);
+  self->x_fact = 1.f;
+  self->y_fact = 1.f;
 
-  lua_setfield(L, LUA_REGISTRYINDEX, EVENT_PUSH);
+  self->connections[conn_invert_y] =
+  g_signal_connect
+  (self->gsettings,
+   "changed::invert-y",
+   G_CALLBACK(on_invert_y_changed),
+   self);
+  on_invert_y_changed(self->gsettings, "invert-y", self);
+
 _error_:
 return success;
 }
@@ -136,86 +197,9 @@ ds_events_g_initable_iface_init(GInitableIface* iface)
 }
 
 static gboolean
-push_event(lua_State* L, int argc, GError** error)
-{
-  int top = lua_gettop(L);
-  int func = top - argc + 1;
-
-  lua_getfield(L, LUA_REGISTRYINDEX, EVENT_PUSH);
-  lua_insert(L, func);
-return luaD_xpcall(L, argc, 0, error);
-}
-
-static gboolean
 ds_events_class_loop_step(DsLooper* pself)
 {
-  DsEvents* self = DS_EVENTS(pself);
-  lua_State* L = self->L;
-  int top = lua_gettop(L);
-
-  SDL_Event event;
-  while(SDL_PollEvent(&event))
-  switch(event.type)
-  {
-  case SDL_QUIT:
-    g_application_quit(g_application_get_default());
-    break;
-  case SDL_MOUSEMOTION:
-    lua_pushstring(L, "Mouse.Motion");
-    lua_pushnumber(L, event.motion.x);
-    lua_pushnumber(L, event.motion.y);
-    lua_pushnumber(L, event.motion.xrel);
-    lua_pushnumber(L, event.motion.yrel);
-    break;
-  case SDL_MOUSEWHEEL:
-    lua_pushstring(L, "Mouse.Wheel");
-    lua_pushnumber(L, event.wheel.x);
-    lua_pushnumber(L, event.wheel.y);
-    lua_pushnumber(L, event.wheel.direction);
-    break;
-  case SDL_MOUSEBUTTONDOWN:
-    lua_pushstring(L, "Mouse.Button.Down");
-    lua_pushnumber(L, event.button.x);
-    lua_pushnumber(L, event.button.y);
-    lua_pushnumber(L, event.button.button);
-    lua_pushnumber(L, event.button.clicks);
-    break;
-  case SDL_MOUSEBUTTONUP:
-    lua_pushstring(L, "Mouse.Button.Up");
-    lua_pushnumber(L, event.button.x);
-    lua_pushnumber(L, event.button.y);
-    lua_pushnumber(L, event.button.button);
-    lua_pushnumber(L, event.button.clicks);
-    break;
-  case SDL_KEYUP:
-    lua_pushstring(L, "Key.Up");
-    lua_pushnumber(L, event.key.keysym.sym);
-    lua_pushnumber(L, event.key.repeat);
-    lua_pushboolean(L, event.key.state);
-    break;
-  case SDL_KEYDOWN:
-    lua_pushstring(L, "Key.Down");
-    lua_pushnumber(L, event.key.keysym.sym);
-    lua_pushnumber(L, event.key.repeat);
-    lua_pushboolean(L, event.key.state);
-    break;
-  }
-
-  int argc = lua_gettop(L) - top;
-  if G_LIKELY(argc > 0)
-  {
-    GError* tmp_err = NULL;
-
-    push_event(L, argc, &tmp_err);
-    if G_UNLIKELY(tmp_err != NULL)
-    {
-      g_critical(tmp_err->message);
-      g_clear_error(&tmp_err);
-      g_assert_not_reached();
-    }
-  }
-
-  lua_settop(L, top);
+  glfwPollEvents();
 return G_SOURCE_CONTINUE;
 }
 
@@ -225,8 +209,11 @@ ds_events_class_set_property(GObject* pself, guint prop_id, const GValue* value,
   DsEvents* self = DS_EVENTS(pself);
   switch(prop_id)
   {
-  case prop_engine:
-    self->L = g_value_get_pointer(value);
+  case prop_gsettings:
+    g_set_object(&(self->gsettings), g_value_get_object(value));
+    break;
+  case prop_window:
+    self->window = g_value_get_pointer(value);
     break;
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID(pself, prop_id, pspec);
@@ -238,6 +225,18 @@ static void
 ds_events_class_dispose(GObject* pself)
 {
   DsEvents* self = DS_EVENTS(pself);
+  guint i;
+
+  for(i = 0;
+      i < conn_number;
+      i++)
+  if(self->connections[i] != 0)
+  {
+    g_signal_handler_disconnect(self->gsettings, self->connections[i]);
+    self->connections[i] = 0;
+  }
+
+  g_clear_object(&(self->gsettings));
 G_OBJECT_CLASS(ds_events_parent_class)->dispose(pself);
 }
 
@@ -252,9 +251,75 @@ ds_events_class_init(DsEventsClass* klass)
   oclass->set_property = ds_events_class_set_property;
   oclass->dispose = ds_events_class_dispose;
 
-  properties[prop_engine] =
+  /**
+   * DsEvents::cursor:
+   * @object: the #DsEvent object which launches the signal.
+   * @detail: event type name.
+   * @event: (type Ds.EvCursor): event descriptor.
+   *
+   * Launches a generic 'cursor' namespace event.
+   *
+   */
+  signals[sig_cursor] =
+    g_signal_new
+    ("cursor",
+     G_TYPE_FROM_CLASS(klass),
+     G_SIGNAL_RUN_FIRST | G_SIGNAL_DETAILED,
+     0,
+     NULL,
+     NULL,
+     ds_cclosure_marshal_VOID__STRING_POINTER,
+     G_TYPE_NONE,
+     2,
+     G_TYPE_STRING | G_SIGNAL_TYPE_STATIC_SCOPE,
+     G_TYPE_POINTER | G_SIGNAL_TYPE_STATIC_SCOPE,
+     G_TYPE_NONE);
+
+  /**
+   * DsEvents::keyboard:
+   * @object: the #DsEvent object which launches the signal.
+   * @detail: event type name.
+   * @event: (type Ds.EvKeyboard): event descriptor.
+   *
+   * Launches a generic 'keyboard' namespace event.
+   *
+   */
+  signals[sig_keyboard] =
+    g_signal_new
+    ("keyboard",
+     G_TYPE_FROM_CLASS(klass),
+     G_SIGNAL_RUN_FIRST | G_SIGNAL_DETAILED,
+     0,
+     NULL,
+     NULL,
+     ds_cclosure_marshal_VOID__STRING_POINTER,
+     G_TYPE_NONE,
+     2,
+     G_TYPE_STRING | G_SIGNAL_TYPE_STATIC_SCOPE,
+     G_TYPE_POINTER | G_SIGNAL_TYPE_STATIC_SCOPE,
+     G_TYPE_NONE);
+
+  g_signal_set_va_marshaller
+  (signals[sig_cursor],
+   G_TYPE_FROM_CLASS(klass),
+   ds_cclosure_marshal_VOID__STRING_POINTERv);
+
+  g_signal_set_va_marshaller
+  (signals[sig_keyboard],
+   G_TYPE_FROM_CLASS(klass),
+   ds_cclosure_marshal_VOID__STRING_POINTERv);
+
+  properties[prop_gsettings] =
+    g_param_spec_object
+    (_TRIPLET("gsettings"),
+     G_TYPE_SETTINGS,
+     G_PARAM_WRITABLE
+     | G_PARAM_CONSTRUCT_ONLY
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_window] =
     g_param_spec_pointer
-    (_TRIPLET("engine"),
+    (_TRIPLET("window"),
      G_PARAM_WRITABLE
      | G_PARAM_CONSTRUCT_ONLY
      | G_PARAM_STATIC_STRINGS);
@@ -271,15 +336,149 @@ ds_events_init(DsEvents* self)
 }
 
 /*
+ * Support
+ *
+ */
+
+static inline DsEvents*
+this_(GLFWwindow* window)
+{
+  GData** datalist =
+  glfwGetWindowUserPointer(window);
+
+  DsEvents* self =
+  g_datalist_id_get_data
+  (datalist,
+   ds_window_events_quark());
+return self;
+}
+
+static inline void
+push_(lua_State* L, int argc)
+{
+  GError* tmp_err = NULL;
+  int top = lua_gettop(L);
+  int func = top - argc + 1;
+
+  lua_getfield(L, LUA_REGISTRYINDEX, EVENT_PUSH);
+  lua_insert(L, func);
+
+  luaD_xpcall(L, argc, 0, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_critical
+    ("(%s: %i): %s: %i: %s\r\n",
+     G_STRFUNC,
+     __LINE__,
+     g_quark_to_string(tmp_err->domain),
+     tmp_err->code,
+     tmp_err->message);
+    g_error_free(tmp_err);
+    g_assert_not_reached();
+  }
+}
+
+/*
+ * Event callbacks
+ *
+ */
+
+#define EMIT(object,namespace,detail,event) \
+  G_STMT_START { \
+    GValue values[3] = {0}; \
+    GQuark quark = ds_##namespace##_##detail##_quark(); \
+    g_value_init(values + 0, DS_TYPE_EVENTS); \
+    g_value_set_object(values + 0, (object)); \
+    g_value_init(values + 1, G_TYPE_STRING); \
+    g_value_set_static_string(values + 1, g_quark_to_string(quark)); \
+    g_value_init(values + 2, G_TYPE_POINTER); \
+    g_value_set_pointer(values + 2, (event)); \
+    g_signal_emitv(values, signals[ sig_##namespace ], quark, NULL); \
+    g_value_unset(values + 2); \
+    g_value_unset(values + 1); \
+    g_value_unset(values + 0); \
+  } G_STMT_END;
+
+static void
+on_window_close(GLFWwindow* window)
+{
+  g_application_quit(g_application_get_default());
+}
+
+static void
+on_cursor_motion(GLFWwindow* window, double x, double y)
+{
+  DsEvents* self = this_(window);
+  DsEvCursorMotion value;
+
+  value.x = x;
+  value.y = y;
+  value.dx = (x - self->x_prev) * self->x_fact;
+  value.dy = (y - self->y_prev) * self->y_fact;
+  self->x_prev = x;
+  self->y_prev = y;
+EMIT(self, cursor, motion, &value);
+}
+
+static void
+on_cursor_button(GLFWwindow* window, int button, int action, int mods)
+{
+  DsEvents* self = this_(window);
+  DsEvCursorButton value;
+
+  value.button = button;
+  value.action = action;
+  value.mods = mods;
+EMIT(self, cursor, button, &value);
+}
+
+static void
+on_cursor_scroll(GLFWwindow* window, double x_offs, double y_offs)
+{
+  DsEvents* self = this_(window);
+  DsEvCursorScroll value;
+
+  value.dx = x_offs;
+  value.dy = y_offs;
+EMIT(self, cursor, scroll, &value);
+}
+
+static void
+on_keyboard_unichar(GLFWwindow* window, gunichar codepoint)
+{
+  DsEvents* self = this_(window);
+  DsEvKeyboardUnichar value;
+
+  value.codepoint = codepoint;
+EMIT(self, keyboard, unichar, &value);
+}
+
+static void
+on_keyboard_key(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+  DsEvents* self = this_(window);
+  DsEvKeyboardKey value;
+
+  value.key = key;
+  value.scancode = scancode;
+  value.action = action;
+  value.mods = mods;
+EMIT(self, keyboard, key, &value);
+}
+
+#undef EMIT
+
+/*
  * Object methods
  *
  */
 
 /**
- * ds_events_new: (constructor)
- * @engine: (not nullable): Lua state.
- * @cancellable: (nullable): a %GCancellable
- * @error: return location for a #GError
+ * ds_events_new: (constructor) (skip)
+ * @gsettings: (not nullable): a #GSettings object.
+ * @window: (not nullable): SDL window object.
+ * @cancellable: (nullable): a %GCancellable.
+ * @error: return location for a #GError.
  *
  * Creates a new #DsEvents which operates on
  * @engine Lua state.
@@ -287,7 +486,8 @@ ds_events_init(DsEvents* self)
  * Returns: (transfer full): see description.
  */
 DsEvents*
-ds_events_new(gpointer        engine,
+ds_events_new(GSettings      *gsettings,
+              gpointer        window,
               GCancellable   *cancellable,
               GError        **error)
 {
@@ -296,6 +496,7 @@ ds_events_new(gpointer        engine,
   (DS_TYPE_EVENTS,
    cancellable,
    error,
-   "engine", engine,
+   "gsettings", gsettings,
+   "window", window,
    NULL);
 }

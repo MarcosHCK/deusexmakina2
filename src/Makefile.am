@@ -167,6 +167,7 @@ libdeus2_la_CFLAGS=\
 	$(GIO_CFLAGS) \
 	$(GIR_CFLAGS) \
 	$(GLEW_CFLAGS) \
+	$(GLFW_CFLAGS) \
 	$(GLIB_CFLAGS) \
 	$(GMODULE_CFLAGS) \
 	$(GOBJECT_CFLAGS) \
@@ -175,7 +176,6 @@ libdeus2_la_CFLAGS=\
 	$(LIBWEBP_CFLAGS) \
 	$(LUA_CFLAGS) \
 	$(OPENGL_CFLAGS) \
-	$(SDL2_CFLAGS) \
 	-Iluad/ \
 	-DASSETSDIR=\"${assetsdir}\" \
 	-DGFXDIR=\"${gfxdir}\" \
@@ -205,6 +205,7 @@ libdeus2_la_LIBADD=\
 	$(GIO_LIBS) \
 	$(GIR_LIBS) \
 	$(GLEW_LIBS) \
+	$(GLFW_LIBS) \
 	$(GLIB_LIBS) \
 	$(GMODULE_LIBS) \
 	$(GOBJECT_LIBS) \

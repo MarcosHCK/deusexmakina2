@@ -22,8 +22,6 @@
 #include <ds_macros.h>
 #include <ds_renderable.h>
 #include <ds_skybox.h>
-#include <SDL.h>
-#include <SDL_image.h>
 
 /**
  * SECTION:dsskybox
@@ -374,7 +372,7 @@ ds_skybox_g_initable_iface_init_sync(GInitable      *pself,
     glGenTextures(1, &(self->tio));
     glGenBuffers(G_N_ELEMENTS(self->bo_s), self->bo_s);
   ,
-    g_propagate_error(error, tmp_err);
+    g_propagate_error(error, glerror);
     goto_error();
   );
 
@@ -386,7 +384,7 @@ ds_skybox_g_initable_iface_init_sync(GInitable      *pself,
   __gl_try_catch(
     glBindVertexArray(self->vao);
   ,
-    g_propagate_error(error, tmp_err);
+    g_propagate_error(error, glerror);
     goto_error();
   );
 
@@ -400,7 +398,7 @@ ds_skybox_g_initable_iface_init_sync(GInitable      *pself,
     glBindBuffer(GL_ARRAY_BUFFER, self->vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vertices), cube_vertices, GL_STATIC_DRAW);
   ,
-    g_propagate_error(error, tmp_err);
+    g_propagate_error(error, glerror);
     goto_error();
   );
 
@@ -409,7 +407,7 @@ ds_skybox_g_initable_iface_init_sync(GInitable      *pself,
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self->ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_indices), cube_indices, GL_STATIC_DRAW);
   ,
-    g_propagate_error(error, tmp_err);
+    g_propagate_error(error, glerror);
     goto_error();
   );
 
@@ -422,7 +420,7 @@ ds_skybox_g_initable_iface_init_sync(GInitable      *pself,
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), 0);
   ,
-    g_propagate_error(error, tmp_err);
+    g_propagate_error(error, glerror);
     goto_error();
   );
 
@@ -436,7 +434,7 @@ ds_skybox_g_initable_iface_init_sync(GInitable      *pself,
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
   ,
-    g_propagate_error(error, tmp_err);
+    g_propagate_error(error, glerror);
     goto_error();
   );
 
@@ -448,7 +446,7 @@ ds_skybox_g_initable_iface_init_sync(GInitable      *pself,
   __gl_try_catch(
     glBindTexture(GL_TEXTURE_CUBE_MAP, self->tio);
   ,
-    g_propagate_error(error, tmp_err);
+    g_propagate_error(error, glerror);
     goto_error();
   );
 

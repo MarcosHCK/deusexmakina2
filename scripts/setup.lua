@@ -18,7 +18,6 @@
 local application, cancellable = ...
 local build = require('build')
 local ds = require('ds')
-local event = require('event')
 local glm = require('glm')
 local lgi = require('lgi')
 
@@ -45,6 +44,7 @@ cancellable = cancellable and lgi.Gio.Cancellable(cancellable)
 do
   local pipeline = application.pipeline
   local renderer = application.renderer
+  local events = application.events
   local GFile = lgi.Gio.File
   local Ds = lgi.Ds
 
@@ -160,7 +160,7 @@ do
   local font, error =
   Ds.Font.new(
     GFile.new_for_path(ds.ASSETSDIR .. '/Unknown.ttf'),
-    13,
+    12,
     nil,
     cancellable);
   assert(error == nil, error)
@@ -194,23 +194,25 @@ do
 --
 --]]
 
-  local w_ = string.byte('w')
-  local a_ = string.byte('a')
-  local d_ = string.byte('d')
-  local s_ = string.byte('s')
+  local w_ = string.byte('W')
+  local a_ = string.byte('A')
+  local d_ = string.byte('D')
+  local s_ = string.byte('S')
 
-  event.listen('Mouse.Motion', function(_, x, y, xrel, yrel)
-    renderer:look(xrel, yrel);
-  end);
-  event.listen('Key.Down', function(_, sym, repeat_)
-    if(sym == w_) then
+  function events.on_cursor:motion(detail, event)
+    renderer:look(event.motion.dx, event.motion.dy)
+  end
+
+  function events.on_keyboard:key(detail, event)
+    local key = event.key.key;
+    if(key == w_) then
       renderer:move(   0,    0,  0.1, true);
-    elseif(sym == a_) then
+    elseif(key == a_) then
       renderer:move(-0.1,    0,    0, true);
-    elseif(sym == d_) then
+    elseif(key == d_) then
       renderer:move( 0.1,    0,    0, true);
-    elseif(sym == s_) then
+    elseif(key == s_) then
       renderer:move(   0,    0, -0.1, true);
     end
-  end)
+  end
 end

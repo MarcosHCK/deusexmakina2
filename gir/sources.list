@@ -1,5 +1,6 @@
 ../src/ds_application.c
 ../src/ds_application.h
+../src/ds_event_types.h
 ../src/ds_events.c
 ../src/ds_events.h
 ../src/ds_folder_provider.h

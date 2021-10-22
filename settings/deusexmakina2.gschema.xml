@@ -42,5 +42,8 @@ Author: MarcosHCK
     <key name="sensitivity" type="d">
       <default>0.2</default>
     </key>
+    <key name="invert-y" type="b">
+      <default>false</default>
+    </key>
   </schema>
 </schemalist>

@@ -20,7 +20,6 @@
 #include <ds_macros.h>
 #include <girepository.h>
 #include <luad_core.h>
-#include <SDL.h>
 #undef main
 
 static void

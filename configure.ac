@@ -152,7 +152,6 @@ if test "x$MINILUA" = "xno"; then
 fi
 
 AC_SUBST([DYNASM], [\${MINILUA}\ \${top_builddir}/build/dynasm/dynasm.lua])
-AC_SUBST([MKMARSHAL], [\${MINILUA}\ \${top_builddir}/build/mkmarshal.lua])
 
 #
 # Custom build options
@@ -220,6 +219,7 @@ PKG_CHECK_MODULES([FREETYPE], [freetype2])
 PKG_CHECK_MODULES([GIO], [gio-2.0])
 PKG_CHECK_MODULES([GIR], [gobject-introspection-1.0])
 PKG_CHECK_MODULES([GLEW], [glew])
+PKG_CHECK_MODULES([GLFW], [glfw3])
 PKG_CHECK_MODULES([GLIB], [glib-2.0])
 PKG_CHECK_MODULES([GMODULE], [gmodule-2.0])
 PKG_CHECK_MODULES([GOBJECT], [gobject-2.0])
@@ -228,7 +228,6 @@ PKG_CHECK_MODULES([LIBSOUP], [libsoup-2.4])
 PKG_CHECK_MODULES([LIBWEBP], [libwebp])
 PKG_CHECK_MODULES([LUA], [luajit lua5.1 lua51])
 PKG_CHECK_MODULES([OPENGL], [opengl])
-PKG_CHECK_MODULES([SDL2], [sdl2])
 
 #
 # Check for libraries

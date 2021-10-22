@@ -40,7 +40,8 @@ ds_events_get_type();
 
 DEUSEXMAKINA2_API
 DsEvents*
-ds_events_new(gpointer        engine,
+ds_events_new(GSettings      *gsettings,
+              gpointer        window,
               GCancellable   *cancellable,
               GError        **error);
 

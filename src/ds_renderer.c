@@ -22,7 +22,7 @@
 #include <ds_macros.h>
 #include <ds_pipeline.h>
 #include <ds_renderer.h>
-#include <SDL.h>
+#include <GLFW/glfw3.h>
 
 static void
 ds_renderer_g_initable_iface_init(GInitableIface* iface);
@@ -55,7 +55,7 @@ struct _DsRenderer
   /*<private>*/
   GSettings* gsettings;
   DsPipeline* pipeline;
-  SDL_Window* window;
+  GLFWwindow* window;
   gulong connections[conn_number];
 
   /*<private>*/
@@ -116,10 +116,10 @@ on_width_changed(GSettings       *gsettings,
                  const gchar     *key,
                  DsRenderer      *self)
 {
-  g_settings_get(gsettings, key, "i", &(self->width));
+  g_settings_get(gsettings, key, "i", &(d->width));
 
-  SDL_SetWindowSize(d->window, d->width, self->height);
-  SDL_GL_GetDrawableSize(d->window, &(d->viewport_w), &(d->viewport_h));
+  glfwSetWindowSize(d->window, d->width, d->height);
+  glfwGetFramebufferSize(d->window, &(d->viewport_w), &(d->viewport_h));
   update_projection(self);
 }
 
@@ -130,8 +130,8 @@ on_height_changed(GSettings      *gsettings,
 {
   g_settings_get(gsettings, key, "i", &(d->height));
 
-  SDL_SetWindowSize(d->window, d->width, d->height);
-  SDL_GL_GetDrawableSize(d->window, &(d->viewport_w), &(d->viewport_h));
+  glfwSetWindowSize(d->window, d->width, d->height);
+  glfwGetFramebufferSize(d->window, &(d->viewport_w), &(d->viewport_h));
   update_projection(self);
 }
 
@@ -172,7 +172,7 @@ on_fullscreen_changed(GSettings     *gsettings,
 {
   gboolean flag;
   g_settings_get(gsettings, key, "b", &flag);
-
+/*
   SDL_Window* window =
   SDL_GL_GetCurrentWindow();
 
@@ -196,6 +196,7 @@ on_fullscreen_changed(GSettings     *gsettings,
   }
 
   SDL_SetWindowFullscreen(window, flags);
+*/
 }
 
 static void
@@ -347,8 +348,8 @@ ds_renderer_g_initable_iface_init_sync(GInitable* pself, GCancellable* cancellab
  *
  */
 
-  SDL_GetWindowSize(d->window, &(d->width), &(d->height));
-  SDL_GL_GetDrawableSize(d->window, &(d->viewport_w), &(d->viewport_h));
+  glfwGetWindowSize(d->window, &(d->width), &(d->height));
+  glfwGetFramebufferSize(d->window, &(d->viewport_w), &(d->viewport_h));
 
 /*
  * Subscribe to configuration changes
@@ -483,8 +484,9 @@ ds_renderer_class_loop_step(DsLooper* pself)
  *
  */
 
-  self->deltaTime = SDL_GetTicks()- self->frameTime;
-  self->frameTime = SDL_GetTicks();
+  float current = glfwGetTime();
+  self->deltaTime = current - self->frameTime;
+  self->frameTime = current;
 
 /*
  * Execute rendering pipeline
@@ -498,7 +500,7 @@ ds_renderer_class_loop_step(DsLooper* pself)
  *
  */
 
-  SDL_GL_SwapWindow(self->window);
+  glfwSwapBuffers(d->window);
 return G_SOURCE_CONTINUE;
 }
 
@@ -736,7 +738,7 @@ update_projection(DsRenderer* self)
 
 /**
  * ds_renderer_new: (constructor) (skip)
- * @gsettings: a #GSettings object.
+ * @gsettings: (not nullable): a #GSettings object.
  * @pipeline: (not nullable) (type Ds.Pipeline): pipeline object to execute.
  * @window: (not nullable): SDL window object.
  * @cancellable: (nullable): a %GCancellable
@@ -767,7 +769,7 @@ ds_renderer_new(GSettings      *gsettings,
 }
 
 /**
- * ds_renderer_force_update: (skip)
+ * ds_renderer_force_update: (method) (skip)
  * @renderer: a #DsRenderer object.
  *
  * Forces @renderer update, which is usually done on demand

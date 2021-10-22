@@ -23,8 +23,8 @@
 #include <ds_mvpholder.h>
 #include <ds_settings.h>
 #include <GL/glew.h>
+#include <GLFW/glfw3.h>
 #include <luad_core.h>
-#include <SDL.h>
 #undef main
 
 /**
@@ -54,21 +54,18 @@ _glew_fini0(guint var)
 }
 
 static void
-_SDL_GL_DeleteContext0(SDL_GLContext var)
+_glfw_DestroyWindow0(GLFWwindow* var)
 {
-  (var == NULL) ? NULL : (var = (SDL_GL_DeleteContext (var), NULL));
+  GData** datalist = (var) ? glfwGetWindowUserPointer(var) : NULL;
+  g_datalist_clear(datalist);
+
+  (var == NULL) ? NULL : (var = (glfwDestroyWindow (var), NULL));
 }
 
 static void
-_SDL_DestroyWindow0(SDL_Window* var)
+_glfw_fini0(guint var)
 {
-  (var == NULL) ? NULL : (var = (SDL_DestroyWindow (var), NULL));
-}
-
-static void
-_SDL_fini0(guint var)
-{
-  (var == 0) ? 0 : (var = (SDL_Quit (), 0));
+  (var == 0) ? 0 : (var = (glfwTerminate (), 0));
 }
 
 /*
@@ -82,9 +79,9 @@ struct _DsApplicationPrivate
   GSettings* gsettings;
   DsDataProvider* data_provider;
   DsCacheProvider* cache_provider;
-  guint sdl_init;
-  SDL_Window* window;
-  SDL_GLContext* glctx;
+  guint glfw_init;
+  GLFWwindow* window;
+  GData* window_datalist;
   guint glew_init;
 };
 
@@ -124,7 +121,7 @@ G_DEFINE_TYPE_WITH_CODE
  G_ADD_PRIVATE(DsApplication));
 
 #define L         (self->lua)
-#define sdl_init  (self->priv->sdl_init)
+#define glfw_init (self->priv->glfw_init)
 #define glew_init (self->priv->glew_init)
 #define pipeline  (self->pipeline)
 
@@ -141,8 +138,7 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
 
   DsSettings* dssettings = NULL;
   GSettings* gsettings = NULL;
-  SDL_Window* window = NULL;
-  SDL_GLContext* glctx = NULL;
+  GLFWwindow* window = NULL;
   DsRenderer* renderer = NULL;
   DsEvents* events = NULL;
 
@@ -266,46 +262,28 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
-  events =
-  ds_events_new(L, cancellable, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    _g_object_unref0(events);
-    goto_error();
-  }
-  else
-  {
-    self->events = events;
-  }
-
 /*
- * SDL2
+ * GLFW
  *
  */
 
-  return_ =
-  SDL_Init
-  (SDL_INIT_VIDEO
-   | SDL_INIT_AUDIO
-   | SDL_INIT_EVENTS);
-
-  if G_UNLIKELY(0 > return_)
+  return_ = glfwInit();
+  if G_UNLIKELY(return_ != GLFW_TRUE)
   {
-    const gchar* err =
-    SDL_GetError();
+    const gchar* err = NULL;
+    glfwGetError(&err);
 
     g_set_error
     (error,
      DS_APPLICATION_ERROR,
-     DS_APPLICATION_ERROR_SDL2_INIT,
-     "SDL_Init(): failed!: %i: %s\r\n",
+     DS_APPLICATION_ERROR_GLFW_INIT,
+     "glfwInit(): failed!: %i: %s\r\n",
      return_, err ? err : "(null)");
     goto_error();
   }
   else
   {
-    sdl_init = 1;
+    glfw_init = 1;
   }
 
 /*
@@ -313,63 +291,72 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
  *
  */
 
-  Uint32 flags = SDL_WINDOW_OPENGL;
   gboolean  fullscreen = FALSE,
             borderless = FALSE;
-
   gint  width = 0,
         height = 0;
+  GLFWmonitor* monitor = NULL;
 
   g_settings_get(gsettings, "fullscreen", "b", &fullscreen);
   g_settings_get(gsettings, "borderless", "b", &borderless);
   g_settings_get(gsettings, "width", "i", &width);
   g_settings_get(gsettings, "height", "i", &height);
 
-  flags |= fullscreen ? SDL_WINDOW_FULLSCREEN : 0;
-  flags |= borderless ? SDL_WINDOW_BORDERLESS : 0;
+  if(fullscreen == TRUE && borderless == TRUE)
+  {
+    const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
+    glfwWindowHint(GLFW_RED_BITS, mode->redBits);
+    glfwWindowHint(GLFW_GREEN_BITS, mode->greenBits);
+    glfwWindowHint(GLFW_BLUE_BITS, mode->blueBits);
+    glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
+
+    width = mode->width;
+    height = mode->height;
+
+    g_settings_set(gsettings, "width", "i", width);
+    g_settings_set(gsettings, "height", "i", height);
+  }
+  else
+  if(fullscreen == TRUE)
+  {
+    monitor = glfwGetPrimaryMonitor();
+  }
+
+  glfwWindowHint(GLFW_DECORATED, (borderless) ? GLFW_FALSE : GLFW_TRUE);
+  glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
+  glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+
+  glfwWindowHint(GLFW_OPENGL_CORE_PROFILE, GLFW_TRUE);
 #if DEBUG
-  SDL_GL_SetAttribute(SDL_GL_CONTEXT_DEBUG_FLAG, TRUE);
+  glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 #endif // DEBUG
-  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, TRUE);
 
   window =
-  SDL_CreateWindow
-  (GAPPNAME,
-   SDL_WINDOWPOS_UNDEFINED,
-   SDL_WINDOWPOS_UNDEFINED,
-   width,
-   height,
-   flags);
-
+  glfwCreateWindow(width, height, GAPPNAME, monitor, NULL);
   if G_UNLIKELY(window == NULL)
   {
+    const gchar* err = NULL;
+    glfwGetError(&err);
+
     g_set_error
     (error,
      DS_APPLICATION_ERROR,
-     DS_APPLICATION_ERROR_SDL2_WINDOW_INIT,
-     "SDL_CreateWindow(): failed!: %s\r\n",
-     SDL_GetError());
+     DS_APPLICATION_ERROR_GLFW_WINDOW_INIT,
+     "glfwCreateWindow(): failed!: %s\r\n",
+     err ? err : "(null)");
     goto_error();
   }
 
-  glctx =
-  SDL_GL_CreateContext(window);
-  if G_UNLIKELY(glctx == NULL)
-  {
-    g_set_error
-    (error,
-     DS_APPLICATION_ERROR,
-     DS_APPLICATION_ERROR_GL_CONTEXT_INIT,
-     "SDL_GL_CreateContext(): failed!: %s\r\n",
-     SDL_GetError());
-    _SDL_DestroyWindow0(window);
-    goto_error();
-  }
-
+  glfwMakeContextCurrent(window);
   self->priv->window = window;
-  self->priv->glctx = glctx;
-  SDL_ShowCursor(1);
+
+  GData** datalist = &(self->priv->window_datalist);
+  g_datalist_init(datalist);
+  glfwSetWindowUserPointer(window, datalist);
 
 /*
  * GLEW
@@ -439,6 +426,24 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   ds_renderer_force_update(renderer);
 
 /*
+ * Events
+ *
+ */
+
+  events =
+  ds_events_new(gsettings, window, cancellable, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    _g_object_unref0(events);
+    goto_error();
+  }
+  else
+  {
+    self->events = events;
+  }
+
+/*
  * Execute setup script
  *
  */
@@ -490,7 +495,7 @@ return success;
 }
 
 #undef L
-#undef sdl_init
+#undef glfw_init
 #undef glew_init
 #undef pipeline
 
@@ -516,7 +521,9 @@ void ds_application_class_activate(GApplication* pself)
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_critical
-    ("%s: %i: %s\r\n",
+    ("(%s: %i): %s: %i: %s\r\n",
+     G_STRFUNC,
+     __LINE__,
      g_quark_to_string(tmp_err->domain),
      tmp_err->code,
      tmp_err->message);
@@ -580,9 +587,8 @@ static
 void ds_application_class_finalize(GObject* pself) {
   DsApplication* self = DS_APPLICATION(pself);
   _glew_fini0(self->priv->glew_init);
-  _SDL_GL_DeleteContext0(self->priv->glctx);
-  _SDL_DestroyWindow0(self->priv->window);
-  _SDL_fini0(self->priv->sdl_init);
+  _glfw_DestroyWindow0(self->priv->window);
+  _glfw_fini0(self->priv->glfw_init);
 G_OBJECT_CLASS(ds_application_parent_class)->finalize(pself);
 }
 

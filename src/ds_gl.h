@@ -191,6 +191,7 @@ ds_gl_debug_severity_get_type();
     if G_UNLIKELY(ds_gl_has_error() == TRUE) \
     { \
       GError* glerror = ds_gl_get_error(); \
+      gchar tmp_err = 0; \
       code ; \
     } \
     else \
