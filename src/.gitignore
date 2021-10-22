@@ -31,6 +31,8 @@ ds_dds.c
 ds_enums.c
 ds_folder_provider.c
 ds_looper.c
+ds_marshals.c
+ds_marshals.h
 ds_saves.c
 ds_settings.c
 ds_utils.c

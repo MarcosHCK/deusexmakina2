@@ -18,6 +18,7 @@
 #include <config.h>
 #include <ds_game_object.h>
 #include <ds_macros.h>
+#include <ds_marshals.h>
 #include <ds_model.h>
 #include <ds_mvpholder.h>
 #include <ds_renderable.h>
@@ -64,6 +65,14 @@ enum {
 
 static
 GParamSpec* properties[prop_number] = {0};
+
+enum {
+  sig_collide,
+  sig_number,
+};
+
+static
+guint signals[sig_number] = {0};
 
 G_DEFINE_TYPE_WITH_CODE
 (DsGameObject,
@@ -259,6 +268,33 @@ ds_game_object_class_init(DsGameObjectClass* klass)
   oclass->finalize = ds_game_object_class_finalize;
   oclass->dispose = ds_game_object_class_dispose;
 
+  /**
+   * DsGameObject::collide:
+   * @this_: the object that received the signal.
+   * @collider: the object which has collided with @this_.
+   * @error: (type GLib.Error) (out callee-allocates): return location for a #GError.
+   *
+   * Emitted when the button has been activated (pressed and released).
+   */
+  signals[sig_collide] =
+    g_signal_new
+    ("collide",
+     G_TYPE_FROM_CLASS(klass),
+     G_SIGNAL_ACTION,
+     G_STRUCT_OFFSET(DsGameObjectClass, collide),
+     NULL,
+     NULL,
+     ds_cclosure_marshal_BOOLEAN__OBJECT_POINTER,
+     G_TYPE_BOOLEAN,
+     2,
+     G_TYPE_FROM_CLASS(klass),
+     G_TYPE_POINTER);
+
+  g_signal_set_va_marshaller
+  (signals[sig_collide],
+   G_TYPE_FROM_CLASS(klass),
+   ds_cclosure_marshal_BOOLEAN__OBJECT_POINTERv);
+
   properties[prop_model] =
     g_param_spec_object
     ("model",
@@ -289,3 +325,22 @@ ds_game_object_init(DsGameObject* self)
  *
  */
 
+/**
+ * ds_game_object_collide: (virtual collide)
+ * @this_: instance where collision event is launched.
+ * @collider: object which collided with @this_.
+ * @error: return location for a #GError
+ *
+ * Class handler for collision event signal.
+ *
+ * Returns: TRUE on success, FALSE otherwise.
+ */
+gboolean
+ds_game_object_collide(DsGameObject* this_, DsGameObject* collider, GError** error)
+{
+  g_return_val_if_fail(DS_IS_GAME_OBJECT(this_), FALSE);
+  g_return_val_if_fail(DS_IS_GAME_OBJECT(collider), FALSE);
+  g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+  DsGameObjectClass* klass = DS_GAME_OBJECT_GET_CLASS(this_);
+return klass->collide(this_, collider, error);
+}

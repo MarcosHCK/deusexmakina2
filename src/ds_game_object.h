@@ -39,17 +39,35 @@ DEUSEXMAKINA2_API
 GType
 ds_game_object_get_type ();
 
+/**
+ * DsGameObject:
+ * @parent_instance: parent instance.
+ *
+ */
 struct _DsGameObject
 {
   GObject parent_instance;
-  DsGameObjectPrivate * priv;
+
+  /*<private>*/
+  DsGameObjectPrivate* priv;
 };
 
+/**
+ * DsGameObjectClass:
+ * @parent_class: parent class.
+ * @collide: emitted when a collision is detected between two object (on both objects)
+ *
+ */
 struct _DsGameObjectClass
 {
   GObjectClass parent_class;
+
+  gboolean (*collide) (DsGameObject* this_, DsGameObject* collider, GError** error);
 };
 
+DEUSEXMAKINA2_API
+gboolean
+ds_game_object_collide(DsGameObject* this_, DsGameObject* collider, GError** error);
 
 #if __cplusplus
 }

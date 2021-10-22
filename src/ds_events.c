@@ -161,40 +161,40 @@ ds_events_class_loop_step(DsLooper* pself)
     g_application_quit(g_application_get_default());
     break;
   case SDL_MOUSEMOTION:
-    lua_pushstring(L, "mouse_motion");
+    lua_pushstring(L, "Mouse.Motion");
     lua_pushnumber(L, event.motion.x);
     lua_pushnumber(L, event.motion.y);
     lua_pushnumber(L, event.motion.xrel);
     lua_pushnumber(L, event.motion.yrel);
     break;
   case SDL_MOUSEWHEEL:
-    lua_pushstring(L, "mouse_wheel");
+    lua_pushstring(L, "Mouse.Wheel");
     lua_pushnumber(L, event.wheel.x);
     lua_pushnumber(L, event.wheel.y);
     lua_pushnumber(L, event.wheel.direction);
     break;
   case SDL_MOUSEBUTTONDOWN:
-    lua_pushstring(L, "mouse_button_down");
+    lua_pushstring(L, "Mouse.Button.Down");
     lua_pushnumber(L, event.button.x);
     lua_pushnumber(L, event.button.y);
     lua_pushnumber(L, event.button.button);
     lua_pushnumber(L, event.button.clicks);
     break;
   case SDL_MOUSEBUTTONUP:
-    lua_pushstring(L, "mouse_button_up");
+    lua_pushstring(L, "Mouse.Button.Up");
     lua_pushnumber(L, event.button.x);
     lua_pushnumber(L, event.button.y);
     lua_pushnumber(L, event.button.button);
     lua_pushnumber(L, event.button.clicks);
     break;
   case SDL_KEYUP:
-    lua_pushstring(L, "key_up");
+    lua_pushstring(L, "Key.Up");
     lua_pushnumber(L, event.key.keysym.sym);
     lua_pushnumber(L, event.key.repeat);
     lua_pushboolean(L, event.key.state);
     break;
   case SDL_KEYDOWN:
-    lua_pushstring(L, "key_down");
+    lua_pushstring(L, "Key.Down");
     lua_pushnumber(L, event.key.keysym.sym);
     lua_pushnumber(L, event.key.repeat);
     lua_pushboolean(L, event.key.state);

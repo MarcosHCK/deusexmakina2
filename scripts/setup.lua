@@ -17,8 +17,8 @@
 --]]
 local application, cancellable = ...
 local build = require('build')
-local event = require('event')
 local ds = require('ds')
+local event = require('event')
 local glm = require('glm')
 local lgi = require('lgi')
 
@@ -45,7 +45,6 @@ cancellable = cancellable and lgi.Gio.Cancellable(cancellable)
 do
   local pipeline = application.pipeline
   local renderer = application.renderer
-  local shader, skybox, font, text, error
   local GFile = lgi.Gio.File
   local Ds = lgi.Ds
 
@@ -73,8 +72,7 @@ do
     local info, error = enum:next_file()
     if(info ~= nil) then
       local name = info:get_name();
-      local objectfile = objectsdir:get_child(name);
-      local success, reason = pcall(dofile, objectfile:peek_path())
+      local success, reason = pcall(require, 'objects.' .. (name:gsub('.lu[ac]', '')))
       if(success == false) then
         ds.log.warning(reason);
       end
@@ -90,7 +88,7 @@ do
 --
 --]]
 
-  shader, error =
+  local shader, error =
   Ds.Shader.new_from_files(
     GFile.new_for_path(ds.GFXDIR .. '/model_vs.glsl'),
     GFile.new_for_path(ds.GFXDIR .. '/model_fs.glsl'),
@@ -107,7 +105,7 @@ do
 --
 --]]
 
-  shader, error =
+  local shader, error =
   Ds.Shader.new_from_files(
     GFile.new_for_path(ds.GFXDIR .. '/skybox_vs.glsl'),
     GFile.new_for_path(ds.GFXDIR .. '/skybox_fs.glsl'),
@@ -124,7 +122,7 @@ do
 --
 --]]
 
-  shader, error =
+  local shader, error =
   Ds.Shader.new_from_files(
     GFile.new_for_path(ds.GFXDIR .. '/text_vs.glsl'),
     GFile.new_for_path(ds.GFXDIR .. '/text_fs.glsl'),
@@ -141,14 +139,17 @@ do
 --
 --]]
 
-  skybox, error =
-  Ds.Skybox.new(
-    GFile.new_for_path(ds.ASSETSDIR .. '/skybox/'),
-    '%s.dds',
-    cancellable);
-  assert(error == nil, error)
+  local function mkskybox()
+    local skybox, error =
+    Ds.Skybox.new(
+      GFile.new_for_path(ds.ASSETSDIR .. '/skybox/'),
+      '%s.dds',
+      cancellable);
+    assert(error == nil, error)
 
-  pipeline:append_object('skybox', ds.priority.default, skybox);
+    pipeline:append_object('skybox', ds.priority.default, skybox);
+  end
+  lgi.Gio.Async.start(mkskybox)()
 
 --[[
 --
@@ -156,7 +157,7 @@ do
 --
 --]]
 
-  font, error =
+  local font, error =
   Ds.Font.new(
     GFile.new_for_path(ds.ASSETSDIR .. '/Unknown.ttf'),
     13,
@@ -170,7 +171,7 @@ do
 --
 --]]
 
-  text, error =
+  local text, error =
   Ds.Text.new(font);
   assert(error == nil, error)
 
@@ -193,7 +194,7 @@ do
 --
 --]]
 
-  event.listen('mouse_motion', function(_, x, y, xrel, yrel)
+  event.listen('Mouse.Motion', function(_, x, y, xrel, yrel)
     renderer:look(xrel, yrel);
   end);
 end

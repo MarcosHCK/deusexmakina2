@@ -52,8 +52,7 @@ SUBDIRS=\
 	$(VOID)
 
 #
-# Source files where
-# at least an enum is defined
+# Enumerations
 #
 
 ENUM_FILES=\
@@ -67,6 +66,30 @@ ds_enums.c: $(ENUM_FILES) ds_enums.c.template
 									--template "ds_enums.c.template" \
 									--output $@ \
 									$(ENUM_FILES)
+
+#
+# Marshals
+#
+
+ds_marshals.c: ds_marshals.list ds_marshals.h
+	$(GLIB_GENMARSHAL) --prefix "ds_cclosure_marshal" \
+										 --include-header "config.h" \
+										 --valist-marshallers \
+										 --internal \
+										 --prototypes \
+										 --body \
+										 --output $@ \
+										 ds_marshals.list
+
+ds_marshals.h: ds_marshals.list
+	$(GLIB_GENMARSHAL) --prefix "ds_cclosure_marshal" \
+										 --include-header "config.h" \
+										 --valist-marshallers \
+										 --internal \
+										 --prototypes \
+										 --header \
+										 --output $@ \
+										 ds_marshals.list
 
 #
 # C headers
@@ -84,6 +107,7 @@ EXTRA_DIST+=\
 	ds_gl.h \
 	ds_looper.h \
 	ds_macros.h \
+	ds_marshals.h \
 	ds_matrix.h \
 	ds_model.h \
 	ds_model_private.h \
@@ -116,6 +140,7 @@ libdeus2_la_SOURCES=\
 	ds_gl.c \
 	ds_i18n.c \
 	ds_looper.vala \
+	ds_marshals.c \
 	ds_matrix.c \
 	ds_model.c \
 	ds_model_buf.c \
