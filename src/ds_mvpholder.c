@@ -94,7 +94,7 @@ ds_mvp_holder_set_model(DsMvpHolder* holder, gfloat* mat4_)
 /**
  * ds_mvp_holder_get_model:
  * @holder: a #DsMvpHolder instance.
- * @mat4_: (array fixed-size=16): an address to a 4x4 #gfloat matrix.
+ * @mat4_: (array fixed-size=16) (out caller-allocates): an address to a 4x4 #gfloat matrix.
  *
  * Copies @holder internal matrix store to @mat4_.
  * Note that not all #DsMvpHolder may implement a
@@ -163,7 +163,7 @@ ds_mvp_holder_set_view(DsMvpHolder* holder, gfloat* mat4_)
 /**
  * ds_mvp_holder_get_view:
  * @holder: a #DsMvpHolder instance.
- * @mat4_: (array fixed-size=16): an address to a 4x4 #gfloat matrix.
+ * @mat4_: (array fixed-size=16) (out caller-allocates): an address to a 4x4 #gfloat matrix.
  *
  * Copies @holder internal matrix store to @mat4_.
  * Note that not all #DsMvpHolder may implement a
@@ -232,7 +232,7 @@ ds_mvp_holder_set_projection(DsMvpHolder* holder, gfloat* mat4_)
 /**
  * ds_mvp_holder_get_projection:
  * @holder: a #DsMvpHolder instance.
- * @mat4_: (array fixed-size=16): an address to a 4x4 #gfloat matrix.
+ * @mat4_: (array fixed-size=16) (out caller-allocates): an address to a 4x4 #gfloat matrix.
  *
  * Copies @holder internal matrix store to @mat4_.
  * Note that not all #DsMvpHolder may implement a
@@ -285,7 +285,7 @@ ds_mvp_holder_set_position(DsMvpHolder* holder, gfloat* vec3_)
 /**
  * ds_mvp_holder_get_position: (virtual get_position)
  * @holder: a #DsMvpHolder instance.
- * @vec3_: (array fixed-size=3): an address to a #gfloat 3-dimensions vector
+ * @vec3_: (array fixed-size=3) (out caller-allocates): an address to a #gfloat 3-dimensions vector
  *
  * Gets @holder position if positions makes sense for it.
  * Note: this feature is optional because not all objects
@@ -327,7 +327,7 @@ ds_mvp_holder_set_scale(DsMvpHolder* holder, gfloat* vec3_)
 /**
  * ds_mvp_holder_get_scale: (virtual get_scale)
  * @holder: a #DsMvpHolder instance.
- * @vec3_: (array fixed-size=3): an address to a #gfloat 3-dimensions vector
+ * @vec3_: (array fixed-size=3) (out caller-allocates): an address to a #gfloat 3-dimensions vector
  *
  * Gets @holder scale if positions makes sense for it.
  * Note: this feature is optional because not all objects

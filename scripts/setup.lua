@@ -151,6 +151,21 @@ do
   end
   lgi.Gio.Async.start(mkskybox)()
 
+  local function mkmodel()
+    local model, error =
+    Ds.ModelSingle.new(
+      GFile.new_for_path(ds.ASSETSDIR),
+      'backpack.obj',
+      cancellable);
+    assert(error == nil, error);
+    local object = ds.Pkg.Backpack {model = model};
+    local vec3 = glm.vec3;
+    object:set_scale(vec3(0.1, 0.1, 0.1).vec3);
+    object:set_position(vec3(0, 0, -0.7).vec3);
+    pipeline:append_object('model', ds.priority.default, object);
+  end
+  lgi.Gio.Async.start(mkmodel)()
+
 --[[
 --
 -- Font
@@ -176,7 +191,7 @@ do
   assert(error == nil, error)
 
   pipeline:append_object('text', ds.priority.default, text);
-  text:print(nil, build.PACKAGE_STRING, 2, 600 - 12 - 2, cancellable);
+  text:print(nil, build.PACKAGE_STRING .. '\r\nMarcosHCK', 2, 600 - 12 - 2, cancellable);
 
 --[[
 --

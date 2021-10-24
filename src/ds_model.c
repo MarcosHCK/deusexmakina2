@@ -18,7 +18,6 @@
 #include <config.h>
 #include <ds_dds.h>
 #include <ds_model_private.h>
-#include <ds_mvpholder.h>
 #include <jit/jit.h>
 
 /**
@@ -39,21 +38,9 @@ G_DEFINE_QUARK(ds-model-error-quark,
                ds_model_error);
 
 static void
-ds_model_base_class_init(DsModelClass* klass);
-static void
-ds_model_base_class_fini(DsModelClass* klass);
-static void
-ds_model_class_init(DsModelClass* klass);
-static void
-ds_model_init(DsModel* self);
+ds_model_g_initable_iface_init(GInitableIface* iface);
 static void
 ds_model_ds_renderable_iface_init(DsRenderableIface* iface);
-static void
-ds_model_g_initable_iface_init(GInitableIface* iface);
-static
-gpointer ds_model_parent_class = NULL;
-static
-gint DsModel_private_offset;
 
 typedef union  _DsModelTioArray   DsModelTioArray;
 typedef union  _DsModelMeshArray  DsModelMeshArray;
@@ -73,6 +60,10 @@ typedef struct _DsModelTio        DsModelTio;
   ((var == NULL) ? NULL : (var = ((ds_array_unref) (var), NULL)))
 #define ds_list_free(var) \
   ((var == NULL) ? NULL : (var = ((ds_list_free) (var), NULL)))
+#define _tio_clear0(var) \
+  ((var == NULL) ? NULL : (var = ((_tio_clear0) (var), NULL)))
+#define _mesh_clear0(var) \
+  ((var == NULL) ? NULL : (var = ((_mesh_clear0) (var), NULL)))
 
 G_STATIC_ASSERT(sizeof(guint) >= sizeof(GLuint));
 G_STATIC_ASSERT(sizeof(DsModelIndex) == sizeof(GLuint));
@@ -95,6 +86,7 @@ G_STATIC_ASSERT(G_N_ELEMENTS(tex_uniforms) == G_N_ELEMENTS(gl2ai));
 
 struct _DsModelPrivate
 {
+  DsPencil* pencil;
   GFile* source;
   gchar* filename;
 
@@ -139,54 +131,24 @@ enum {
   prop_0,
   prop_source,
   prop_name,
+  prop_pencil,
   prop_number,
 };
 
 static
 GParamSpec* properties[prop_number] = {0};
 
-_G_DEFINE_TYPE_EXTENDED_CLASS_INIT(DsModel, ds_model);
-
-GType
-ds_model_get_type()
-{
-  static
-  GType g_type = 0;
-  if G_UNLIKELY(g_type == 0)
-  {
-    const GTypeInfo
-    type_info =
-    {
-      sizeof(DsModelClass),
-      (GBaseInitFunc)
-      ds_model_base_class_init,
-      (GBaseFinalizeFunc)
-      ds_model_base_class_fini,
-      (GClassInitFunc)
-      ds_model_class_intern_init,
-      NULL,
-      NULL,
-      sizeof(DsModel),
-      0,
-      (GInstanceInitFunc)
-      ds_model_init,
-      NULL,
-    };
-
-    g_type =
-    g_type_register_static(G_TYPE_OBJECT, g_intern_static_string("DsModel"), &type_info, G_TYPE_FLAG_ABSTRACT);
-
-#define g_define_type_id g_type
-
-    G_IMPLEMENT_INTERFACE(G_TYPE_INITABLE, ds_model_g_initable_iface_init)
-    G_IMPLEMENT_INTERFACE(DS_TYPE_RENDERABLE, ds_model_ds_renderable_iface_init)
-
-    G_ADD_PRIVATE(DsModel);
-
-#undef g_define_type_id
-  }
-return g_type;
-}
+G_DEFINE_TYPE_WITH_CODE
+(DsModel,
+ ds_model,
+ G_TYPE_OBJECT,
+ G_IMPLEMENT_INTERFACE
+ (G_TYPE_INITABLE,
+  ds_model_g_initable_iface_init)
+ G_IMPLEMENT_INTERFACE
+ (DS_TYPE_RENDERABLE,
+  ds_model_ds_renderable_iface_init)
+ G_ADD_PRIVATE(DsModel));
 
 static gpointer
 (ds_array_ref)(gpointer g_array)
@@ -207,14 +169,14 @@ static void
 }
 
 static void
-_tio_clear0(DsModelTio* tio)
+(_tio_clear0)(DsModelTio* tio)
 {
   g_clear_pointer(&(tio->meshes), ds_list_free);
   g_clear_pointer(&(tio->tex), ds_model_texture_unref);
 }
 
 static void
-_mesh_clear0(DsModelMesh* mesh)
+(_mesh_clear0)(DsModelMesh* mesh)
 {
 }
 
@@ -222,7 +184,7 @@ static inline void
 copy_vertex(DsModel                *self,
             const C_STRUCT aiMesh  *mesh,
             guint                   i,
-            DsModelVertex          *v)
+            DsPencilVertex         *v)
 {
   /* position */
   v->position[0] = mesh->mVertices[i].x;
@@ -475,6 +437,7 @@ return tex;
 static inline gboolean
 load_object_file(DsModel* self, GCancellable* cancellable, GError** error)
 {
+  DsModelPrivate* priv = self->priv;
   gboolean success = TRUE;
   GError* tmp_err = NULL;
   const C_STRUCT aiScene* scene = NULL;
@@ -485,7 +448,7 @@ load_object_file(DsModel* self, GCancellable* cancellable, GError** error)
   DsModelMeshArray* meshes = NULL;
   C_STRUCT aiMesh* mesh = NULL;
   C_STRUCT aiFace* face = NULL;
-  DsModelVertex* vertices = NULL;
+  DsPencilVertex* vertices = NULL;
   DsModelIndex* indices = NULL;
 
 /*
@@ -494,7 +457,7 @@ load_object_file(DsModel* self, GCancellable* cancellable, GError** error)
  */
 
   scene =
-  _ds_model_import_new(self, self->priv->source, self->priv->filename, cancellable, &tmp_err);
+  _ds_model_import_new(self, priv->source, priv->filename, cancellable, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -536,7 +499,7 @@ load_object_file(DsModel* self, GCancellable* cancellable, GError** error)
   /* allocate buffers */
   __gl_try_catch(
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, n_vertices * sizeof(DsModelVertex), NULL, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, n_vertices * sizeof(DsPencilVertex), NULL, GL_STATIC_DRAW);
   ,
     g_propagate_error(error, glerror);
     goto_error();
@@ -559,7 +522,7 @@ load_object_file(DsModel* self, GCancellable* cancellable, GError** error)
 
   /* map buffers */
   __gl_try_catch(
-    vertices = (DsModelVertex*) glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+    vertices = (DsPencilVertex*) glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
     indices = (DsModelIndex*) glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY);
   ,
     g_propagate_error(error, glerror);
@@ -636,8 +599,8 @@ load_object_file(DsModel* self, GCancellable* cancellable, GError** error)
  *
  */
 
-  self->priv->tios = ds_array_ref(tios);
-  self->priv->meshes = ds_array_ref(meshes);
+  priv->tios = ds_array_ref(tios);
+  priv->meshes = ds_array_ref(meshes);
   self->vbo = ds_steal_handle_id(&vbo);
   self->ibo = ds_steal_handle_id(&ibo);
 
@@ -669,8 +632,8 @@ _error_:
   ds_array_unref(meshes);
 
   _ds_model_import_free(self, scene);
-  g_clear_object(&(self->priv->source));
-  g_clear_pointer(&(self->priv->filename), g_free);
+  g_clear_object(&(priv->source));
+  g_clear_pointer(&(priv->filename), g_free);
 return success;
 }
 
@@ -680,18 +643,21 @@ ds_model_g_initable_iface_init_sync(GInitable    *pself,
                                     GError      **error)
 {
   DsModel* self = (DsModel*) pself;
+  DsModelPrivate* priv = self->priv;
   gboolean success = TRUE;
   GError* tmp_err = NULL;
 
-  g_assert(self->priv->source);
+  g_assert(priv->source);
 
-/*
- * Class vertex array lazy load
- *
- */
+  if(priv->pencil == NULL)
+  {
+    priv->pencil =
+    ds_pencil_get_default();
+    g_assert(priv->pencil != NULL);
+  }
 
   success =
-  _ds_model_make_vao(self, &tmp_err);
+  ds_pencil_bind(priv->pencil, &tmp_err);
   if G_UNLIKELY(tmp_err != NULL)
   {
     g_propagate_error(error, tmp_err);
@@ -727,8 +693,8 @@ ds_model_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, 
   GError* tmp_err = NULL;
   DsModelClass* klass =
   DS_MODEL_GET_CLASS(pself);
-  DsModelPrivate* priv =
-  ((DsModel*) pself)->priv;
+  DsModel* self = DS_MODEL(pself);
+  DsModelPrivate* priv = self->priv;
 
   GLuint program;
   GLuint uloc;
@@ -741,7 +707,14 @@ ds_model_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, 
  *
  */
 
-  ds_render_state_switch_vertex_array(state, klass->vao);
+  ds_pencil_switch(priv->pencil, state, &(self->vbo));
+
+  ds_render_state_pcall
+  (state,
+   G_CALLBACK(glBindBuffer),
+   2,
+   (guintptr) GL_ELEMENT_ARRAY_BUFFER,
+   (guintptr) self->ibo);
 
 /*
  * Texture binding
@@ -806,37 +779,12 @@ ds_model_class_set_property(GObject* pself, guint prop_id, const GValue* value, 
     g_clear_pointer(&(self->priv->filename), g_free);
     self->priv->filename = g_value_dup_string(value);
     break;
+  case prop_pencil:
+    g_set_object(&(self->priv->pencil), g_value_get_object(value));
+    break;
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID(pself, prop_id, pspec);
     break;
-  }
-}
-
-static void
-ds_model_base_class_init(DsModelClass* klass)
-{
-  klass->vao = 0;
-}
-
-static void
-ds_model_base_class_fini(DsModelClass* klass)
-{
-  GLuint* pvao = &(klass->vao);
-  if G_LIKELY((*pvao) != 0)
-  {
-    __gl_try_catch(
-      glDeleteVertexArrays(1, pvao);
-      *pvao = 0;
-    ,
-      g_warning
-      ("(%s: %i): %s: %i: %s\r\n",
-       G_STRFUNC,
-       __LINE__,
-       g_quark_to_string(glerror->domain),
-       glerror->code,
-       glerror->message);
-      g_error_free(glerror);
-    );
   }
 }
 
@@ -893,9 +841,7 @@ ds_model_class_init(DsModelClass* klass)
 
   properties[prop_source] =
     g_param_spec_object
-    ("source",
-     "source",
-     "source",
+    (_TRIPLET("source"),
      G_TYPE_FILE,
      G_PARAM_WRITABLE
      | G_PARAM_CONSTRUCT_ONLY
@@ -903,10 +849,16 @@ ds_model_class_init(DsModelClass* klass)
 
   properties[prop_name] =
     g_param_spec_string
-    ("name",
-     "name",
-     "name",
+    (_TRIPLET("name"),
      NULL,
+     G_PARAM_WRITABLE
+     | G_PARAM_CONSTRUCT_ONLY
+     | G_PARAM_STATIC_STRINGS);
+
+  properties[prop_pencil] =
+    g_param_spec_object
+    (_TRIPLET("pencil"),
+     DS_TYPE_PENCIL,
      G_PARAM_WRITABLE
      | G_PARAM_CONSTRUCT_ONLY
      | G_PARAM_STATIC_STRINGS);
@@ -925,7 +877,7 @@ ds_model_class_fini(DsModelClass* klass)
 static void
 ds_model_init(DsModel* self)
 {
-  self->priv = G_STRUCT_MEMBER_P(self, DsModel_private_offset);
+  self->priv = ds_model_get_instance_private(self);
 }
 
 /*

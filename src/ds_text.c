@@ -20,19 +20,19 @@
 #include <ds_font.h>
 #include <ds_gl.h>
 #include <ds_macros.h>
+#include <ds_pencil.h>
 #include <ds_renderable.h>
 #include <ds_text.h>
 
 G_DEFINE_QUARK(ds-text-error-quark,
                ds_text_error);
 
+static void
+ds_text_ds_renderable_iface_init(DsRenderableIface* iface);
 static
-void ds_text_ds_renderable_iface_init(DsRenderableIface* iface);
+mat4 scale;
 
-typedef union  _DsTextList  DsTextList;
 typedef struct _DsTextEntry DsTextEntry;
-
-static mat4 scale;
 
 static void
 ds_text_entry_free(DsTextEntry* entry);
@@ -49,23 +49,8 @@ struct _DsText
   /*<private>*/
   GLuint tio;
   DsFont* font;
-  union _DsTextList
-  {
-    GList list_;
-    struct
-    {
-      struct _DsTextEntry
-      {
-        GLuint vao;
-        GLuint vbo;
-        gsize nvt;
-        gint df;
-      } *c;
-
-      DsTextList* next;
-      DsTextList* prev;
-    };
-  } *texts;
+  DsPencil* pencil;
+  GList* texts;
 };
 
 struct _DsTextClass
@@ -73,9 +58,16 @@ struct _DsTextClass
   GObjectClass parent_class;
 };
 
+struct _DsTextEntry
+{
+  GLuint vbo;
+  gsize  nvt;
+};
+
 enum {
   prop_0,
   prop_provider,
+  prop_pencil,
   prop_number,
 };
 
@@ -95,26 +87,12 @@ G_DEFINE_TYPE_WITH_CODE
    glm_mat4_identity(scale);
  });
 
-static void
-glBindVertexArray_s(GLuint* pvao)
-{
-  glBindVertexArray(*pvao);
-}
-
-static void
-glDrawArrays_s(GLenum mode, GLint first, GLsizei* pcount)
-{
-  glDrawArrays(mode, first, *pcount);
-}
-
 static gboolean
 ds_text_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, GCancellable* cancellable, GError** error)
 {
   DsText* self = DS_TEXT(pself);
   gboolean success = TRUE;
   GError* tmp_err = NULL;
-  DsTextList* list;
-  DsTextEntry* entry;
   GLint uloc = 0;
 
 /*
@@ -180,31 +158,6 @@ ds_text_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, G
   );
 
 /*
- * Perform scheduled deletions
- *
- */
-
-  G_STMT_START
-  {
-    DsTextList* list;
-    DsTextList* next;
-
-    for(list = self->texts;
-        list != NULL;
-        list = next)
-    {
-      next = list->next;
-      if G_UNLIKELY(list->c->df == TRUE)
-      {
-        self->texts = (DsTextList*)
-        g_list_remove_link(&(self->texts->list_), &(list->list_));
-        ds_text_entry_free(list->c);
-      }
-    }
-  }
-  G_STMT_END;
-
-/*
  * Compile calls
  *
  */
@@ -225,41 +178,11 @@ ds_text_ds_renderable_iface_compile(DsRenderable* pself, DsRenderState* state, G
    (guintptr) self->tio);
 
   /* draw things */
-  for(list = self->texts;
-      list != NULL;
-      list = list->next)
-  {
-    ds_render_state_pcall
-    (state,
-     G_CALLBACK(glBindVertexArray_s),
-     1,
-     (guintptr) &(list->c->vao));
-
-    ds_render_state_pcall
-    (state,
-     G_CALLBACK(glDrawArrays_s),
-     3,
-     (guintptr) GL_TRIANGLES,
-     (guintptr) 0,
-     (guintptr) &(list->c->nvt));
-
-    ds_render_state_pcall
-    (state,
-     G_CALLBACK(glBindVertexArray),
-     1,
-     (guintptr) 0);
-  }
-
-  /* unbind vertex array */
-  ds_render_state_pcall
-  (state,
-   G_CALLBACK(glBindVertexArray),
-   1,
-   (guintptr) 0);
 
 _error_:
   __gl_try_catch(
     glBindTexture(GL_TEXTURE_2D, 0);
+    glActiveTexture(GL_TEXTURE0);
   ,
     g_warning
     ("(%s:%i): %s: %i: %s\r\n",
@@ -286,6 +209,9 @@ void ds_text_class_set_property(GObject* pself, guint prop_id, const GValue* val
   case prop_provider:
     g_set_object(&(self->font), g_value_get_object(value));
     break;
+  case prop_pencil:
+    g_set_object(&(self->pencil), g_value_get_object(value));
+    break;
   default:
     G_OBJECT_WARN_INVALID_PROPERTY_ID(pself, prop_id, pspec);
     break;
@@ -295,15 +221,23 @@ void ds_text_class_set_property(GObject* pself, guint prop_id, const GValue* val
 static
 void ds_text_class_constructed(GObject* pself) {
   DsText* self = DS_TEXT(pself);
+
+  G_OBJECT_CLASS(ds_text_parent_class)->constructed(pself);
+
   g_object_get(self->font, "texture-id", &(self->tio), NULL);
-G_OBJECT_CLASS(ds_text_parent_class)->constructed(pself);
+
+  if(self->pencil == NULL)
+  {
+    self->pencil =
+    ds_pencil_get_default();
+    g_assert(self->pencil != NULL);
+  }
 }
 
 static void inline
 ds_text_entry_dispose(DsTextEntry* entry)
 {
   __gl_try_catch(
-    glDeleteVertexArrays(1, &(entry->vao));
     glDeleteBuffers(1, &(entry->vbo));
   ,
     g_critical
@@ -327,14 +261,13 @@ ds_text_entry_free(DsTextEntry* entry)
 static
 void ds_text_class_finalize(GObject* pself) {
   DsText* self = DS_TEXT(pself);
-  DsTextList* list;
+  GList* list;
 
   for(list = self->texts;
       list != NULL;
       list = list->next)
   {
-    ds_text_entry_free(list->c);
-    list->c = NULL;
+    g_clear_pointer(&(list->data), ds_text_entry_free);
   }
 G_OBJECT_CLASS(ds_text_parent_class)->finalize(pself);
 }
@@ -343,6 +276,7 @@ static
 void ds_text_class_dispose(GObject* pself) {
   DsText* self = DS_TEXT(pself);
   g_clear_object(&(self->font));
+  g_clear_object(&(self->pencil));
 G_OBJECT_CLASS(ds_text_parent_class)->dispose(pself);
 }
 
@@ -373,6 +307,14 @@ void ds_text_class_init(DsTextClass* klass) {
      | G_PARAM_CONSTRUCT_ONLY
      | G_PARAM_STATIC_STRINGS);
 
+  properties[prop_pencil] =
+    g_param_spec_object
+    (_TRIPLET("pencil"),
+     DS_TYPE_PENCIL,
+     G_PARAM_WRITABLE
+     | G_PARAM_CONSTRUCT_ONLY
+     | G_PARAM_STATIC_STRINGS);
+
   g_object_class_install_properties
   (oclass,
    prop_number,
@@ -397,14 +339,14 @@ ds_text_new(DsFont* provider)
 
 G_GNUC_INTERNAL
 gboolean
-_ds_font_generate_vao(DsFont         *font,
-                      const gchar    *text,
-                      vec2            position,
-                      GLuint         *pvao,
-                      GLuint         *pvbo,
-                      gsize          *pnvt,
-                      GCancellable   *cancellable,
-                      GError        **error);
+_ds_font_puts(DsFont         *font,
+              DsPencil       *pencil,
+              const gchar    *text,
+              gfloat          x,
+              gfloat          y,
+              GLuint         *pvbo,
+              gsize          *pnvt,
+              GError        **error);
 
 /**
  * ds_text_print:
@@ -442,11 +384,6 @@ ds_text_print(DsText         *text,
   gboolean success = TRUE;
   GError* tmp_err = NULL;
 
-  DsTextHandle handle = text_handle;
-  DsTextEntry* data = NULL;
-  GLuint vao = 0, vbo = 0;
-  gsize n_vertices = 0;
-
 /*
  * Generate VAO
  *
@@ -464,67 +401,8 @@ ds_text_print(DsText         *text,
     goto_error();
   }
 
-  vec2 position = {x, y};
-
-  success =
-  _ds_font_generate_vao(text->font, text_, position, &vao, &vbo, &n_vertices, cancellable, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-/*
- * Make handle
- *
- */
-
-  if(handle == NULL)
-  {
-    data =
-    g_slice_new(DsTextEntry);
-
-    text->texts =
-    (DsTextList*)
-    g_list_concat
-    (&(text->texts->list_),
-     g_list_append
-     (NULL,
-      (gpointer)
-      data));
-
-    handle =
-    (DsTextHandle)
-    data;
-  }
-  else
-  {
-    data =
-    (DsTextEntry*)
-    handle;
-
-    ds_text_entry_dispose(data);
-  }
-
-/*
- * Fill handle
- *
- */
-
-  data->vao = ds_steal_handle_id(&vao);
-  data->vbo = ds_steal_handle_id(&vbo);
-  data->nvt = n_vertices;
-  data->df = FALSE;
-
-  handle = (DsTextHandle) data;
 _error_:
-  if G_UNLIKELY(success == FALSE)
-    handle = NULL;
-  if G_UNLIKELY(vao != 0)
-    glDeleteVertexArrays(1, &vao);
-  if G_UNLIKELY(vbo != 0)
-    glDeleteBuffers(1, &vbo);
-return handle;
+return NULL;
 }
 
 /**
@@ -543,6 +421,5 @@ ds_text_unprint(DsText         *text,
                 DsTextHandle    text_handle)
 {
   g_return_if_fail(DS_TEXT(text));
-  if(text_handle != NULL)
-    ((DsTextEntry*) text_handle)->df = TRUE;
+  g_return_if_fail(text_handle != NULL);
 }

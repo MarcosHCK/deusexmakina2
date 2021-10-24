@@ -17,8 +17,8 @@
  */
 #ifndef __DS_MODEL_INCLUDED__
 #define __DS_MODEL_INCLUDED__ 1
-#include <cglm/cglm.h>
-#include <ds_renderable.h>
+#include <ds_export.h>
+#include <ds_pencil.h>
 #include <gio/gio.h>
 
 /**
@@ -57,9 +57,7 @@ typedef enum {
 typedef struct _DsModel             DsModel;
 typedef struct _DsModelPrivate      DsModelPrivate;
 typedef struct _DsModelClass        DsModelClass;
-
-typedef struct _DsModelVertex     DsModelVertex;
-typedef guint                     DsModelIndex;
+typedef         guint               DsModelIndex;
 
 G_BEGIN_DECLS
 
@@ -103,8 +101,6 @@ struct _DsModel
 struct _DsModelClass
 {
   GObjectClass parent_class;
-  /*<private>*/
-  guint vao;
 
   /*<public>*/
   gboolean (*compile) (DsModel* model, DsRenderState* state, GCancellable* cancellable, GError** error);
@@ -116,21 +112,6 @@ ds_model_error_quark();
 DEUSEXMAKINA2_API
 GType
 ds_model_get_type();
-
-struct _DsModelVertex
-{
-  vec3 position;
-  vec3 normal;
-
-  union
-  {
-    vec3 uvw;
-    vec2 uv;
-  };
-
-  vec3 tangent;
-  vec3 bitangent;
-};
 
 /*
  * Model types

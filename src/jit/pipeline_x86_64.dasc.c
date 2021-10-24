@@ -78,6 +78,7 @@
  *  }
  *
  */
+|.if DEVELOPER == "1"
 |.macro __gl_catch
 | invoke ds_gl_has_error
 | test rax, rax
@@ -88,6 +89,10 @@
 | epilogue
 |1:
 |.endmacro
+|.else
+|.macro __gl_catch
+|.endmacro
+|.endif
 
 |.macro movu, uloc
 ||if(sizeof(GLuint) > 32)

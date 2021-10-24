@@ -21,6 +21,7 @@
 #include <ds_looper.h>
 #include <ds_macros.h>
 #include <ds_mvpholder.h>
+#include <ds_pencil.h>
 #include <ds_settings.h>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
@@ -83,6 +84,7 @@ struct _DsApplicationPrivate
   GLFWwindow* window;
   GData* window_datalist;
   guint glew_init;
+  DsPencil* pencil;
 };
 
 enum {
@@ -123,7 +125,6 @@ G_DEFINE_TYPE_WITH_CODE
 #define L         (self->lua)
 #define glfw_init (self->priv->glfw_init)
 #define glew_init (self->priv->glew_init)
-#define pipeline  (self->pipeline)
 
 static gboolean
 ds_application_g_initiable_iface_init_sync(GInitable     *pself,
@@ -132,13 +133,15 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
 {
   gboolean success = TRUE;
   GError* tmp_err = NULL;
-  DsApplication* self =
-  DS_APPLICATION(pself);
+  DsApplication* self = DS_APPLICATION(pself);
+  DsApplicationPrivate* priv = self->priv;
   gint return_ = 0;
 
   DsSettings* dssettings = NULL;
   GSettings* gsettings = NULL;
   GLFWwindow* window = NULL;
+  DsPencil* pencil = NULL;
+  DsPipeline* pipeline = NULL;
   DsRenderer* renderer = NULL;
   DsEvents* events = NULL;
 
@@ -380,6 +383,23 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   }
 
 /*
+ * Pencil
+ *
+ */
+
+  pencil =
+  ds_pencil_new(&tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
+    goto_error();
+  }
+  else
+  {
+    priv->pencil = pencil;
+  }
+
+/*
  * Pipeline
  *
  */
@@ -390,6 +410,10 @@ ds_application_g_initiable_iface_init_sync(GInitable     *pself,
   {
     g_propagate_error(error, tmp_err);
     goto_error();
+  }
+  else
+  {
+    self->pipeline = pipeline;
   }
 
 /*
@@ -497,7 +521,6 @@ return success;
 #undef L
 #undef glfw_init
 #undef glew_init
-#undef pipeline
 
 static
 void ds_application_g_initiable_iface_init(GInitableIface* iface) {
@@ -598,6 +621,7 @@ void ds_application_class_dispose(GObject* pself) {
   g_clear_object(&(self->events));
   g_clear_object(&(self->renderer));
   g_clear_object(&(self->pipeline));
+  g_clear_object(&(self->priv->pencil));
   g_clear_object(&(self->priv->cache_provider));
   g_clear_object(&(self->priv->data_provider));
   g_clear_object(&(self->priv->gsettings));

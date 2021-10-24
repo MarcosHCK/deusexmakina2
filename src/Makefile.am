@@ -114,6 +114,7 @@ EXTRA_DIST+=\
 	ds_model.h \
 	ds_model_private.h \
 	ds_mvpholder.h \
+	ds_pencil.h \
 	ds_pipeline.h \
 	ds_renderable.h \
 	ds_renderer.h \
@@ -146,12 +147,12 @@ libdeus2_la_SOURCES=\
 	ds_marshals.c \
 	ds_matrix.c \
 	ds_model.c \
-	ds_model_buf.c \
 	ds_model_imp.c \
 	ds_model_tex.c \
 	ds_model_single.c \
 	ds_mvpholder.c \
 	ds_pipeline.c \
+	ds_pencil.c \
 	ds_renderable.c \
 	ds_renderer.c \
 	ds_settings.vala \

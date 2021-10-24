@@ -33,8 +33,16 @@ VOID=
 # *.dasc.c to *.c make target
 #
 
-%.c: %.dasc.c
-	$(DYNASM) -D fastcall_style=\"${fastcall_style}\" -o $(@:.dynasm.c=.c) $<
+SUFFIXES=.dasc.c .c
+
+DYNASM_CFLAGS=\
+	-D DEBUG=\"${DEBUG}\" \
+	-D DEVELOPER=\"${DEVELOPER}\" \
+	-D fastcall_style=\"${fastcall_style}\" \
+	$(VOID)
+
+.dasc.c.c:
+	$(DYNASM) $(DYNASM_CFLAGS) -o $@ $<
 
 #
 # C headers

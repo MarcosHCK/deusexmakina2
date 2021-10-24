@@ -20,6 +20,7 @@
 #include <ds_font.h>
 #include <ds_gl.h>
 #include <ds_macros.h>
+#include <ds_pencil.h>
 #include <GLFW/glfw3.h>
 
 /**
@@ -97,12 +98,6 @@ struct _DsGlyph
   vec2 start;
   vec2 uv;
   vec2 uv2;
-};
-
-struct _DsTextVertex
-{
-  vec2 xy;
-  vec2 uv;
 };
 
 /*
@@ -415,6 +410,7 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
   GError* tmp_err = NULL;
   GBytes* bytes = NULL;
   gchar* letter = NULL;
+  FT_GlyphSlot glyph;
   FT_Error ft_error;
   gfloat font_size;
   guint i;
@@ -512,7 +508,7 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
     goto_error();
   }
 
-  FT_GlyphSlot glyph = face->glyph;
+  glyph = face->glyph;
   n_glyphs = g_utf8_strlen(klass->charset, -1);
   glyphs = g_new0(DsGlyph, n_glyphs);
 
@@ -624,11 +620,11 @@ ds_font_g_initable_iface_init_sync(GInitable     *pself,
   }
 
   __gl_try_catch(
+    glGenerateMipmap(GL_TEXTURE_2D);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glGenerateMipmap(GL_TEXTURE_2D);
   ,
     g_propagate_error(error, glerror);
     goto_error();
@@ -835,22 +831,21 @@ return NULL;
 }
 
 #define n_vbox 6
-typedef DsTextVertex vbox[n_vbox];
+typedef DsPencilVertex vbox[n_vbox];
 
 G_GNUC_INTERNAL
 gboolean
-_ds_font_generate_vao(DsFont         *font,
-                      const gchar    *text,
-                      vec2            xy,
-                      GLuint         *pvao,
-                      GLuint         *pvbo,
-                      gsize          *pnvt,
-                      GCancellable   *cancellable,
-                      GError        **error)
+_ds_font_puts(DsFont         *font,
+              DsPencil       *pencil,
+              const gchar    *text,
+              gfloat          x,
+              gfloat          y,
+              GLuint         *pvbo,
+              gsize          *pnvt,
+              GError        **error)
 {
   gboolean success = TRUE;
   GError* tmp_err = NULL;
-  GLuint vao = 0;
   GLuint vbo = 0;
 
   const gchar* letter = NULL;
@@ -862,33 +857,26 @@ _ds_font_generate_vao(DsFont         *font,
 
   gsize length = g_utf8_strlen(text, -1);
   gsize n_vertices = length * 6;
-  gsize b_vertices = sizeof(DsTextVertex) * n_vertices;
+  gsize b_vertices = sizeof(DsPencilVertex) * n_vertices;
   vbox* boxes = NULL;
 
   gfloat height = 0.f;
   gfloat width = 0.f;
-  gfloat x_off = xy[0], x_st;
-  gfloat y_off = xy[1], y_st;
+  gfloat x_off = x, x_st;
+  gfloat y_off = y, y_st;
 
 /*
  * Generate vertex array
  *
  */
 
-  __gl_try_catch(
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &vbo);
-  ,
-    g_propagate_error(error, glerror);
+  success =
+  ds_pencil_bind(pencil, &tmp_err);
+  if G_UNLIKELY(tmp_err != NULL)
+  {
+    g_propagate_error(error, tmp_err);
     goto_error();
-  );
-
-  __gl_try_catch(
-    glBindVertexArray(vao);
-  ,
-    g_propagate_error(error, glerror);
-    goto_error();
-  );
+  }
 
 /*
  * Create and map vertex buffer
@@ -911,6 +899,26 @@ _ds_font_generate_vao(DsFont         *font,
     goto_error();
   );
 
+#if HAVE_MEMSET
+  memset(boxes, 0, b_vertices);
+#else // HAVE_MEMSET
+  for(i = 0;
+      i < n_vertices;
+      i++)
+  {
+    for(j = 0;
+        j < n_vbox;
+        j++)
+    {
+      glm_vec3_zero(boxes[i][j].position);
+      glm_vec3_zero(boxes[i][j].normal);
+      glm_vec3_zero(boxes[i][j].uvw);
+      glm_vec3_zero(boxes[i][j].tangent);
+      glm_vec3_zero(boxes[i][j].bitangent);
+    }
+  }
+#endif // HAVE_MEMSET
+
 /*
  * Fill vertices
  *
@@ -922,15 +930,6 @@ _ds_font_generate_vao(DsFont         *font,
   {
     char_ =
     g_utf8_get_char(letter);
-    switch(char_)
-    {
-    case '\n':
-      y_off += (gfloat) font->image_h;
-      G_GNUC_FALLTHROUGH;
-    case '\r':
-      x_off = xy[0];
-      continue;
-    }
 
     glyph =
     search_glyph(glyphs, n_glyphs, char_);
@@ -957,35 +956,35 @@ _ds_font_generate_vao(DsFont         *font,
    *
    */
 
-    boxes[i][0].xy[0] = ((x_off + x_st         ) - x_norm) / x_norm;
-    boxes[i][0].xy[1] = ((y_off + y_st + height) - y_norm) / y_norm;
-    boxes[i][0].uv[0] = glyph->uv[0];
-    boxes[i][0].uv[1] = glyph->uv[1];
+    boxes[i][0].position[0] = ((x_off + x_st         ) - x_norm) / x_norm;
+    boxes[i][0].position[1] = ((y_off + y_st + height) - y_norm) / y_norm;
+    boxes[i][0].     uvw[0] = glyph->uv[0];
+    boxes[i][0].     uvw[1] = glyph->uv[1];
 
-    boxes[i][1].xy[0] = ((x_off + x_st         ) - x_norm) / x_norm;
-    boxes[i][1].xy[1] = ((y_off + y_st         ) - y_norm) / y_norm;
-    boxes[i][1].uv[0] = glyph->uv[0];
-    boxes[i][1].uv[1] = glyph->uv2[1];
+    boxes[i][1].position[0] = ((x_off + x_st         ) - x_norm) / x_norm;
+    boxes[i][1].position[1] = ((y_off + y_st         ) - y_norm) / y_norm;
+    boxes[i][1].     uvw[0] = glyph->uv[0];
+    boxes[i][1].     uvw[1] = glyph->uv2[1];
 
-    boxes[i][2].xy[0] = ((x_off + x_st +  width) - x_norm) / x_norm;
-    boxes[i][2].xy[1] = ((y_off + y_st         ) - y_norm) / y_norm;
-    boxes[i][2].uv[0] = glyph->uv2[0];
-    boxes[i][2].uv[1] = glyph->uv2[1];
+    boxes[i][2].position[0] = ((x_off + x_st +  width) - x_norm) / x_norm;
+    boxes[i][2].position[1] = ((y_off + y_st         ) - y_norm) / y_norm;
+    boxes[i][2].     uvw[0] = glyph->uv2[0];
+    boxes[i][2].     uvw[1] = glyph->uv2[1];
 
-    boxes[i][3].xy[0] = ((x_off + x_st         ) - x_norm) / x_norm;
-    boxes[i][3].xy[1] = ((y_off + y_st + height) - y_norm) / y_norm;
-    boxes[i][3].uv[0] = glyph->uv[0];
-    boxes[i][3].uv[1] = glyph->uv[1];
+    boxes[i][3].position[0] = ((x_off + x_st         ) - x_norm) / x_norm;
+    boxes[i][3].position[1] = ((y_off + y_st + height) - y_norm) / y_norm;
+    boxes[i][3].     uvw[0] = glyph->uv[0];
+    boxes[i][3].     uvw[1] = glyph->uv[1];
 
-    boxes[i][4].xy[0] = ((x_off + x_st +  width) - x_norm) / x_norm;
-    boxes[i][4].xy[1] = ((y_off + y_st         ) - y_norm) / y_norm;
-    boxes[i][4].uv[0] = glyph->uv2[0];
-    boxes[i][4].uv[1] = glyph->uv2[1];
+    boxes[i][4].position[0] = ((x_off + x_st +  width) - x_norm) / x_norm;
+    boxes[i][4].position[1] = ((y_off + y_st         ) - y_norm) / y_norm;
+    boxes[i][4].     uvw[0] = glyph->uv2[0];
+    boxes[i][4].     uvw[1] = glyph->uv2[1];
 
-    boxes[i][5].xy[0] = ((x_off + x_st +  width) - x_norm) / x_norm;
-    boxes[i][5].xy[1] = ((y_off + y_st + height) - y_norm) / y_norm;
-    boxes[i][5].uv[0] = glyph->uv2[0];
-    boxes[i][5].uv[1] = glyph->uv[1];
+    boxes[i][5].position[0] = ((x_off + x_st +  width) - x_norm) / x_norm;
+    boxes[i][5].position[1] = ((y_off + y_st + height) - y_norm) / y_norm;
+    boxes[i][5].     uvw[0] = glyph->uv2[0];
+    boxes[i][5].     uvw[1] = glyph->uv[1];
 
     x_off += glyph->x_adv;
   }
@@ -997,32 +996,14 @@ _ds_font_generate_vao(DsFont         *font,
     goto_error();
   );
 
-  __gl_try_catch(
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(DsTextVertex), (gconstpointer) G_STRUCT_OFFSET(DsTextVertex, xy));
-  ,
-    g_propagate_error(error, glerror);
-    goto_error();
-  );
-
-  __gl_try_catch(
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(DsTextVertex), (gconstpointer) G_STRUCT_OFFSET(DsTextVertex, uv));
-  ,
-    g_propagate_error(error, glerror);
-    goto_error();
-  );
-
 _error_:
   glBindVertexArray(0);
   if G_UNLIKELY(success == FALSE)
   {
-    glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &vbo);
   }
   else
   {
-    *pvao = vao;
     *pvbo = vbo;
     *pnvt = n_vertices;
   }

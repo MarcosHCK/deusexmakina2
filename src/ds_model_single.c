@@ -146,27 +146,6 @@ ds_model_single_class_compile(DsModel* pself, DsRenderState* state, GCancellable
   }
 
 /*
- * Bind buffer objects
- *
- */
-
-  success =
-  _ds_model_compile_switch_vbo(model, state, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-  success =
-  _ds_model_compile_switch_ibo(model, state, &tmp_err);
-  if G_UNLIKELY(tmp_err != NULL)
-  {
-    g_propagate_error(error, tmp_err);
-    goto_error();
-  }
-
-/*
  * Draw meshes
  *
  */
