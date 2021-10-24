@@ -230,6 +230,16 @@ PKG_CHECK_MODULES([LUA], [luajit lua5.1 lua51])
 PKG_CHECK_MODULES([OPENGL], [opengl])
 
 #
+# Internal libraries
+#
+AC_SUBST([LIBJIT_CFLAGS], [-I\${top_builddir}/src/jit/])
+AC_SUBST([LIBJIT_LIBS], [\${top_builddir}/src/jit/libjit.la])
+AC_SUBST([LIBLUAD2_CFLAGS], [-I\${top_builddir}/src/luad/])
+AC_SUBST([LIBLUAD2_LIBS], [\${top_builddir}/src/luad/libluad2.la])
+AC_SUBST([LIBDEUS2SERVER_CFLAGS], [-I\${top_builddir}/src/simulator/])
+AC_SUBST([LIBDEUS2SERVER_LIBS], [\${top_builddir}/src/simulator/libdeus2simulator.la])
+
+#
 # Check for libraries
 #
 AC_CHECK_LIB([m], [pow])
@@ -287,6 +297,7 @@ build/Makefile
 src/Makefile
 src/luad/Makefile
 src/jit/Makefile
+src/simulator/Makefile
 src/vapi/Makefile
 settings/Makefile
 scripts/Makefile

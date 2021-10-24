@@ -42,85 +42,11 @@ EXTRA_DIST=
 VOID=
 
 #
-# Subdirectories
-#
-
-SUBDIRS=\
-	jit \
-	luad \
-	simulator \
-	vapi \
-	$(VOID)
-
-#
-# Enumerations
-#
-
-ENUM_FILES=\
-	ds_dds_fmt.h \
-	ds_gl.h \
-	$(VOID)
-
-ds_enums.c: $(ENUM_FILES) ds_enums.c.template
-	$(GLIB_MKENUMS) --symbol-prefix "ds" \
-									--identifier-prefix "Ds" \
-									--template "ds_enums.c.template" \
-									--output $@ \
-									$(ENUM_FILES)
-
-#
-# Marshals
-#
-
-ds_marshals.c: ds_marshals.list ds_marshals.h
-	$(GLIB_GENMARSHAL) --prefix "ds_cclosure_marshal" \
-										 --include-header "config.h" \
-										 --valist-marshallers \
-										 --internal \
-										 --prototypes \
-										 --body \
-										 --output $@ \
-										 ds_marshals.list
-
-ds_marshals.h: ds_marshals.list
-	$(GLIB_GENMARSHAL) --prefix "ds_cclosure_marshal" \
-										 --include-header "config.h" \
-										 --valist-marshallers \
-										 --internal \
-										 --prototypes \
-										 --header \
-										 --output $@ \
-										 ds_marshals.list
-
-#
 # C headers
 #
 
 EXTRA_DIST+=\
-	ds_application.h \
-	ds_collision_tree.h \
-	ds_dds.h \
-	ds_dds_fmt.h \
-	ds_events.h \
-	ds_export.h \
-	ds_folder_provider.h \
-	ds_font.h \
-	ds_game_object.h \
-	ds_gl.h \
-	ds_looper.h \
-	ds_macros.h \
-	ds_marshals.h \
-	ds_matrix.h \
-	ds_model.h \
-	ds_model_private.h \
-	ds_mvpholder.h \
-	ds_pipeline.h \
-	ds_renderable.h \
-	ds_renderer.h \
-	ds_settings.h \
-	ds_shader.h \
-	ds_skybox.h \
-	ds_text.h \
+	ds_saves.h \
 	ds_world.h \
 	$(VOID)
 
@@ -128,57 +54,22 @@ EXTRA_DIST+=\
 # Binaries and libraries
 #
 
-pkglib_LTLIBRARIES=libdeus2.la
-libdeus2_la_SOURCES=\
-	ds_application.c \
-	ds_basedirs.vala \
-	ds_collision_tree.c \
-	ds_dds.vala \
-	ds_enums.c \
-	ds_events.c \
-	ds_folder_provider.vala \
-	ds_font.c \
-	ds_font_cache.c \
-	ds_game_object.c \
-	ds_gl.c \
-	ds_i18n.c \
-	ds_looper.vala \
-	ds_marshals.c \
-	ds_matrix.c \
-	ds_model.c \
-	ds_model_buf.c \
-	ds_model_imp.c \
-	ds_model_tex.c \
-	ds_model_single.c \
-	ds_mvpholder.c \
-	ds_pipeline.c \
-	ds_renderable.c \
-	ds_renderer.c \
-	ds_settings.vala \
-	ds_shader.c \
-	ds_shader_cache.c \
-	ds_skybox.c \
-	ds_text.c \
+pkglib_LTLIBRARIES=libdeus2simulator.la
+libdeus2simulator_la_SOURCES=\
+	ds_saves.vala \
+	ds_world.vala \
 	$(VOID)
-libdeus2_la_CFLAGS=\
-	$(ASSIMP_CFLAGS) \
+libdeus2simulator_la_CFLAGS=\
 	$(CGLM_CFLAGS) \
-	$(FREETYPE_CFLAGS) \
 	$(GIO_CFLAGS) \
 	$(GIR_CFLAGS) \
-	$(GLEW_CFLAGS) \
-	$(GLFW_CFLAGS) \
 	$(GLIB_CFLAGS) \
 	$(GMODULE_CFLAGS) \
 	$(GOBJECT_CFLAGS) \
 	$(LIBAKASHIC_CFLAGS) \
 	$(LIBSOUP_CFLAGS) \
-	$(LIBWEBP_CFLAGS) \
 	$(LUA_CFLAGS) \
-	$(OPENGL_CFLAGS) \
-	$(LIBJIT_CFLAGS) \
 	$(LIBLUAD2_CFLAGS) \
-	-Iluad/ \
 	-DASSETSDIR=\"${assetsdir}\" \
 	-DGFXDIR=\"${gfxdir}\" \
 	-DGIRDIR=\"${girdir}\" \
@@ -195,41 +86,22 @@ libdeus2_la_CFLAGS=\
 	-Wpacked \
 	-Wimplicit-fallthrough \
 	$(VOID)
-libdeus2_la_LDFLAGS=\
+libdeus2simulator_la_LDFLAGS=\
 	-rpath ${pkglibdir} \
 	-release ${PACKAGE_RELEASE} \
 	-version-info ${PACKAGE_VERSION_MAYOR}:${PACKAGE_VERSION_MINOR}:${PACKAGE_VERSION_MICRO} \
 	$(VOID)
-libdeus2_la_LIBADD=\
-	$(ASSIMP_LIBS) \
+libdeus2simulator_la_LIBADD=\
 	$(CGLM_LIBS) \
-	$(FREETYPE_LIBS) \
 	$(GIO_LIBS) \
 	$(GIR_LIBS) \
-	$(GLEW_LIBS) \
-	$(GLFW_LIBS) \
 	$(GLIB_LIBS) \
 	$(GMODULE_LIBS) \
 	$(GOBJECT_LIBS) \
 	$(LIBAKASHIC_LIBS) \
 	$(LIBSOUP_LIBS) \
-	$(LIBWEBP_LIBS) \
 	$(LUA_LIBS) \
-	$(OPENGL_LIBS) \
-	$(LIBJIT_LIBS) \
-	$(LIBLUAD2_LIBS) \
-	$(VOID)
-
-bin_PROGRAMS=deusexmakina2
-deusexmakina2_SOURCES=\
-	ds_main.c \
-	$(VOID)
-deusexmakina2_CFLAGS=\
-	$(libdeus2_la_CFLAGS) \
-	$(VOID)
-deusexmakina2_LDADD=\
-	$(libdeus2_la_LIBADD) \
-	libdeus2.la \
+	$(LIBLUAD2_CFLAGS) \
 	$(VOID)
 
 #
@@ -251,7 +123,7 @@ VALA_VAPIS=\
 	$(VOID)
 
 AM_VALAFLAGS=\
-	--vapidir=vapi/ \
+	--vapidir=../vapi/ \
 	--hide-internal \
 	--abi-stability \
 	-D DEBUG=${DEBUG} \
